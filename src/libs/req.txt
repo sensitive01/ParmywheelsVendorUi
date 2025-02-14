@@ -1,0 +1,28 @@
+Login
+Registration
+Forgot Password
+After login
+
+Menu:
+1. Dashboard
+2. Bookings(CRUD)
+     2.1 Bookings
+     2.2 Subscriptions(Monthly/Yearly)
+3. Parking Management
+     3.1 Slots
+     3.2 Charges
+     3.3 Amenities
+     3.4 Services
+4. Transactions
+5. Payouts
+6. Profile
+7. Support
+8. Advertise
+9. Subscribe
+
+
+
+
+
+
+
