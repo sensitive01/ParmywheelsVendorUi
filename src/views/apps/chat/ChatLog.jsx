@@ -204,7 +204,7 @@
 // // // Util Imports
 // // import { getInitials } from '@/utils/getInitials'
 // // // API URL
-// // const API_URL = 'http://localhost:4000/vendor/'
+// // const API_URL = 'https://parkmywheelsapi.onrender.com/vendor/'
 // // // Formats the chat data into a structured format for display.
 // // const formatChatData = (chats, profileUser) => {
 // //   const formattedChatData = []
@@ -278,7 +278,7 @@
 // //   const fetchChats = async () => {
 // //     if (!vendorId) return
 // //     try {
-// //       const response = await axios.get(`http://localhost:4000/vendor/gethelpvendor/679b353946ad64e8db173b93`)
+// //       const response = await axios.get(`https://parkmywheelsapi.onrender.com/vendor/gethelpvendor/679b353946ad64e8db173b93`)
 // //       if (response.status === 200) {
 // //         setChats(response.data.helpRequests) // Update state with fetched chats
 // //       }
@@ -462,7 +462,7 @@
 //   const fetchMessages = async () => {
 //     try {
 //       setLoading(true)
-//       const response = await axios.get(`http://localhost:4000/vendor/gethelpvendor/${activeUser.id}`)
+//       const response = await axios.get(`https://parkmywheelsapi.onrender.com/vendor/gethelpvendor/${activeUser.id}`)
 //       const helpRequests = response.data.helpRequests || []
 //       // Extract messages from chatbox arrays
 //       const extractedMessages = helpRequests.flatMap(request =>
@@ -628,7 +628,7 @@
 //   const fetchMessages = async () => {
 //     try {
 //       setLoading(true)
-//       const response = await axios.get(`http://localhost:4000/vendor/gethelpvendor/${activeUser.id}`)
+//       const response = await axios.get(`https://parkmywheelsapi.onrender.com/vendor/gethelpvendor/${activeUser.id}`)
 //       const helpRequests = response.data.helpRequests || []
 //       const extractedMessages = helpRequests.flatMap(request =>
 //         request.chatbox.map(chat => ({
@@ -784,7 +784,7 @@ const ChatLog = ({ chatStore, isBelowLgScreen, isBelowMdScreen, isBelowSmScreen 
   const fetchMessages = async () => {
     try {
       setLoading(true)
-      const response = await axios.get(`http://localhost:4000/vendor/gethelpvendor/${activeUser.id}`)
+      const response = await axios.get(`https://parkmywheelsapi.onrender.com/vendor/gethelpvendor/${activeUser.id}`)
       const helpRequests = response.data.helpRequests || []
       const extractedMessages = helpRequests.flatMap(request =>
         request.chatbox.map(chat => ({

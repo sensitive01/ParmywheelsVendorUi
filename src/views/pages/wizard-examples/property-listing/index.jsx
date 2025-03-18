@@ -186,7 +186,7 @@ export default function ParkingBooking() {
         status: 'Pending',
         sts
       }
-      const response = await axios.post('http://localhost:4000/vendor/createbooking', payload)
+      const response = await axios.post('https://parkmywheelsapi.onrender.com/vendor/createbooking', payload)
       setAlert({
         show: true,
         message: 'Booking created successfully!',

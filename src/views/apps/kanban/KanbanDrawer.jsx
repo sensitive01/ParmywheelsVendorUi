@@ -85,7 +85,7 @@ const KanbanDrawer = props => {
         ]
       };
 
-      const response = await fetch('http://localhost:4000/vendor/charges/addparkingcharges', {
+      const response = await fetch('https://parkmywheelsapi.onrender.com/vendor/charges/addparkingcharges', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

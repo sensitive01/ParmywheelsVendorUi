@@ -38,7 +38,7 @@ const Dashboard = () => {
   }, []);
   const fetchTransactions = async () => {
     try {
-      const response = await fetch('http://localhost:4000/vendor/getbookingdata/679cbab22cd53a01b512d354');
+      const response = await fetch('https://parkmywheelsapi.onrender.com/vendor/getbookingdata/679cbab22cd53a01b512d354');
       const data = await response.json();
   
       if (data && Array.isArray(data.bookings)) {

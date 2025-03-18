@@ -7,7 +7,7 @@
 // import DialogTitle from "@mui/material/DialogTitle";
 // import TextField from "@mui/material/TextField";
 
-// const API_URL = "http://localhost:4000/vendor";
+// const API_URL = "https://parkmywheelsapi.onrender.com/vendor";
 
 // const BookingActionButton = ({ bookingId, currentStatus, onUpdate }) => {
 //     const [status, setStatus] = useState(currentStatus);
@@ -111,7 +111,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
 
-const API_URL = "http://localhost:4000/vendor";
+const API_URL = "https://parkmywheelsapi.onrender.com/vendor";
 
 const BookingActionButton = ({ bookingId, currentStatus, onUpdate }) => {
     const [status, setStatus] = useState(currentStatus);
