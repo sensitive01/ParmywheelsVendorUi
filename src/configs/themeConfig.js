@@ -16,7 +16,7 @@
  * Another way is to clear the cookie from the browser's Application/Storage tab and then reload the page.
  */
 const themeConfig = {
-  templateName: 'Park My Wheels',
+  templateName: '',
   homePageUrl: '/dashboards/crm',
   settingsCookieName: 'materialize-mui-next-demo-5',
   mode: 'light', // 'system', 'light', 'dark'

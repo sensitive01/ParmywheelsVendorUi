@@ -15,3 +15,5 @@ const ContentCompact = props => {
 }
 
 export default ContentCompact
+
+
