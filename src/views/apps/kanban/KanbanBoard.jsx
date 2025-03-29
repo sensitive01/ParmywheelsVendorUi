@@ -99,18 +99,15 @@ const ParkingChargesKanban = ({ }) => {
   useEffect(() => {
     fetchCharges();
   }, [vendorId]);
-  // [Previous imports and styled components remain the same...]
   const fetchCharges = async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/vendor/getchargesdata/${vendorId}`);
       if (!response.ok) throw new Error('Failed to fetch charges');
-      const { vendor } = await response.json(); // Destructure vendor from response
-      console.log('Vendor data:', vendor); // Debug log
+      const { vendor } = await response.json(); 
+      console.log('Vendor data:', vendor); 
       const chargesMap = {};
-      // Process the charges data from vendor.charges
       vendor.charges.forEach(charge => {
-        // Determine the label based on the type
         let label;
         if (charge.type.includes('Additional')) {
           label = 'Additional Hour';

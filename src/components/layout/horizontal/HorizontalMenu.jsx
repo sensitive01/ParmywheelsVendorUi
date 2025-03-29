@@ -170,6 +170,9 @@ const HorizontalMenu = ({ dictionary }) => {
         <MenuItem href={`/${locale}/apps/kanban`} icon={<i className='ri-drag-drop-line' />}>
             {dictionary['navigation'].kanban}
           </MenuItem>
+          <MenuItem href={`/${locale}/pages/platformfee`} icon={<i className='ri-drag-drop-line' />}>
+            {dictionary['navigation'].platformfee}
+          </MenuItem>
         <SubMenu label={dictionary['navigation'].pages} icon={<i className='ri-file-list-2-line' />}>
           <MenuItem href={`/${locale}/pages/user-profile`} icon={<i className='ri-user-line' />}>
             {dictionary['navigation'].userProfile}
