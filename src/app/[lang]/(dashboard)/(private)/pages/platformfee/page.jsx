@@ -1,277 +1,230 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import axios from 'axios'
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  TextField,
-  Typography,
-  Snackbar,
-  Alert,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Stack
-} from '@mui/material'
-import { DataGrid } from '@mui/x-data-grid'
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
-import { useParams } from 'next/navigation';
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Box, Card, CardContent, Typography, Snackbar, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import { DataGrid } from "@mui/x-data-grid";
+import { useSession } from "next-auth/react";
 
-const ParentComponent = () => {
-  const { vendorId } = useParams(); // Get vendorId from URL
-  console.log("Vendor ID from URL:", vendorId);
+const VehicleBookingTransactions = () => {
+  const { data: session, status } = useSession();
+  const [transactions, setTransactions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const getCurrentDate = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
 
-  return <VehicleBookingTransactions vendorId={vendorId} />;
-};
-
-
-const VehicleBookingTransactions = ({ vendorId }) => {
-  const router = useRouter()
-  const [transactions, setTransactions] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [dateDialogOpen, setDateDialogOpen] = useState(false)
+  const [startDate, setStartDate] = useState(getCurrentDate());
+  const [endDate, setEndDate] = useState(getCurrentDate());
   
-  // Date state with string format for direct input
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
-
   const [snackbar, setSnackbar] = useState({
     open: false,
-    message: '',
-    severity: 'success'
-  })
-
+    message: "",
+    severity: "success",
+  });
+  const formatDateForDisplay = (dateString) => {
+    if (!dateString) return "";
+    const [year, month, day] = dateString.split('-');
+    return `${day}-${month}-${year}`;
+  };
+  const getTotalReceivable = () => {
+    return transactions.reduce((total, transaction) => {
+      const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
+      return total + amount;
+    }, 0);
+  };
   useEffect(() => {
-    if (!vendorId) {
-      console.error("Vendor ID is missing");
+    if (status === "authenticated" && session?.user?.id) {
+      fetchTransactions(session.user.id, true);
+    } else if (status === "unauthenticated") {
       setSnackbar({
         open: true,
-        message: "Vendor ID is missing",
-        severity: "error",
+        message: "Please login to view your transactions",
+        severity: "warning",
       });
-      return;
     }
-  
-    fetchTransactions();
-  }, [vendorId]);
-  
-  
+  }, [status, session]);
+  const fetchTransactions = async (vendorId, dateFilter = false) => {
+    if (!vendorId) return;
 
-  const fetchTransactions = async () => {
-    if (!vendorId) return; // Prevents making the request if vendorId is missing
-  
     setIsLoading(true);
     try {
-      const response = await axios.get(`https://parkmywheelsapi.onrender.com/vendor/fetchbookingtransaction/${vendorId}`);
-  
+      let url = `https://parkmywheelsapi.onrender.com/vendor/fetchbookingtransaction/${vendorId}`;
+      if (dateFilter && startDate && endDate) {
+        url += `?startDate=${startDate}&endDate=${endDate}`;
+      }
+
+      const response = await axios.get(url);
+
       if (response.status === 200) {
-        const data = response.data.data.bookings;
-        
-        const processedTransactions = data.map(item => ({
+        const data = response.data.data.bookings.map((item, index) => ({
           id: item._id,
-          bookingDate: item.bookingDate,
-          bookingTime: item.parkingTime,
+          serialNo: index + 1,
+          bookingDate: new Date(item.bookingDate).toLocaleDateString(),
           bookingId: item._id,
-          bookingAmount: item.amount.toString(),
+          bookingAmount: `₹${item.amount}`,
           vehicleType: item.vehicleType,
-          platformFee: item.platformfee.toString(),
-          receivable: item.receivableAmount.toString(),
+          platformFee: `₹${item.platformfee}`,
+          receivable: `₹${item.receivableAmount}`,
         }));
-  
-        setTransactions(processedTransactions);
+
+        setTransactions(data);
       } else {
         setSnackbar({
           open: true,
-          message: "Error fetching transactions",
+          message: "Error fetching transactions: " + response.statusText,
           severity: "error",
         });
       }
     } catch (error) {
       setSnackbar({
         open: true,
-        message: error.response?.data?.message || "Error fetching transactions",
+        message: "Error fetching transactions: " + error.message,
         severity: "error",
       });
     } finally {
       setIsLoading(false);
     }
   };
-  
-
   const handleApplyDateFilter = () => {
-    setDateDialogOpen(false)
-  }
-
-  // Convert date string to Date object (dd-mm-yyyy format)
-  const parseDate = (dateString) => {
-    if (!dateString) return null
-    const [day, month, year] = dateString.split('-').map(Number)
-    return new Date(year, month - 1, day)
-  }
-
-  // Function to get filtered transactions based on date range
-  const getFilteredTransactions = () => {
-    if (!startDate || !endDate) return transactions
-    
-    const startDateObj = parseDate(startDate)
-    const endDateObj = parseDate(endDate)
-    
-    if (!startDateObj || !endDateObj) return transactions
-    
-    return transactions.filter(transaction => {
-      const bookingDateObj = parseDate(transaction.bookingDate)
-      if (!bookingDateObj) return false
-      
-      // Adjust the end date to include the entire day
-      const adjustedEndDate = new Date(endDateObj)
-      adjustedEndDate.setHours(23, 59, 59, 999)
-      
-      return bookingDateObj >= startDateObj && bookingDateObj <= adjustedEndDate
-    })
-  }
-
-  // Calculate total receivable amount
-  const getTotalReceivable = () => {
-    return getFilteredTransactions().reduce((sum, transaction) => {
-      return sum + parseFloat(transaction.receivable)
-    }, 0)
-  }
-
-  // DataGrid columns
-  const columns = [
-    { field: 'id', headerName: 'S.No', width: 80, valueGetter: (params) => params.api.getRowIndex(params.id) + 1 },
-    { field: 'bookingId', headerName: 'Booking ID', width: 220 },
-    { 
-      field: 'bookingAmount', 
-      headerName: 'Total Amount', 
-      width: 150,
-      valueGetter: (params) => `₹${params.value}`
-    },
-    { 
-      field: 'platformFee', 
-      headerName: 'Platform Fee', 
-      width: 150,
-      valueGetter: (params) => `₹${params.value}`
-    },
-    { 
-      field: 'receivable', 
-      headerName: 'Receivable', 
-      width: 150,
-      valueGetter: (params) => `₹${params.value}`
-    },
-    { 
-      field: 'bookingDate', 
-      headerName: 'Booking Date', 
-      width: 150
-    },
-    { 
-      field: 'vehicleType', 
-      headerName: 'Vehicle Type', 
-      width: 150
+    if (session?.user?.id) {
+      fetchTransactions(session.user.id, true);
     }
-  ]
+    setDateDialogOpen(false);
+  };
+  const handleClearFilters = () => {
+    const currentDate = getCurrentDate();
+    setStartDate(currentDate);
+    setEndDate(currentDate);
+    if (session?.user?.id) {
+      fetchTransactions(session.user.id, true);
+    }
+    setDateDialogOpen(false);
+  };
 
-  // Get filtered transactions
-  const filteredData = getFilteredTransactions()
+  const columns = [
+    { field: "serialNo", headerName: "S.No", width: 80 },
+    { field: "bookingId", headerName: "Booking ID", width: 220 },
+    { field: "bookingAmount", headerName: "Total Amount", width: 150 },
+    { field: "platformFee", headerName: "Platform Fee", width: 150 },
+    { field: "receivable", headerName: "Receivable", width: 150 },
+    // { field: "bookingDate", headerName: "Booking Date", width: 150 },
+    // { field: "vehicleType", headerName: "Vehicle Type", width: 150 },
+  ];
 
   return (
-    <Box sx={{ backgroundColor: '#f4f4f4', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 2 }}>
-      <Card sx={{ width: '100%', maxWidth: 900, borderRadius: 3 }}>
+    <Box sx={{ backgroundColor: "#f4f4f4", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", padding: 2 }}>
+      <Card sx={{ width: "100%", maxWidth: 900, borderRadius: 3, boxShadow: 3 }}>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h5" component="h1" sx={{ mb: 3, textAlign: 'center' }}>
-            Booking Transactions
+            Booking Transactions 
+            {/* {session?.user?.id && (
+              <Typography component="span" color="text.secondary" fontSize="0.8em">
+                {` (Vendor: ${session.user.id.substr(0, 8)}...)`}
+              </Typography>
+            )} */}
           </Typography>
           
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Button 
+              variant="outlined" 
+              startIcon={<CalendarMonthIcon />}
+              onClick={() => setDateDialogOpen(true)}
+              size="small"
+            >
+              Filter Dates
+            </Button>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Button 
-                variant="outlined" 
-                startIcon={<CalendarMonthIcon />}
-                onClick={() => setDateDialogOpen(true)}
-              >
-                {startDate && endDate 
-                  ? `${startDate} to ${endDate}` 
-                  : 'Select Date Range'}
-              </Button>
-              
               <Box sx={{ 
                 bgcolor: '#f5f5f5', 
-                padding: '8px 16px', 
+                padding: '6px 12px', 
                 borderRadius: 1,
                 border: '1px solid #e0e0e0'
               }}>
-                <Typography variant="body1" fontWeight="bold" color="#329a73">
+                <Typography variant="body2" fontWeight="bold" color="#329a73">
                   Total: ₹{getTotalReceivable().toFixed(2)}
+                </Typography>
+              </Box>
+              <Box sx={{ 
+                bgcolor: '#f0f8ff', 
+                padding: '6px 12px', 
+                borderRadius: 1,
+                border: '1px solid #e0e0e0'
+              }}>
+                <Typography variant="body2" fontWeight="medium" color="#1976d2">
+                  {`${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`}
                 </Typography>
               </Box>
             </Box>
           </Box>
           
-          <DataGrid 
-            rows={filteredData} 
-            columns={columns} 
-            pageSize={5}
-            rowsPerPageOptions={[5, 10, 20]}
-            checkboxSelection
-            loading={isLoading}
-            disableSelectionOnClick
-            autoHeight
-            sx={{
-              '& .MuiDataGrid-columnHeaders': {
-                backgroundColor: '#329a73',
-                color: 'white'
-              },
-              mb: 2
-            }}
-          />
-          
-          {/* Simple Date Range Dialog */}
+          {status === "loading" || isLoading ? (
+            <Typography sx={{ textAlign: "center", color: "gray" }}>Loading transactions...</Typography>
+          ) : status === "unauthenticated" ? (
+            <Typography sx={{ textAlign: "center", color: "gray" }}>Please login to view your transactions</Typography>
+          ) : transactions.length === 0 ? (
+            <Typography sx={{ textAlign: "center", color: "gray" }}>No transactions found.</Typography>
+          ) : (
+            <DataGrid 
+              rows={transactions} 
+              columns={columns}
+              pageSizeOptions={[5, 10, 20]}
+              initialState={{
+                pagination: { paginationModel: { pageSize: 5 } },
+              }}
+              autoHeight
+              sx={{
+                "& .MuiDataGrid-columnHeaders": { backgroundColor: "#329a73", color: "black" },
+                mb: 2,
+                borderRadius: 2,
+              }}
+            />
+          )}
           <Dialog open={dateDialogOpen} onClose={() => setDateDialogOpen(false)}>
-            <DialogTitle>Select Date Range</DialogTitle>
+            <DialogTitle>Filter Transactions by Date</DialogTitle>
             <DialogContent>
-              <Stack spacing={3} sx={{ mt: 2, minWidth: '300px' }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, minWidth: '300px' }}>
                 <TextField
-                  label="Start Date (DD-MM-YYYY)"
+                  label="Start Date"
+                  type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  fullWidth
-                  placeholder="DD-MM-YYYY"
-                  sx={{ mb: 2 }}
                   InputLabelProps={{ shrink: true }}
+                  fullWidth
                 />
                 <TextField
-                  label="End Date (DD-MM-YYYY)"
+                  label="End Date"
+                  type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  fullWidth
-                  placeholder="DD-MM-YYYY"
                   InputLabelProps={{ shrink: true }}
+                  fullWidth
                 />
-              </Stack>
+              </Box>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setDateDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleApplyDateFilter} variant="contained" sx={{ mt: 2, borderRadius: 2, py: 1.5 }}>
+              <Button onClick={handleClearFilters} color="secondary">
+                Reset to Today
+              </Button>
+              <Button onClick={handleApplyDateFilter} color="primary" variant="contained">
                 Apply
               </Button>
             </DialogActions>
           </Dialog>
-          
+
           <Snackbar 
             open={snackbar.open} 
             autoHideDuration={6000} 
-            onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
-            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+            anchorOrigin={{ vertical: "top", horizontal: "right" }}
           >
             <Alert 
-              onClose={() => setSnackbar(prev => ({ ...prev, open: false }))} 
+              onClose={() => setSnackbar({ ...snackbar, open: false })} 
               severity={snackbar.severity} 
-              sx={{ width: '100%' }}
+              sx={{ width: "100%" }}
             >
               {snackbar.message}
             </Alert>
@@ -279,7 +232,7 @@ const VehicleBookingTransactions = ({ vendorId }) => {
         </CardContent>
       </Card>
     </Box>
-  )
-}
+  );
+};
 
-export default VehicleBookingTransactions
+export default VehicleBookingTransactions;

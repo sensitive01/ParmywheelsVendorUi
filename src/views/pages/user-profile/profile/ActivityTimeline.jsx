@@ -119,6 +119,7 @@ const Timeline = styled(MuiTimeline)({
 const ActivityTimeline = () => {
   const { data: session } = useSession()
   const user = session?.user
+  console.log(user)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
   const [mapLoaded, setMapLoaded] = useState(false)
