@@ -63,10 +63,10 @@ const VehicleBookingTransactions = () => {
         const data = response.data.data.bookings.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
-          bookingDate: new Date(item.bookingDate).toLocaleDateString(),
+          // bookingDate: new Date(item.bookingDate).toLocaleDateString(),
           bookingId: item._id,
           bookingAmount: `₹${item.amount}`,
-          vehicleType: item.vehicleType,
+          // vehicleType: item.vehicleType,
           platformFee: `₹${item.platformfee}`,
           receivable: `₹${item.receivableAmount}`,
         }));
