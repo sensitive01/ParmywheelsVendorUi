@@ -211,7 +211,7 @@ return Object.keys(newErrors).length === 0
         bookingTime: parkingTime,
         tenditivecheckout: tentativeCheckout,
         subsctiptiontype: sts === 'Subscription' ? subscriptionType : '',
-        status: 'Pending',
+        status: 'PENDING',
         sts
       }
 
