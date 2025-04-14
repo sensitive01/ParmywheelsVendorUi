@@ -1,10 +1,12 @@
 'use client'
+
 // MUI Imports
 import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
 import { useSession } from 'next-auth/react'
+
 const renderList = list => {
   return (
     list?.length > 0 &&
@@ -13,7 +15,9 @@ const renderList = list => {
         typeof item.value === 'object'
           ? Object.values(item.value).join(' | ') // Convert object to string format
           : String(item.value || 'N/A') // Convert primitive values safely
-      return (
+
+      
+return (
         <div key={index} className='flex items-center gap-2'>
           <i className={item.icon} />
           <div className='flex items-center flex-wrap gap-2'>
@@ -27,6 +31,7 @@ const renderList = list => {
     })
   )
 }
+
 const renderTeams = teams => {
   return (
     teams?.length > 0 &&
@@ -35,7 +40,9 @@ const renderTeams = teams => {
         typeof item.value === 'object'
           ? Object.values(item.value).join(' | ') // Convert object to string format
           : String(item.value || 'N/A')
-      return (
+
+      
+return (
         <div key={index} className='flex items-center flex-wrap gap-2'>
           <Typography className='font-medium'>
             {item.property.charAt(0).toUpperCase() + item.property.slice(1)}
@@ -46,9 +53,11 @@ const renderTeams = teams => {
     })
   )
 }
+
 const AboutOverview = () => {
   const { data: session } = useSession()
   const user = session?.user
+
   const data = user
     ? {
       about: [
@@ -73,7 +82,9 @@ const AboutOverview = () => {
       ]
     }
     : {}
-  return (
+
+  
+return (
     <Grid container spacing={6}>
       <Grid item xs={12}>
         <Card>
@@ -114,4 +125,5 @@ const AboutOverview = () => {
     </Grid>
   )
 }
+
 export default AboutOverview

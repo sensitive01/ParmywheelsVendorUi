@@ -1,17 +1,22 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+
 import { useSession } from 'next-auth/react'
 import {  Box,  Card,  CardContent,  Typography,  Button,  TextField,  FormControl,  InputLabel,  Select,  MenuItem,  Alert,  Paper,  Fade,  Grow,  Tabs,  Tab,  useMediaQuery,  useTheme,  CircularProgress,} from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {  Add as AddIcon,  Edit as EditIcon,  Save as SaveIcon,  Close as CloseIcon,  AccessTime as ClockIcon,} from '@mui/icons-material';
+
 const categories = ['Car', 'Bike', 'Others'];
 const labels = ['Minimum Charges', 'Full Day', 'Additional Hour', 'Monthly'];
+
 const typesByLabel = {
   'Minimum Charges': ['0 to 1 hours', '0 to 2 hours', '0 to 3 hours', '0 to 4 hour'],
   'Additional Hour': ['Additional 0 to 1 hours', 'Additional 0 to 2 hours', 'Additional 0 to 3 hours', '0 to 4 hour'],
   'Full Day': ['Full Day'],
   'Monthly': ['Monthly'],
 };
+
+
 // Styled components remain the same...
 // Styled components with responsive design
 const KanbanColumn = styled(Paper)(({ theme }) => ({
@@ -30,6 +35,7 @@ const KanbanColumn = styled(Paper)(({ theme }) => ({
     },
   },
 }));
+
 const StyledCard = styled(Card)(({ theme }) => ({
   marginBottom: theme.spacing(2),
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -43,6 +49,7 @@ const StyledCard = styled(Card)(({ theme }) => ({
     },
   },
 }));
+
 const RateDisplay = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.primary.light,
   padding: theme.spacing(2),
@@ -63,6 +70,7 @@ const RateDisplay = styled(Box)(({ theme }) => ({
     },
   },
 }));
+
 const KanbanContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   gap: theme.spacing(3),
@@ -70,6 +78,7 @@ const KanbanContainer = styled(Box)(({ theme }) => ({
     flexDirection: 'column',
   },
 }));
+
 const TabPanel = ({ children, value, index, ...other }) => (
   <div
     role="tabpanel"
@@ -83,6 +92,7 @@ const TabPanel = ({ children, value, index, ...other }) => (
     </Fade>
   </div>
 );
+
 const ParkingChargesKanban = ({ }) => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL
   const theme = useTheme();
@@ -94,21 +104,28 @@ const ParkingChargesKanban = ({ }) => {
   const [editStates, setEditStates] = useState({});
   const [loading, setLoading] = useState(true);
   const { data: session } = useSession()
+
   // const vendorId = '679cbab22cd53a01b512d354'
   const vendorId = session?.user?.id
+
   useEffect(() => {
     fetchCharges();
   }, [vendorId]);
+
   const fetchCharges = async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/vendor/getchargesdata/${vendorId}`);
+
       if (!response.ok) throw new Error('Failed to fetch charges');
-      const { vendor } = await response.json(); 
+      const { vendor } = await response.json();
+ 
       console.log('Vendor data:', vendor); 
       const chargesMap = {};
+
       vendor.charges.forEach(charge => {
         let label;
+
         if (charge.type.includes('Additional')) {
           label = 'Additional Hour';
         } else if (charge.type.includes('Full Day')) {
@@ -118,8 +135,11 @@ const ParkingChargesKanban = ({ }) => {
         } else {
           label = 'Minimum Charges';
         }
+
+
         // Create a key using category and label
         const key = `${charge.category}-${label}`;
+
         console.log('Processing charge:', key, charge); // Debug log
         chargesMap[key] = {
           ...charge,
@@ -136,34 +156,46 @@ const ParkingChargesKanban = ({ }) => {
       setLoading(false);
     }
   };
+
+
   // [Rest of the component code remains the same...]
   const handleSave = async (category, label, type, amount) => {
     try {
       if (!type || !amount) {
         throw new Error('Please enter both type and amount');
       }
+
+
       // Generate a charge ID
       const chargeid = `${category}-${label}`.toLowerCase();
+
       const chargeData = {
         type,
         amount,
         category,
         chargeid
       };
+
+
       // Format payload to match API expectations
       const payload = {
         vendorid: vendorId, // Changed from vendorId to vendorid to match API
         charges: [chargeData]
       };
+
       const response = await fetch(`${API_URL}/vendor/addparkingcharges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+
       if (!response.ok) {
         const errorData = await response.json();
+
         throw new Error(errorData.message || 'Failed to save charges');
       }
+
+
       // Refresh charges after saving
       await fetchCharges();
       setEditStates(prev => ({
@@ -178,11 +210,13 @@ const ParkingChargesKanban = ({ }) => {
       setTimeout(() => setError(''), 3000);
     }
   };
+
   const ChargeCard = ({ category, label }) => {
     const [formData, setFormData] = useState({
       type: charges[`${category}-${label}`]?.type || '',
       amount: charges[`${category}-${label}`]?.amount || ''
     });
+
     useEffect(() => {
       // Update form data when charges change
       setFormData({
@@ -193,7 +227,9 @@ const ParkingChargesKanban = ({ }) => {
     const isEditing = editStates[`${category}-${label}`];
     const hasValue = `${category}-${label}` in charges;
     const charge = charges[`${category}-${label}`];
-    return (
+
+    
+return (
       <Grow in={true} timeout={300}>
         <StyledCard>
           <CardContent>
@@ -298,6 +334,7 @@ const ParkingChargesKanban = ({ }) => {
       </Grow>
     );
   };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
@@ -305,7 +342,9 @@ const ParkingChargesKanban = ({ }) => {
       </Box>
     );
   }
-  return (
+
+  
+return (
     <Box sx={{ p: { xs: 2, sm: 4 } }}>
       <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
         Parking Charges Management
@@ -371,4 +410,5 @@ const ParkingChargesKanban = ({ }) => {
     </Box>
   );
 };
+
 export default ParkingChargesKanban;

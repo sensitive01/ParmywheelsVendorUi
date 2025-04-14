@@ -1,5 +1,7 @@
 // React Imports
 import { useState } from 'react'
+
+
 // MUI Imports
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -10,14 +12,20 @@ import Tooltip from '@mui/material/Tooltip'
 import IconButton from '@mui/material/IconButton'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
+
 // Third-Party Imports
 import classnames from 'classnames'
+
+
 // Slice Imports
 import { getCurrentTask, deleteTask } from '@/redux-store/slices/kanban'
+
 // Component Imports
 import CustomAvatar from '@core/components/mui/Avatar'
+
 // Styles Imports
 import styles from './styles.module.css'
+
 export const chipColor = {
   UX: { color: 'success' },
   'Code Review': { color: 'error' },
@@ -26,27 +34,37 @@ export const chipColor = {
   App: { color: 'secondary' },
   'Charts & Map': { color: 'primary' }
 }
+
 const TaskCard = props => {
   // Props
   const { task, dispatch, column, setColumns, columns, setDrawerOpen, tasksList, setTasksList } = props
+
   // States
   const [anchorEl, setAnchorEl] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
+
+
   // Handle menu click
   const handleClick = e => {
     setMenuOpen(true)
     setAnchorEl(e.currentTarget)
   }
+
+
   // Handle menu close
   const handleClose = () => {
     setAnchorEl(null)
     setMenuOpen(false)
   }
+
+
   // Handle Task Click
   const handleTaskClick = () => {
     setDrawerOpen(true)
     dispatch(getCurrentTask(task.id))
   }
+
+
   // Delete Task
   const handleDeleteTask = () => {
     dispatch(deleteTask(task.id))
@@ -54,14 +72,19 @@ const TaskCard = props => {
     const newTaskIds = column.taskIds.filter(taskId => taskId !== task.id)
     const newColumn = { ...column, taskIds: newTaskIds }
     const newColumns = columns.map(col => (col.id === column.id ? newColumn : col))
+
     setColumns(newColumns)
   }
+
+
   // Handle Delete
   const handleDelete = () => {
     handleClose()
     handleDeleteTask()
   }
-  return (
+
+  
+return (
     <>
       <Card
         className={classnames(
@@ -161,6 +184,7 @@ const TaskCard = props => {
     </>
   )
 }
+
 export default TaskCard
 
 

@@ -1,5 +1,7 @@
 // Third-party Imports
 import { createSlice } from '@reduxjs/toolkit'
+
+
 // Initial State
 const initialState = {
   events: [], // Start with an empty array as events will be fetched from API
@@ -7,10 +9,13 @@ const initialState = {
   selectedEvent: null,
   selectedCalendars: ['Sales', 'Marketing', 'Finance', 'Product', 'Operations']
 }
+
+
 // Function to filter events based on selected calendars
 const filterEventsUsingCheckbox = (events, selectedCalendars) => {
   return events.filter(event => selectedCalendars.includes(event.extendedProps?.calendar))
 }
+
 export const calendarSlice = createSlice({
   name: 'calendar',
   initialState: initialState,
@@ -19,6 +24,7 @@ export const calendarSlice = createSlice({
     filterEvents: state => {
       state.filteredEvents = state.events
     },
+
     // Action for adding a single event (from API or manually created)
     addEvent: (state, action) => {
       const newEvent = {
@@ -33,9 +39,12 @@ export const calendarSlice = createSlice({
           guests: action.payload.guests || [] // Optional list of guests
         }
       };
+
+
       // Add the new event to the events array
       state.events.push(newEvent);
     },
+
     // Action for updating an existing event
     updateEvent: (state, action) => {
       state.events = state.events.map(event => {
@@ -56,30 +65,38 @@ export const calendarSlice = createSlice({
         }
       });
     },
+
     // Action for deleting an event
     deleteEvent: (state, action) => {
       state.events = state.events.filter(event => event.id !== action.payload)
     },
+
     // Action for selecting an event (likely for viewing/editing)
     selectedEvent: (state, action) => {
       state.selectedEvent = action.payload
     },
+
     // Action for toggling calendar labels (e.g., Personal, Business, etc.)
     filterCalendarLabel: (state, action) => {
       const index = state.selectedCalendars.indexOf(action.payload)
+
       if (index !== -1) {
         state.selectedCalendars.splice(index, 1)
       } else {
         state.selectedCalendars.push(action.payload)
       }
+
+
       // Apply the selected filters to events
       state.events = filterEventsUsingCheckbox(state.filteredEvents, state.selectedCalendars)
     },
+
     // Action to filter all calendar labels (either show all or none)
     filterAllCalendarLabels: (state, action) => {
       state.selectedCalendars = action.payload ? ['Sales', 'Marketing', 'Finance', 'Product', 'Operations'] : []
       state.events = filterEventsUsingCheckbox(state.filteredEvents, state.selectedCalendars)
     },
+
     // Action to set the fetched events from API to the store
     setFetchedEvents: (state, action) => {
       state.events = action.payload;
@@ -87,6 +104,7 @@ export const calendarSlice = createSlice({
     }
   }
 });
+
 // Export actions
 export const {
   filterEvents,
@@ -98,5 +116,6 @@ export const {
   filterAllCalendarLabels,
   setFetchedEvents // This action should be included here
 } = calendarSlice.actions;
+
 // Export reducer
 export default calendarSlice.reducer;

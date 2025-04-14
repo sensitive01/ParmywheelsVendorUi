@@ -183,18 +183,25 @@
 // }
 // export default WeeklySalesBg
 'use client'
+
 // MUI Imports
 import { useEffect, useState } from 'react'
+
 import { useSession } from 'next-auth/react'
 
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
+
+
 // Components Imports
+import axios from 'axios'
+
 import OptionMenu from '@core/components/option-menu'
 import CustomAvatar from '@core/components/mui/Avatar'
-import axios from 'axios'
+
+
 // Vars
 const Sales = () => {
   const [data, setData] = useState([
@@ -203,11 +210,14 @@ const Sales = () => {
     { stats: '0', color: 'info', title: 'Bike Slots', icon: 'ri-motorbike-line' },
     { stats: '0', color: 'primary', title: 'Other Slots', icon: 'ri-user-star-line' }
   ])
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL
   const { data: session } = useSession()
   const vendorid = session?.user?.id
+
   useEffect(() => {
     if (!vendorid) return // Prevent API call if vendorid is undefined
+
     const fetchData = async () => {
       try {
         const response = await axios.get(`${API_URL}/vendor/bookedslots/${vendorid}`)
@@ -231,6 +241,7 @@ const Sales = () => {
     <Card>
       <CardHeader
         title='Booked Slot'
+
         // action={<OptionMenu options={['Refresh', 'Share', 'Update']} />}
         subheader={
           <div className='flex items-center gap-2'>

@@ -1,10 +1,14 @@
 // React Imports
 import { useEffect, useState } from 'react'
+
+
 // MUI Imports
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import CardContent from '@mui/material/CardContent'
+
+
 // Component Imports
 import OptionMenu from '@core/components/option-menu'
 import AvatarWithBadge from './AvatarWithBadge'
@@ -13,6 +17,8 @@ import ChatLog from './ChatLog'
 import SendMsgForm from './SendMsgForm'
 import UserProfileRight from './UserProfileRight'
 import CustomAvatar from '@core/components/mui/Avatar'
+
+
 // Renders the user avatar with badge and user information
 const UserAvatar = ({ activeUser, setUserProfileLeftOpen, setBackdropOpen }) => (
   <div
@@ -37,6 +43,7 @@ const UserAvatar = ({ activeUser, setUserProfileLeftOpen, setBackdropOpen }) => 
     </div>
   </div>
 )
+
 const ChatContent = props => {
   // Props
   const {
@@ -50,9 +57,13 @@ const ChatContent = props => {
     isBelowLgScreen,
     messageInputRef
   } = props
+
   const { activeUser } = chatStore
+
   // States
   const [userProfileRightOpen, setUserProfileRightOpen] = useState(false)
+
+
   // Close user profile right drawer if backdrop is closed and user profile right drawer is open
   useEffect(() => {
     if (!backdropOpen && userProfileRightOpen) {
@@ -60,7 +71,8 @@ const ChatContent = props => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backdropOpen])
-  return !chatStore.activeUser ? (
+  
+return !chatStore.activeUser ? (
     <CardContent className='flex flex-col flex-auto items-center justify-center bs-full gap-[18px]'>
       <CustomAvatar variant='circular' size={98} color='primary' skin='light'>
         <i className='ri-wechat-line text-[50px]' />
@@ -188,4 +200,5 @@ const ChatContent = props => {
     </>
   )
 }
+
 export default ChatContent

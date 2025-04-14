@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+
 import axios from "axios";
 import { Box, Card, CardContent, Typography, Snackbar, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
@@ -12,9 +13,12 @@ const VehicleBookingTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
+
   const getCurrentDate = () => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+
+    
+return today.toISOString().split('T')[0];
   };
 
   const [startDate, setStartDate] = useState(getCurrentDate());
@@ -25,17 +29,24 @@ const VehicleBookingTransactions = () => {
     message: "",
     severity: "success",
   });
+
   const formatDateForDisplay = (dateString) => {
     if (!dateString) return "";
     const [year, month, day] = dateString.split('-');
-    return `${day}-${month}-${year}`;
+
+    
+return `${day}-${month}-${year}`;
   };
+
   const getTotalReceivable = () => {
     return transactions.reduce((total, transaction) => {
       const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
-      return total + amount;
+
+      
+return total + amount;
     }, 0);
   };
+
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id) {
       fetchTransactions(session.user.id, true);
@@ -47,12 +58,15 @@ const VehicleBookingTransactions = () => {
       });
     }
   }, [status, session]);
+
   const fetchTransactions = async (vendorId, dateFilter = false) => {
     if (!vendorId) return;
 
     setIsLoading(true);
+
     try {
       let url = `https://parkmywheelsapi.onrender.com/vendor/fetchbookingtransaction/${vendorId}`;
+
       if (dateFilter && startDate && endDate) {
         url += `?startDate=${startDate}&endDate=${endDate}`;
       }
@@ -63,9 +77,11 @@ const VehicleBookingTransactions = () => {
         const data = response.data.data.bookings.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
+
           // bookingDate: new Date(item.bookingDate).toLocaleDateString(),
           bookingId: item._id,
           bookingAmount: `₹${item.amount}`,
+
           // vehicleType: item.vehicleType,
           platformFee: `₹${item.platformfee}`,
           receivable: `₹${item.receivableAmount}`,
@@ -89,19 +105,25 @@ const VehicleBookingTransactions = () => {
       setIsLoading(false);
     }
   };
+
   const handleApplyDateFilter = () => {
     if (session?.user?.id) {
       fetchTransactions(session.user.id, true);
     }
+
     setDateDialogOpen(false);
   };
+
   const handleClearFilters = () => {
     const currentDate = getCurrentDate();
+
     setStartDate(currentDate);
     setEndDate(currentDate);
+
     if (session?.user?.id) {
       fetchTransactions(session.user.id, true);
     }
+
     setDateDialogOpen(false);
   };
 
@@ -111,6 +133,7 @@ const VehicleBookingTransactions = () => {
     { field: "bookingAmount", headerName: "Total Amount", width: 150 },
     { field: "platformFee", headerName: "Platform Fee", width: 150 },
     { field: "receivable", headerName: "Receivable", width: 150 },
+
     // { field: "bookingDate", headerName: "Booking Date", width: 150 },
     // { field: "vehicleType", headerName: "Vehicle Type", width: 150 },
   ];

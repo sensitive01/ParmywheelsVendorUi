@@ -53,6 +53,7 @@
 
 'use client'
 import React, { useState } from 'react';
+
 import { useSession } from "next-auth/react";
 import { 
   Box,
@@ -171,9 +172,11 @@ const KycForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!vendorId) {
       setError('Vendor ID not found in session');
-      return;
+      
+return;
     }
 
     setLoading(true);
@@ -181,6 +184,7 @@ const KycForm = () => {
 
     try {
       const formDataToSend = new FormData();
+
       formDataToSend.append('vendorId', vendorId);
       
       Object.keys(formData).forEach(key => {
@@ -190,6 +194,7 @@ const KycForm = () => {
       if (images.idProofImage) {
         formDataToSend.append('idProofImage', images.idProofImage);
       }
+
       if (images.addressProofImage) {
         formDataToSend.append('addressProofImage', images.addressProofImage);
       }

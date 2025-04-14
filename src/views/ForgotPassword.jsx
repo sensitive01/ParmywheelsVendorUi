@@ -1,21 +1,26 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+
+import { useRouter , useParams } from 'next/navigation';
 import Link from 'next/link';
+
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
+
+import classnames from 'classnames';
+
+import Grid from '@mui/material/Grid2';
+
 import Logo from '@components/layout/shared/Logo';
 import DirectionalIcon from '@components/DirectionalIcon';
 import { useImageVariant } from '@core/hooks/useImageVariant';
 import { useSettings } from '@core/hooks/useSettings';
 import { getLocalizedUrl } from '@/utils/i18n';
-import classnames from 'classnames';
-import { useParams } from 'next/navigation';
-import Grid from '@mui/material/Grid2';
+
 
 const ForgotPasswordV2 = ({ mode }) => {
   const router = useRouter();
@@ -28,6 +33,7 @@ const ForgotPasswordV2 = ({ mode }) => {
   const { settings } = useSettings();
   const { lang: locale } = useParams();
   const authBackground = useImageVariant(mode, lightImg, darkImg);
+
   const characterIllustration = useImageVariant(
     mode,
     lightIllustration,
@@ -35,6 +41,7 @@ const ForgotPasswordV2 = ({ mode }) => {
     borderedLightIllustration,
     borderedDarkIllustration
   );
+
   const [mobile, setMobile] = useState('');
   const [otp, setOtp] = useState('');
   const [showOtpField, setShowOtpField] = useState(false);
@@ -45,13 +52,16 @@ const ForgotPasswordV2 = ({ mode }) => {
   const startResendCountdown = () => {
     setResendDisabled(true);
     setCountdown(10);
+
     const interval = setInterval(() => {
       setCountdown(prev => {
         if (prev === 1) {
           clearInterval(interval);
           setResendDisabled(false);
         }
-        return prev - 1;
+
+        
+return prev - 1;
       });
     }, 1000);
   };
@@ -63,7 +73,9 @@ const ForgotPasswordV2 = ({ mode }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile }),
       });
+
       const data = await response.json();
+
       if (response.ok) {
         setShowOtpField(true);
         setAlert({ open: true, message: `OTP Sent: ${data.otp}`, severity: 'success' });
@@ -79,13 +91,16 @@ const ForgotPasswordV2 = ({ mode }) => {
 
   const handleResendOtp = async () => {
     startResendCountdown();
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/forgotpassword`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mobile }),
       });
+
       const data = await response.json();
+
       if (response.ok) {
         setAlert({ open: true, message: `OTP Resent: ${data.otp}`, severity: 'success' });
       } else {
@@ -103,7 +118,9 @@ const ForgotPasswordV2 = ({ mode }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ otp }),
       });
+
       const data = await response.json();
+
       if (response.ok) {
         setAlert({ open: true, message: data.message, severity: 'success' });
         router.push('/en/pages/auth/reset-password-v2');

@@ -454,6 +454,7 @@
 
 'use client'
 import { useState, useEffect } from 'react'
+
 import { useSession } from 'next-auth/react'
 import { DataGrid } from '@mui/x-data-grid'
 import Grid from '@mui/material/Grid'
@@ -470,8 +471,10 @@ import Chip from '@mui/material/Chip'
 import Checkbox from '@mui/material/Checkbox'
 import ListItemText from '@mui/material/ListItemText'
 import EditIcon from '@mui/icons-material/Edit'
-import CustomIconButton from '@core/components/mui/IconButton'
+
 import Stack from '@mui/material/Stack'
+
+import CustomIconButton from '@core/components/mui/IconButton'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -530,9 +533,11 @@ const ProductVariants = () => {
 
   const fetchAmenitiesData = async () => {
     setIsLoading(true)
+
     try {
       const response = await fetch(`${API_URL}/vendor/getamenitiesdata/${vendorId}`)
       const data = await response.json()
+
       if (data?.AmenitiesData) {
         setSavedData(data.AmenitiesData)
         setShowForm(false)
@@ -550,6 +555,7 @@ const ProductVariants = () => {
 
   const handleParkingEntryChange = (index, field, value) => {
     const updatedEntries = [...parkingEntries]
+
     updatedEntries[index][field] = value
     setParkingEntries(updatedEntries)
   }
@@ -560,6 +566,7 @@ const ProductVariants = () => {
 
   const deleteParkingEntry = index => {
     const updatedEntries = parkingEntries.filter((_, i) => i !== index)
+
     setParkingEntries(updatedEntries)
   }
 
@@ -575,6 +582,8 @@ const ProductVariants = () => {
   const handleCancel = () => {
     setShowForm(false)
     setIsEditMode(false)
+
+
     // Reset form data to saved state
     if (savedData) {
       setAmenities(savedData.amenities || [])
@@ -601,6 +610,7 @@ const ProductVariants = () => {
       })
       
       const data = await response.json()
+
       if (data?.AmenitiesData) {
         setSavedData(data.AmenitiesData)
         setShowForm(false)

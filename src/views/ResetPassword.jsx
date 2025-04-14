@@ -1,27 +1,39 @@
 'use client'
+
 // React Imports
 import { useEffect, useState } from 'react'
+
+
 // Next Imports
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+
+
 // MUI Imports
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
 import Button from '@mui/material/Button'
+
 // Third-party Imports
 import classnames from 'classnames'
+
+
 // Component Imports
+import axios from 'axios'
+
 import DirectionalIcon from '@components/DirectionalIcon'
 import Logo from '@components/layout/shared/Logo'
+
 // Hook Imports
 import { useImageVariant } from '@core/hooks/useImageVariant'
 import { useSettings } from '@core/hooks/useSettings'
+
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n'
+
 // Axios for API calls
-import axios from 'axios'
 
 const ResetPasswordV2 = ({ mode }) => {
   // States
@@ -41,17 +53,22 @@ const ResetPasswordV2 = ({ mode }) => {
   const lightIllustration = '/images/illustrations/auth/v2-reset-password-light.png'
   const borderedDarkIllustration = '/images/illustrations/auth/v2-reset-password-dark-border.png'
   const borderedLightIllustration = '/images/illustrations/auth/v2-reset-password-light-border.png'
+
+
   // Fetch mobile number from localStorage
   useEffect(() => {
     const storedMobile = localStorage.getItem('vendor-mobile')
+
     if (storedMobile) {
       setMobile(storedMobile)
     }
   }, [])
+
   // Hooks
   const { lang: locale } = useParams()
   const { settings } = useSettings()
   const authBackground = useImageVariant(mode, lightImg, darkImg)
+
   const characterIllustration = useImageVariant(
     mode,
     lightIllustration,
@@ -68,7 +85,8 @@ const ResetPasswordV2 = ({ mode }) => {
 
     if (password !== confirmPassword) {
       setError('Passwords do not match')
-      return
+      
+return
     }
 
     setLoading(true)
@@ -81,6 +99,7 @@ const ResetPasswordV2 = ({ mode }) => {
         password,
         confirmPassword,
       })
+
       setSuccessMessage('Password updated successfully!')
     } catch (err) {
       setError('Error updating password, please try again later.')

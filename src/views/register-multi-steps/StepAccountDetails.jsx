@@ -156,15 +156,21 @@
 // export default StepAccountDetails;
 
 'use client';
+
 // MUI Imports
-import { Button, Grid, TextField, Typography, FormControl, InputLabel, Select, MenuItem, IconButton, InputAdornment } from '@mui/material';
-// Hook Imports
 import { useState } from 'react';
+
+import { Button, Grid, TextField, Typography, FormControl, InputLabel, Select, MenuItem, IconButton, InputAdornment } from '@mui/material';
+
+// Hook Imports
 import { Controller, useForm } from 'react-hook-form';
+
 import CustomIconButton from '@/@core/components/mui/IconButton';
 import DirectionalIcon from '@components/DirectionalIcon'
 
 import ProductImage from '../apps/ecommerce/products/add/ProductImage';
+
+
 // StepAccountDetails Component
 const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccountDetails }) => {
   const [isPasswordShown, setIsPasswordShown] = useState(false);
@@ -180,23 +186,30 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
       parkingEntries: [{ type: '', count: '' }],
     }
   });
+
+
   // Watch parkingEntries to update dynamically
   const parkingEntries = watch("parkingEntries");
+
   // Password toggle functions
   const handleClickShowPassword = () => setIsPasswordShown(!isPasswordShown);
   const handleClickShowConfirmPassword = () => setIsConfirmPasswordShown(!isConfirmPasswordShown);
+
   const handleAddParkingEntry = () => {
     setAccountDetails(prevState => ({
       ...prevState,
       parkingEntries: [...prevState.parkingEntries, { type: '', count: '' }]
     }));
   };
+
   const handleDeleteParkingEntry = (index) => {
     setAccountDetails(prevState => ({
       ...prevState,
       parkingEntries: prevState.parkingEntries.filter((_, i) => i !== index)
     }));
   };
+
+
   // Handle Image Change
   const handleImageChange = (file) => {
     if (file instanceof File) {
@@ -213,7 +226,9 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
   const handleChange = (field, value) => {
     setAccountDetails(prev => ({ ...prev, [field]: value }));
   };
-  return (
+
+  
+return (
     <div className="p-4">
       <Typography variant="h5" className="mb-4">Account Information</Typography>
       <Typography variant="body2" className="mb-2">Enter Vendor Account Details</Typography>
@@ -344,6 +359,7 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
     </div>
   );
 };
+
 export default StepAccountDetails;
 
 

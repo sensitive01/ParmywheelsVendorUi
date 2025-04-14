@@ -120,8 +120,11 @@
 // }
 // export default ProductImage
 'use client'
+
 // React Imports
 import { useState } from 'react'
+
+
 // MUI Imports
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
@@ -132,12 +135,18 @@ import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import Typography from '@mui/material/Typography'
 import { styled } from '@mui/material/styles'
+
 // Third-party Imports
 import { useDropzone } from 'react-dropzone'
+
+
 // Component Imports
 import CustomAvatar from '@core/components/mui/Avatar'
+
 // Styled Component Imports
 import AppReactDropzone from '@/libs/styles/AppReactDropzone'
+
+
 // Styled Dropzone Component
 const Dropzone = styled(AppReactDropzone)(({ theme }) => ({
   '& .dropzone': {
@@ -151,19 +160,25 @@ const Dropzone = styled(AppReactDropzone)(({ theme }) => ({
     }
   }
 }))
+
 const ProductImage = ({ onChange }) => {
   // State to store uploaded files
   const [files, setFiles] = useState([])
+
+
   // Hooks for handling file uploads
   const { getRootProps, getInputProps } = useDropzone({
     accept: 'image/*', // Only allow image files
     onDrop: acceptedFiles => {
       setFiles(acceptedFiles)
+
       if (onChange) {
         onChange(acceptedFiles[0]) // Pass the first image file to the parent component
       }
     }
   })
+
+
   // Render image preview
   const renderFilePreview = file => {
     return file.type.startsWith('image') ? (
@@ -172,22 +187,31 @@ const ProductImage = ({ onChange }) => {
       <i className='ri-file-text-line' />
     )
   }
+
+
   // Remove a single file
   const handleRemoveFile = file => {
     const filteredFiles = files.filter(i => i.name !== file.name)
+
     setFiles(filteredFiles)
+
     if (onChange && filteredFiles.length === 0) {
       onChange(null) // Reset image in parent component when removed
     }
   }
+
+
   // Remove all files
   const handleRemoveAllFiles = () => {
     setFiles([])
+
     if (onChange) {
       onChange(null) // Reset image in parent component
     }
   }
-  return (
+
+  
+return (
     <Dropzone>
       <Card>
         <CardHeader title='Product Image' />
@@ -239,4 +263,5 @@ const ProductImage = ({ onChange }) => {
     </Dropzone>
   )
 }
+
 export default ProductImage

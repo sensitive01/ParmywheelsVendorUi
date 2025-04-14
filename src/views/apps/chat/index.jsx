@@ -1,27 +1,39 @@
 'use client'
+
 // React Imports
 import { useEffect, useRef, useState } from 'react'
+
+
 // MUI Imports
 import Backdrop from '@mui/material/Backdrop'
 import useMediaQuery from '@mui/material/useMediaQuery'
+
 // Third-party Imports
 import classNames from 'classnames'
 import { useDispatch, useSelector } from 'react-redux'
+
+
 // Slice Imports
 import { getActiveUserData } from '@/redux-store/slices/chat'
+
 // Component Imports
 import SidebarLeft from './SidebarLeft'
 import ChatContent from './ChatContent'
+
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings'
+
 // Util Imports
 import { commonLayoutClasses } from '@layouts/utils/layoutClasses'
+
 const ChatWrapper = () => {
   // States
   const [backdropOpen, setBackdropOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
   // Refs
   const messageInputRef = useRef(null)
+
   // Hooks
   const { settings } = useSettings()
   const dispatch = useDispatch()
@@ -29,16 +41,21 @@ const ChatWrapper = () => {
   const isBelowLgScreen = useMediaQuery(theme => theme.breakpoints.down('lg'))
   const isBelowMdScreen = useMediaQuery(theme => theme.breakpoints.down('md'))
   const isBelowSmScreen = useMediaQuery(theme => theme.breakpoints.down('sm'))
+
+
   // Get active user’s data
   const activeUser = id => {
     dispatch(getActiveUserData(id))
   }
+
+
   // Focus on message input when active user changes
   useEffect(() => {
     if (chatStore.activeUser?.id !== null && messageInputRef.current) {
       messageInputRef.current.focus()
     }
   }, [chatStore.activeUser])
+
   // Close backdrop when sidebar is open on below md screen
   useEffect(() => {
     if (!isBelowMdScreen && backdropOpen && sidebarOpen) {
@@ -46,6 +63,7 @@ const ChatWrapper = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBelowMdScreen])
+
   // Open backdrop when sidebar is open on below sm screen
   useEffect(() => {
     if (!isBelowSmScreen && sidebarOpen) {
@@ -53,6 +71,7 @@ const ChatWrapper = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBelowSmScreen])
+
   // Close sidebar when backdrop is closed on below md screen
   useEffect(() => {
     if (!backdropOpen && sidebarOpen) {
@@ -60,7 +79,8 @@ const ChatWrapper = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backdropOpen])
-  return (
+  
+return (
     <div
       className={classNames(commonLayoutClasses.contentHeightFixed, 'flex is-full overflow-hidden rounded relative', {
         border: settings.skin === 'bordered',
@@ -95,4 +115,5 @@ const ChatWrapper = () => {
     </div>
   )
 }
+
 export default ChatWrapper

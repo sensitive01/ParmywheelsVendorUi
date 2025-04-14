@@ -1,4 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
+
+
 // MUI Imports
 import TextField from '@mui/material/TextField'
 import Button from '@mui/material/Button'
@@ -9,13 +11,19 @@ import Paper from '@mui/material/Paper'
 import ClickAwayListener from '@mui/material/ClickAwayListener'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
+
 // Third-party Imports
 import Picker from '@emoji-mart/react'
 import data from '@emoji-mart/data'
+
+
 // Slice Imports
 import { sendMessageToVendor } from '@/redux-store/slices/chat'
+
 // Component Imports
 import CustomIconButton from '@core/components/mui/IconButton'
+
+
 // Emoji Picker Component
 const EmojiPicker = ({ onChange, isBelowSmScreen, openEmojiPicker, setOpenEmojiPicker, anchorRef }) => {
   return (
@@ -44,26 +52,33 @@ const EmojiPicker = ({ onChange, isBelowSmScreen, openEmojiPicker, setOpenEmojiP
     </Popper>
   )
 }
+
 const SendMsgForm = ({ dispatch, activeUser, isBelowSmScreen, messageInputRef }) => {
   // States
   const [msg, setMsg] = useState('')
   const [image, setImage] = useState(null)
   const [anchorEl, setAnchorEl] = useState(null)
   const [openEmojiPicker, setOpenEmojiPicker] = useState(false)
+
   // Refs
   const anchorRef = useRef(null)
   const open = Boolean(anchorEl)
+
   const handleToggle = () => {
     setOpenEmojiPicker(prevOpen => !prevOpen)
   }
+
   const handleClick = event => {
     setAnchorEl(prev => (prev ? null : event.currentTarget))
   }
+
   const handleClose = () => {
     setAnchorEl(null)
   }
+
   const handleSendMsg = event => {
     event.preventDefault()
+
     if (msg.trim() !== '' || image) {
       dispatch(
         sendMessageToVendor({
@@ -84,19 +99,25 @@ const SendMsgForm = ({ dispatch, activeUser, isBelowSmScreen, messageInputRef })
       setImage(null) // Reset image after sending
     }
   }
+
   const handleFileUpload = event => {
     const file = event.target.files[0]
+
     if (file) {
       const reader = new FileReader()
+
       reader.onloadend = () => {
         setImage(reader.result) // Store image as base64
       }
+
       reader.readAsDataURL(file)
     }
   }
+
   const handleRemoveImage = () => {
     setImage(null) // Remove selected image
   }
+
   const handleInputEndAdornment = () => {
     return (
       <div className='flex items-center gap-1'>
@@ -148,11 +169,13 @@ const SendMsgForm = ({ dispatch, activeUser, isBelowSmScreen, messageInputRef })
       </div>
     )
   }
+
   useEffect(() => {
     setMsg('')
     setImage(null)
   }, [activeUser.id])
-  return (
+  
+return (
     <form autoComplete='off' onSubmit={handleSendMsg} className='bg-[var(--mui-palette-customColors-chatBg)]'>
       {image && (
         <div className='p-3 flex items-center gap-2 bg-gray-200 rounded-lg'>
@@ -192,4 +215,5 @@ const SendMsgForm = ({ dispatch, activeUser, isBelowSmScreen, messageInputRef })
     </form>
   )
 }
+
 export default SendMsgForm

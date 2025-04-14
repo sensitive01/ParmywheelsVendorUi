@@ -10,6 +10,7 @@ const horizontalMenuData = dictionary => [
         icon: 'ri-pie-chart-2-line',
         href: '/dashboards/crm'
       },
+
       // {
       //   label: dictionary['navigation'].analytics,
       //   icon: 'ri-bar-chart-line',
@@ -594,4 +595,5 @@ const horizontalMenuData = dictionary => [
     ]
   }
 ]
+
 export default horizontalMenuData

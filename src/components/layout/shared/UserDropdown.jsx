@@ -1,8 +1,13 @@
 'use client'
+
 // React Imports
 import { useRef, useState } from 'react'
+
+
 // Next Imports
 import { useParams, useRouter } from 'next/navigation'
+
+
 // MUI Imports
 import { styled } from '@mui/material/styles'
 import Badge from '@mui/material/Badge'
@@ -16,12 +21,18 @@ import Typography from '@mui/material/Typography'
 import Divider from '@mui/material/Divider'
 import MenuItem from '@mui/material/MenuItem'
 import Button from '@mui/material/Button'
+
 // Third-party Imports
 import { signOut, useSession } from 'next-auth/react'
+
+
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings'
+
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n'
+
+
 // Styled component for badge content
 const BadgeContentSpan = styled('span')({
   width: 8,
@@ -31,39 +42,50 @@ const BadgeContentSpan = styled('span')({
   backgroundColor: 'var(--mui-palette-success-main)',
   boxShadow: '0 0 0 2px var(--mui-palette-background-paper)'
 })
+
 const UserDropdown = () => {
   // States
   const [open, setOpen] = useState(false)
+
   // Refs
   const anchorRef = useRef(null)
+
   // Hooks
   const router = useRouter()
   const { data: session } = useSession()
   const { settings } = useSettings()
   const { lang: locale } = useParams()
+
   const handleDropdownOpen = () => {
     !open ? setOpen(true) : setOpen(false)
   }
+
   const handleDropdownClose = (event, url) => {
     if (url) {
       router.push(getLocalizedUrl(url, locale))
     }
+
     if (anchorRef.current && anchorRef.current.contains(event?.target)) {
       return
     }
+
     setOpen(false)
   }
+
   const handleUserLogout = async () => {
     try {
       // Sign out from the app
       await signOut({ callbackUrl: process.env.NEXT_PUBLIC_APP_URL })
     } catch (error) {
       console.error(error)
+
       // Show above error in a toast like following
       // toastService.error((err as Error).message)
     }
   }
-  return (
+
+  
+return (
     <>
       <Badge
         ref={anchorRef}
@@ -136,4 +158,5 @@ const UserDropdown = () => {
     </>
   )
 }
+
 export default UserDropdown

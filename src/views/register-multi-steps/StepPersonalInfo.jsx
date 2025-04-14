@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useEffect, useState } from 'react'
+
 import Grid from '@mui/material/Grid'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
@@ -8,16 +9,21 @@ import InputAdornment from '@mui/material/InputAdornment'
 import IconButton from '@mui/material/IconButton'
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
+
 import DirectionalIcon from '@components/DirectionalIcon'
+
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
 const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddress, vendorName, setVendorName }) => {
   const [showMap, setShowMap] = useState(false)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
   const autocompleteRef = useRef(null)
+
   useEffect(() => {
     if (showMap && !window.google) {
       const script = document.createElement('script')
+
       script.src = `https://maps.gomaps.pro/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`
       script.async = true
       script.onload = initMap
@@ -26,14 +32,18 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
       initMap()
     }
   }, [showMap])
+
   const initMap = () => {
     const map = new window.google.maps.Map(mapRef.current, { center: { lat: 28.6139, lng: 77.209 }, zoom: 15 })
+
     markerRef.current = new window.google.maps.Marker({ position: map.getCenter(), map, draggable: true })
     const input = document.getElementById('autocomplete')
+
     autocompleteRef.current = new window.google.maps.places.Autocomplete(input)
     autocompleteRef.current.bindTo('bounds', map)
     autocompleteRef.current.addListener('place_changed', () => {
       const place = autocompleteRef.current.getPlace()
+
       if (!place.geometry) return
       map.setCenter(place.geometry.location)
       markerRef.current.setPosition(place.geometry.location)
@@ -41,6 +51,7 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
     })
     markerRef.current.addListener('dragend', () => {
       const geocoder = new window.google.maps.Geocoder()
+
       geocoder.geocode({ location: markerRef.current.getPosition() }, (results, status) => {
         if (status === 'OK' && results[0]) {
           setAddress(results[0].formatted_address)
@@ -48,16 +59,21 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
       })
     })
   }
+
   const handleAddContact = () => {
     setContacts([...contacts, { id: contacts.length + 1, name: '', number: '' }])
   }
+
   const handleContactChange = (id, field, value) => {
     setContacts(contacts.map(contact => (contact.id === id ? { ...contact, [field]: value } : contact)))
   }
+
   const handleRemoveContact = id => {
     setContacts(contacts.filter(contact => contact.id !== id))
   }
-  return (
+
+  
+return (
     <>
       <Typography variant='h4' className='mbe-1'>
         Personal Information
@@ -94,6 +110,7 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <TextField
                     fullWidth
+
                     // type='number'
                     label={`Contact Number ${index + 1}`}
                     placeholder='123-456-7890'
@@ -157,4 +174,5 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
     </>
   )
 }
+
 export default StepPersonalInfo

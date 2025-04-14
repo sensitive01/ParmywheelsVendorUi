@@ -99,6 +99,8 @@
 
 // React Imports
 import { useState, useEffect } from 'react'
+
+
 // MUI Imports
 import Grid from '@mui/material/Grid'
 import CardContent from '@mui/material/CardContent'
@@ -120,7 +122,8 @@ const TableFilters = ({ setData, bookingData }) => {
       if (sts && booking.sts !== sts) return false
       if (status && booking.status !== status) return false
       if (bookingDate && booking.bookingDate !== bookingDate) return false
-      return true
+      
+return true
     })
 
     setData(filteredData ?? [])

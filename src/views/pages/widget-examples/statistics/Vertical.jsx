@@ -1,19 +1,28 @@
 'use client'
+
 // React Imports
 import { useState } from 'react'
+
+
 // MUI Imports
 import Badge from '@mui/material/Badge'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid2'
 import Typography from '@mui/material/Typography'
 import { useTheme } from '@mui/material/styles'
+
 // Third-party Components
 import classnames from 'classnames'
 import { useKeenSlider } from 'keen-slider/react'
+
+
 // Components Imports
 import CustomAvatar from '@core/components/mui/Avatar'
+
 // Libs Imports
 import AppKeenSlider from '@/libs/styles/AppKeenSlider'
+
+
 // Vars
 const data = [
   {
@@ -47,10 +56,13 @@ const data = [
     }
   }
 ]
+
 const Slides = () => {
   // Hooks
   const theme = useTheme()
-  return (
+
+  
+return (
     <>
       {data.map((slide, index) => {
         return (
@@ -112,16 +124,20 @@ const Slides = () => {
     </>
   )
 }
+
 const WeeklySalesBg = () => {
   // States
   const [loaded, setLoaded] = useState(false)
   const [currentSlide, setCurrentSlide] = useState(0)
+
   // Hooks
   const theme = useTheme()
+
   const ResizePlugin = slider => {
     const observer = new ResizeObserver(function () {
       slider.update()
     })
+
     slider.on('created', () => {
       observer.observe(slider.container)
     })
@@ -129,6 +145,7 @@ const WeeklySalesBg = () => {
       observer.unobserve(slider.container)
     })
   }
+
   const [sliderRef, instanceRef] = useKeenSlider(
     {
       loop: true,
@@ -142,7 +159,9 @@ const WeeklySalesBg = () => {
     },
     [ResizePlugin]
   )
-  return (
+
+  
+return (
     <AppKeenSlider>
       <Card className='bg-primary'>
         <div ref={sliderRef} className='keen-slider relative'>
@@ -181,4 +200,5 @@ const WeeklySalesBg = () => {
     </AppKeenSlider>
   )
 }
+
 export default WeeklySalesBg

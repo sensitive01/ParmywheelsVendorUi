@@ -1,18 +1,26 @@
 'use client'
+
 // MUI Imports
+import { useState, useEffect } from 'react'
+
 import Grid from '@mui/material/Grid2'
 import { Box, Tab, Tabs, Paper, useTheme, alpha } from '@mui/material'
-import { useState, useEffect } from 'react'
+
+
 // Component Imports
 import WeeklySalesBg from '@views/pages/widget-examples/statistics/WeeklySalesBg'
 import Sales from '@views/pages/widget-examples/statistics/Sales'
 import LiveVisitors from '@views/pages/widget-examples/statistics/LiveVisitors'
 import Pricing from '@views/pages/pricing'
 import KanbanBoard from '@views/apps/kanban/KanbanBoard'
+
+
 // Custom TabPanel component with enhanced animations
 const TabPanel = ({ children, value, index, ...other }) => {
   const theme = useTheme()
-  return (
+
+  
+return (
     <div
       role="tabpanel"
       hidden={value !== index}
@@ -53,25 +61,32 @@ const TabPanel = ({ children, value, index, ...other }) => {
     </div>
   )
 }
+
 const Statistics = () => {
   const theme = useTheme()
   const [activeTab, setActiveTab] = useState(0)
   const [serverMode, setServerMode] = useState(null)
+
   useEffect(() => {
     const fetchServerMode = async () => {
       try {
         const mode = await fetch('/api/server-mode').then(res => res.json())
+
         setServerMode(mode)
       } catch (error) {
         console.error('Error fetching server mode:', error)
       }
     }
+
     fetchServerMode()
   }, [])
+
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue)
   }
-  return (
+
+  
+return (
     <Paper
       elevation={3}
       sx={{
@@ -195,4 +210,5 @@ const Statistics = () => {
     </Paper>
   )
 }
+
 export default Statistics

@@ -1,15 +1,23 @@
 
 'use client'
+
 // React Imports
 import { useParams } from 'next/navigation'
+
+
 // MUI Imports
 import Grid from '@mui/material/Grid2'
+
+
 // Component Imports
 import ShippingActivity from './ShippingActivityCard'
 import CustomerDetails from './CustomerDetailsCard'
+
 const OrderDetails = () => {
   const { id } = useParams() // ✅ Get order ID from URL
-  return (
+
+  
+return (
     <Grid container spacing={6}>
     <Grid size={{ xs: 12, md: 8 }}>
       <Grid container spacing={6}>
@@ -28,4 +36,5 @@ const OrderDetails = () => {
   </Grid>
   )
 }
+
 export default OrderDetails

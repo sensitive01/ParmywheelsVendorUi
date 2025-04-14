@@ -5,12 +5,17 @@ import Divider from '@mui/material/Divider'
 import Checkbox from '@mui/material/Checkbox'
 import Typography from '@mui/material/Typography'
 import FormControlLabel from '@mui/material/FormControlLabel'
+
 // Third-party imports
 import classnames from 'classnames'
+
+
 // Styled Component Imports
 import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
+
 // Slice Imports
 import { filterAllCalendarLabels, filterCalendarLabel, selectedEvent } from '@/redux-store/slices/calendar'
+
 const SidebarLeft = props => {
   // Props
   const {
@@ -23,8 +28,11 @@ const SidebarLeft = props => {
     handleLeftSidebarToggle,
     handleAddEventSidebarToggle
   } = props
+
+
   // Vars
   const colorsArr = calendarsColor ? Object.entries(calendarsColor) : []
+
   const renderFilters = colorsArr.length
     ? colorsArr.map(([key, value]) => {
       return (
@@ -43,10 +51,12 @@ const SidebarLeft = props => {
       )
     })
     : null
+
   const handleSidebarToggleSidebar = () => {
     dispatch(selectedEvent(null))
     handleAddEventSidebarToggle()
   }
+
   if (renderFilters) {
     return (
       <Drawer
@@ -120,4 +130,5 @@ const SidebarLeft = props => {
     return null
   }
 }
+
 export default SidebarLeft

@@ -1,7 +1,10 @@
 'use client'
+
 // React Imports
 import { useEffect, useState } from 'react'
+
 import axios from 'axios'
+
 // MUI Imports
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
@@ -14,8 +17,11 @@ import TimelineConnector from '@mui/lab/TimelineConnector'
 import Typography from '@mui/material/Typography'
 import { styled } from '@mui/material/styles'
 import MuiTimeline from '@mui/lab/Timeline'
+
 // API Config
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
+
+
 // Styled Timeline component
 const Timeline = styled(MuiTimeline)({
   paddingLeft: 0,
@@ -33,15 +39,19 @@ const Timeline = styled(MuiTimeline)({
     }
   }
 })
+
 const ShippingActivity = ({ orderId }) => {
   const [timeline, setTimeline] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
   useEffect(() => {
     if (!orderId) return // ✅ Prevents API call if no orderId
+
     const fetchTimeline = async () => {
       try {
         const response = await axios.get(`${API_URL}/vendor/getbookingtimeline/${orderId}`)
+
         if (response.data && response.data.timeline) {
           setTimeline(response.data.timeline) // ✅ Store timeline data
         } else {
@@ -54,9 +64,11 @@ const ShippingActivity = ({ orderId }) => {
         setLoading(false) // ✅ Stop loading after API call
       }
     }
+
     fetchTimeline()
   }, [orderId])
-  return (
+  
+return (
     <Card>
       <CardHeader title='Parking Timeline Activity' />
       <CardContent>
@@ -151,4 +163,5 @@ const ShippingActivity = ({ orderId }) => {
     </Card>
   )
 }
+
 export default ShippingActivity

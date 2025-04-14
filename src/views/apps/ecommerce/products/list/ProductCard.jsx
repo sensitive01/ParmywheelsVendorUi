@@ -1,7 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
+
 import { useSession } from 'next-auth/react'
 import axios from 'axios'
+
 // MUI Imports
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -9,14 +11,20 @@ import Grid from '@mui/material/Grid'
 import Typography from '@mui/material/Typography'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import Divider from '@mui/material/Divider'
+
 // Third-party Imports
 import classnames from 'classnames'
+
+
 // Component Imports
 import CustomAvatar from '@core/components/mui/Avatar'
+
 const OrderCard = ({ }) => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL
   const { data: session } = useSession()
   const vendorId = session?.user?.id
+
+
   // State to store booking counts
   const [statusCounts, setStatusCounts] = useState({
     Pending: 0,
@@ -25,9 +33,13 @@ const OrderCard = ({ }) => {
     Cancelled: 0,
     Parked: 0
   })
+
+
   // Hooks
   const isBelowMdScreen = useMediaQuery(theme => theme.breakpoints.down('md'))
   const isBelowSmScreen = useMediaQuery(theme => theme.breakpoints.down('sm'))
+
+
   // Status-to-Icon Mapping
   const statusIcons = {
     Pending: 'ri-time-line', // Clock icon
@@ -37,18 +49,25 @@ const OrderCard = ({ }) => {
     COMPLETED: 'ri-check-double-line', // Checkmark icon
 
   }
+
+
   // Fetch booking data
   useEffect(() => {
     if (!vendorId) return
+
     const fetchBookings = async () => {
       try {
         const response = await axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+
         console.log('API Response:', response.data) // Debug the response
         const bookings = response.data.bookings // Access the correct array
+
         if (!Array.isArray(bookings)) {
           console.error('Expected an array but got:', bookings)
-          return
+          
+return
         }
+
         const counts = {
           Pending: 0,
           Approved: 0,
@@ -59,6 +78,7 @@ const OrderCard = ({ }) => {
         
         bookings.forEach(booking => {
           const status = booking.status?.trim().toLowerCase(); // Normalize status to lowercase
+
           const normalizedKey = 
             status === 'completed' ? 'COMPLETED' :
             status === 'pending' ? 'Pending' :
@@ -77,15 +97,20 @@ const OrderCard = ({ }) => {
         console.error('Error fetching bookings:', error)
       }
     }
+
     if (vendorId) fetchBookings()
   }, [vendorId])
+
+
   // Data structure for UI display
   const statusData = Object.keys(statusCounts).map(status => ({
     title: status.charAt(0) + status.slice(1).toLowerCase(), // Capitalize first letter
     value: statusCounts[status],
     icon: statusIcons[status] || 'ri-question-line' // Default icon if missing
   }))
-  return (
+
+  
+return (
     <Card>
       <CardContent>
         <Grid container spacing={6}>
@@ -126,4 +151,5 @@ const OrderCard = ({ }) => {
     </Card>
   )
 }
+
 export default OrderCard

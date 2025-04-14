@@ -1,14 +1,20 @@
 // React Imports
 import { useState } from 'react'
+
+
 // MUI Imports
 import Grid from '@mui/material/Grid2'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import { styled } from '@mui/material/styles'
+
+
 // Component Imports
 import CustomInputVertical from '@core/components/custom-inputs/Vertical'
 import DirectionalIcon from '@components/DirectionalIcon'
+
+
 // Styled Components
 const Content = styled(Typography, {
   name: 'MuiCustomInputVertical',
@@ -17,6 +23,8 @@ const Content = styled(Typography, {
   ...theme.typography.body2,
   textAlign: 'center'
 }))
+
+
 // Vars
 const customInputData = [
   {
@@ -85,12 +93,16 @@ const customInputData = [
     )
   }
 ]
+
 const StepBillingDetails = ({ handlePrev }) => {
   const initialSelectedOption = customInputData.filter(item => item.isSelected)[
     customInputData.filter(item => item.isSelected).length - 1
   ].value
+
+
   // States
   const [selectedOption, setSelectedOption] = useState(initialSelectedOption)
+
   const handleOptionChange = prop => {
     if (typeof prop === 'string') {
       setSelectedOption(prop)
@@ -98,7 +110,9 @@ const StepBillingDetails = ({ handlePrev }) => {
       setSelectedOption(prop.target.value)
     }
   }
-  return (
+
+  
+return (
     <>
       <div className='mbe-5'>
         <Typography variant='h4' className='mbe-1'>
@@ -160,4 +174,5 @@ const StepBillingDetails = ({ handlePrev }) => {
     </>
   )
 }
+
 export default StepBillingDetails

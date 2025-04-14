@@ -1,30 +1,41 @@
 'use client'
+
 // MUI Imports
+import { useRef, useState } from 'react'
+
+import { useParams, useRouter } from 'next/navigation'
+
 import Card from '@mui/material/Card'
 import CardMedia from '@mui/material/CardMedia'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import { useSession } from 'next-auth/react'
-import { useParams, useRouter } from 'next/navigation'
-import { useRef, useState } from 'react'
-import { getLocalizedUrl } from '@/utils/i18n'
+
 import { Button } from '@mui/material'
+
+import { getLocalizedUrl } from '@/utils/i18n'
+
 const UserProfileHeader = () => {
   const { data: session } = useSession()
   const router = useRouter()
   const anchorRef = useRef(null)
   const { lang: locale } = useParams()
+
   // Extract user details from the session
   const user = session?.user
+
   const handleClickUrl = (event, url) => {
     if (url) {
       router.push(getLocalizedUrl(url, locale))
     }
+
     if (anchorRef.current && anchorRef.current.contains(event?.target)) {
       return
     }
   }
-  return (
+
+  
+return (
     <Card>
       <CardMedia image={user?.image || '/default-cover.jpg'} className='bs-[250px]' />
       <CardContent className='flex justify-center flex-col items-center gap-6 md:items-end md:flex-row !pt-0 md:justify-start'>
@@ -57,4 +68,5 @@ const UserProfileHeader = () => {
     </Card>
   )
 }
+
 export default UserProfileHeader

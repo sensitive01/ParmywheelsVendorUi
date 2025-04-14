@@ -1,9 +1,14 @@
 'use client'
+
 // React Imports
 import { useState } from 'react'
+
+
 // Next Imports
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+
+
 // MUI Imports
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
@@ -14,17 +19,24 @@ import Button from '@mui/material/Button'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
+
 // Third-party Imports
 import { signIn } from 'next-auth/react'
 import classnames from 'classnames'
+
+
 // Component Imports
 import Logo from '@components/layout/shared/Logo'
+
 // Config Imports
 import themeConfig from '@configs/themeConfig'
+
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings'
+
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n'
+
 const Login = ({ mode }) => {
   const [mobile, setMobile] = useState("")
   const [password, setPassword] = useState("")
@@ -35,23 +47,29 @@ const Login = ({ mode }) => {
   const { lang: locale } = useParams()
   const { settings } = useSettings()
   const handleClickShowPassword = () => setIsPasswordShown(show => !show)
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     console.log('Attempting login with:', { mobile, password });
+
     const result = await signIn("credentials", {
       redirect: false,
       mobile,
       password,
     });
+
     if (!result.ok) {
       setError(result.error || "Login failed");
       console.error("Login failed:", result.error);
     } else {
       // Fetch user details after login
       const user = await fetchUserDetails(mobile);
+
       if (user) {
         console.log("User Details:", user);
+
+
         // Ensure localStorage is only accessed in the browser
         if (typeof window !== "undefined") {
           localStorage.setItem("vendorId", user.vendorId);
@@ -62,22 +80,30 @@ const Login = ({ mode }) => {
           localStorage.setItem("address", user.address);
         }
       }
+
       window.location.href = "/";
     }
   };
+
+
   // Function to fetch user details (replace with actual API call)
   const fetchUserDetails = async (mobile) => {
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/getUserByMobile?mobile=${mobile}`);
       const data = await response.json();
-      return data.success ? data.user : null;
+
+      
+return data.success ? data.user : null;
     } catch (error) {
       console.error("Error fetching user details:", error);
-      return null;
+      
+return null;
     }
   };
+
   console.log(process.env.NEXT_PUBLIC_API_URL);
-  return (
+  
+return (
     <div className='flex bs-full justify-center'>
       <div className={classnames('flex bs-full items-center justify-center flex-1 min-bs-[100dvh] relative p-6 max-md:hidden')}>
         <div className='pli-6 max-lg:mbs-40 lg:mbe-24'>
@@ -158,4 +184,5 @@ const Login = ({ mode }) => {
     </div>
   )
 }
+
 export default Login

@@ -1,9 +1,14 @@
 'use client'
+
 // React Imports
 import { useState } from 'react'
+
+
 // Next Imports
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+
+
 // MUI Imports
 import Typography from '@mui/material/Typography'
 import TextField from '@mui/material/TextField'
@@ -13,18 +18,25 @@ import Checkbox from '@mui/material/Checkbox'
 import Button from '@mui/material/Button'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Divider from '@mui/material/Divider'
+
 // Third-party Imports
 import classnames from 'classnames'
+
+
 // Component Imports
 import Logo from '@components/layout/shared/Logo'
+
 // Hook Imports
 import { useImageVariant } from '@core/hooks/useImageVariant'
 import { useSettings } from '@core/hooks/useSettings'
+
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n'
+
 const Register = ({ mode }) => {
   // States
   const [isPasswordShown, setIsPasswordShown] = useState(false)
+
   // Vars
   const darkImg = '/images/pages/auth-v2-mask-2-dark.png'
   const lightImg = '/images/pages/auth-v2-mask-2-light.png'
@@ -32,10 +44,12 @@ const Register = ({ mode }) => {
   const lightIllustration = '/images/illustrations/auth/v2-register-light.png'
   const borderedDarkIllustration = '/images/illustrations/auth/v2-register-dark-border.png'
   const borderedLightIllustration = '/images/illustrations/auth/v2-register-light-border.png'
+
   // Hooks
   const { settings } = useSettings()
   const { lang: locale } = useParams()
   const authBackground = useImageVariant(mode, lightImg, darkImg)
+
   const characterIllustration = useImageVariant(
     mode,
     lightIllustration,
@@ -43,8 +57,11 @@ const Register = ({ mode }) => {
     borderedLightIllustration,
     borderedDarkIllustration
   )
+
   const handleClickShowPassword = () => setIsPasswordShown(show => !show)
-  return (
+
+  
+return (
     <div className='flex bs-full justify-center'>
       <div
         className={classnames(
@@ -137,4 +154,5 @@ const Register = ({ mode }) => {
     </div>
   )
 }
+
 export default Register

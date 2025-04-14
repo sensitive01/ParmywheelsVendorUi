@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+
 import axios from 'axios'
 import { useSession } from 'next-auth/react'
 
@@ -44,10 +45,13 @@ import {
   Assignment
 } from '@mui/icons-material'
 import { styled } from '@mui/material/styles'
+
+
 // Component Imports
 import StepperWrapper from '@core/styles/stepper'
 import StepperCustomDot from '@components/stepper-dot'
 import DirectionalIcon from '@components/DirectionalIcon'
+
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
   borderRadius: theme.spacing(1),
@@ -55,6 +59,7 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
   boxShadow: '0 2px 12px rgba(0, 0, 0, 0.06)',
   overflow: 'hidden'
 }))
+
 const Stepper = styled(MuiStepper)(({ theme }) => ({
   justifyContent: 'center',
   '& .MuiStep-root': {
@@ -69,6 +74,7 @@ const Stepper = styled(MuiStepper)(({ theme }) => ({
     }
   }
 }))
+
 const OptionCard = styled(Paper)(({ selected }) => ({
   padding: '16px',
   display: 'flex',
@@ -83,6 +89,7 @@ const OptionCard = styled(Paper)(({ selected }) => ({
     transform: 'translateY(-2px)'
   }
 }))
+
 const IconWrapper = styled(Box)(({ theme }) => ({
   width: 20,
   height: 40,
@@ -90,23 +97,29 @@ const IconWrapper = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
+
   // backgroundColor: theme.palette.primary.light,
   color: theme.palette.primary.main
 }))
+
 const steps = [
   {
     title: 'Vehicle Type',
+
     // subtitle: 'Enter your account details'
   },
   {
     title: 'Booking Details',
+
     // subtitle: 'Setup Information'
   },
   {
     title: 'Personal Info',
+
     // subtitle: 'Add Social Links'
   }
 ]
+
 export default function ParkingBooking() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL
   const { data: session } = useSession()
@@ -125,36 +138,47 @@ export default function ParkingBooking() {
   const [loading, setLoading] = useState(false)
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' })
   const [errors, setErrors] = useState({})
+
   useEffect(() => {
     if (sts === 'Instant') {
       const now = new Date().toISOString().slice(0, 16)
+
       setParkingDate(now.split('T')[0])
       setParkingTime(now.split('T')[1])
     }
   }, [sts])
+
   const validate = () => {
     const newErrors = {}
+
     switch (activeStep) {
       case 0:
         if (!vehicleType) newErrors.vehicleType = 'Please select a vehicle type'
         break
       case 1:
         if (!vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required'
+
         if (sts === 'Subscription' && !subscriptionType) {
           newErrors.subscriptionType = 'Please select a subscription type'
         }
+
         break
       case 2:
         if (!personName) newErrors.personName = 'Name is required'
         if (!mobileNumber) newErrors.mobileNumber = 'Mobile number is required'
+
         if (mobileNumber && !/^\d{10}$/.test(mobileNumber)) {
           newErrors.mobileNumber = 'Enter a valid 10-digit number'
         }
+
         break
     }
+
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    
+return Object.keys(newErrors).length === 0
   }
+
   const handleNext = () => {
     if (validate()) {
       if (activeStep === steps.length - 1) {
@@ -164,13 +188,17 @@ export default function ParkingBooking() {
       }
     }
   }
+
   const handleBack = () => {
     setActiveStep((prev) => prev - 1)
   }
+
   console.log('vendorId==',vendorId)
   console.log('api===',API_URL)
+
   const handleSubmit = async () => {
     setLoading(true)
+
     try {
       const payload = {
         vendorId,
@@ -186,12 +214,15 @@ export default function ParkingBooking() {
         status: 'Pending',
         sts
       }
+
       const response = await axios.post('https://parkmywheelsapi.onrender.com/vendor/createbooking', payload)
+
       setAlert({
         show: true,
         message: 'Booking created successfully!',
         type: 'success'
       })
+
       // Reset form after successful submission
       setTimeout(() => {
         setActiveStep(0)
@@ -211,6 +242,7 @@ export default function ParkingBooking() {
       setLoading(false)
     }
   }
+
   const renderVehicleTypeStep = () => (
     <Box>
       <Typography variant="h6" gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
@@ -241,6 +273,7 @@ export default function ParkingBooking() {
       </Grid>
     </Box>
   )
+
   const renderBookingDetailsStep = () => (
     <Box>
       <Typography variant="h6" gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
@@ -342,6 +375,7 @@ export default function ParkingBooking() {
       </Grid>
     </Box>
   )
+
   const renderPersonalInfoStep = () => (
     <Box>
       <Typography variant="h6" gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
@@ -376,6 +410,7 @@ export default function ParkingBooking() {
       </Grid>
     </Box>
   )
+
   const getStepContent = (step) => {
     switch (step) {
       case 0:
@@ -388,7 +423,9 @@ export default function ParkingBooking() {
         return null
     }
   }
-  return (
+
+  
+return (
     <>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 600 }}>

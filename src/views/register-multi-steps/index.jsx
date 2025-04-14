@@ -1,32 +1,46 @@
 'use client';
+
 // React Imports
 import { useState } from 'react';
+
+
 // Next Imports
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+
+
 // MUI Imports
 import MuiStepper from '@mui/material/Stepper';
 import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
 import { styled } from '@mui/material/styles';
+
 // Third-party Imports
 import classnames from 'classnames';
+
+
 // Component Imports
 import Logo from '@components/layout/shared/Logo';
 import StepperWrapper from '@core/styles/stepper';
 import StepAccountDetails from './StepAccountDetails';
 import StepPersonalInfo from './StepPersonalInfo';
 import StepperCustomDot from '@components/stepper-dot';
+
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings';
+
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n';
+
+
 // Steps Configuration
 const steps = [
   { title: 'Personal', subtitle: 'Enter Information' },
   { title: 'Account', subtitle: 'Account Details' }
 ];
+
+
 // Styled Components
 const Stepper = styled(MuiStepper)(({ theme }) => ({
   justifyContent: 'center',
@@ -36,8 +50,11 @@ const Stepper = styled(MuiStepper)(({ theme }) => ({
     [theme.breakpoints.down('md')]: { paddingInline: 0 }
   }
 }));
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+
 console.log("API_URL===",API_URL);
+
 const RegisterMultiSteps = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [contacts, setContacts] = useState([{ id: 1, name: '', mobile: '' }]);
@@ -46,18 +63,24 @@ const RegisterMultiSteps = () => {
   const [landmark, setLandmark] = useState('');
   const [latitude, setLatitude] = useState(null);
   const [longitude, setLongitude] = useState(null);
+
   const [accountDetails, setAccountDetails] = useState({
     password: '',
     confirmPassword: '',
     parkingEntries: [{ type: '', count: '' }]
   });
+
   const [image, setImage] = useState(null);
+
   // Hooks
   const { settings } = useSettings();
   const { lang: locale } = useParams();
+
   // Step Navigation
   const handleNext = () => setActiveStep(activeStep + 1);
   const handlePrev = () => activeStep > 0 && setActiveStep(activeStep - 1);
+
+
   // Handle Image Change
   const handleImageChange = (file) => {
     if (file instanceof File) {
@@ -67,13 +90,18 @@ const RegisterMultiSteps = () => {
       console.error("Invalid file type selected");
     }
   };
+
+
   // Submit Data to API
   const handleSubmit = async () => {
     if (!accountDetails.image) {
       alert("Please select an image.");
-      return;
+      
+return;
     }
+
     const formData = new FormData();
+
     formData.append('vendorName', vendorName);
     formData.append('contacts', JSON.stringify(contacts));
     formData.append('latitude', latitude);
@@ -82,17 +110,21 @@ const RegisterMultiSteps = () => {
     formData.append('landmark', landmark);
     formData.append('password', accountDetails.password);
     formData.append('parkingEntries', JSON.stringify(accountDetails.parkingEntries));
+
     // Ensure image is appended correctly
     formData.append('image', accountDetails.image, accountDetails.image.name);
     console.log("Final FormData before submit:");
+
     for (let pair of formData.entries()) {
       console.log(pair[0], pair[1]);
     }
+
     try {
       const response = await fetch(`${API_URL}/vendor/signup`, {
         method: 'POST',
         body: formData
       });
+
       if (response.ok) {
         alert('Registration successful!');
         window.location.href = "/";
@@ -104,6 +136,8 @@ const RegisterMultiSteps = () => {
       alert('Something went wrong. Please try again.');
     }
   };
+
+
   // Step Content Renderer
   const getStepContent = () => {
     switch (activeStep) {
@@ -140,7 +174,9 @@ const RegisterMultiSteps = () => {
         return null;
     }
   };
-  return (
+
+  
+return (
     <div className="flex bs-full justify-between items-center">
       <div className={classnames('flex bs-full items-center justify-center is-[450px] max-lg:hidden', {
         'border-ie': settings.skin === 'bordered'
@@ -178,4 +214,5 @@ const RegisterMultiSteps = () => {
     </div>
   );
 };
+
 export default RegisterMultiSteps;

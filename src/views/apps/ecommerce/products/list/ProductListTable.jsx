@@ -1,10 +1,17 @@
 'use client'
+
 // React Imports
 import { useState, useEffect, useMemo } from 'react'
-import { useSession } from 'next-auth/react'
-// Next Imports
+
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+
+import { useParams , useRouter } from 'next/navigation'
+
+import { useSession } from 'next-auth/react'
+
+// Next Imports
+
+
 // MUI Imports
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -16,6 +23,7 @@ import TablePagination from '@mui/material/TablePagination'
 import TextField from '@mui/material/TextField'
 import CardHeader from '@mui/material/CardHeader'
 import Divider from '@mui/material/Divider'
+
 // Third-party Imports
 import classnames from 'classnames'
 import { rankItem } from '@tanstack/match-sorter-utils'
@@ -31,19 +39,31 @@ import {
   getPaginationRowModel,
   getSortedRowModel
 } from '@tanstack/react-table'
+
+
 // Component Imports
+import Alert from '@mui/material/Alert';
+
 import TableFilters from '../../products/list/TableFilters'
 import CustomAvatar from '@core/components/mui/Avatar'
 import OptionMenu from '@core/components/option-menu'
+
 // Util Imports
 import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
-import { useRouter } from 'next/navigation' // ✅ Import Next.js router
+
+
+ // ✅ Import Next.js router
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+
 // Style Imports
 import tableStyles from '@core/styles/table.module.css'
-import { Alert } from '@mui/material/Alert';
+
+
 import BookingActionButton from './BookingActionButton'
+
 export const stsChipColor = {
   instant: { color: '#ff4d49', text: 'Instant' },       // Blue
   subscription: { color: '#72e128', text: 'Subscription' }, // Green
@@ -56,15 +76,20 @@ export const statusChipColor = {
   cancelled: { color: 'error' },
   approved: { color: 'info' }
 };
+
 const fuzzyFilter = (row, columnId, value, addMeta) => {
   const itemRank = rankItem(row.getValue(columnId), value)
+
   addMeta({
     itemRank
   })
-  return itemRank.passed
+  
+return itemRank.passed
 }
+
 const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
   const [value, setValue] = useState(initialValue)
+
   useEffect(() => {
     setValue(initialValue)
   }, [initialValue])
@@ -72,11 +97,16 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
     const timeout = setTimeout(() => {
       onChange(value)
     }, debounce)
-    return () => clearTimeout(timeout)
+
+    
+return () => clearTimeout(timeout)
   }, [value])
-  return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
+  
+return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
 }
+
 const columnHelper = createColumnHelper()
+
 const OrderListTable = ({ orderData }) => {
   const [rowSelection, setRowSelection] = useState({})
   const [data, setData] = useState([])
@@ -89,6 +119,7 @@ const OrderListTable = ({ orderData }) => {
   const { data: session } = useSession()
   const router = useRouter(); // ✅ Initialize router
   const vendorId = session?.user?.id
+
   useEffect(() => {
     if (!vendorId) return;
   
@@ -150,9 +181,13 @@ const OrderListTable = ({ orderData }) => {
             if (!dateStr) return 'Invalid Date'; // Handle missing values
             const [day, month, year] = dateStr.split('-'); // Extract day, month, year
             const formattedDate = new Date(`${year}-${month}-${day}`).toDateString(); // Convert and format
-            return formattedDate; // Example Output: "Sat Feb 08 2025"
+
+            
+return formattedDate; // Example Output: "Sat Feb 08 2025"
           };
-          return (
+
+          
+return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <i className="ri-calendar-2-line text-[26px]" style={{ fontSize: '16px', color: '#666' }}></i>
               {`${formatDate(row.original.bookingDate)}, ${row.original.bookingTime}`}
@@ -183,7 +218,9 @@ const OrderListTable = ({ orderData }) => {
         cell: ({ row }) => {
           const stsKey = row.original.sts?.toLowerCase(); // Convert to lowercase for case insensitivity
           const chipData = stsChipColor[stsKey] || { color: 'text.secondary', text: row.original.sts }; // Default text color
-          return (
+
+          
+return (
             <Typography
               sx={{ color: chipData.color, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}
             >
@@ -198,7 +235,9 @@ const OrderListTable = ({ orderData }) => {
         cell: ({ row }) => {
           const statusKey = row.original.status?.toLowerCase(); // Case-insensitive lookup
           const chipData = statusChipColor[statusKey] || { color: 'default' };
-          return (
+
+          
+return (
             <Chip
               label={row.original.status}
               variant="tonal"
@@ -213,13 +252,17 @@ const OrderListTable = ({ orderData }) => {
         header: 'Vehicle Type',
         cell: ({ row }) => {
           const vehicleType = row.original.vehicleType?.toLowerCase(); // Case-insensitive match
+
           const vehicleIcons = {
             car: { icon: 'ri-car-fill', color: '#ff4d49' }, // Blue for Car
             bike: { icon: 'ri-motorbike-fill', color: '#72e128' }, // Green for Bike
             default: { icon: 'ri-roadster-fill', color: '#282a42' } // Grey for Others
           };
+
           const { icon, color } = vehicleIcons[vehicleType] || vehicleIcons.default;
-          return (
+
+          
+return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <i className={icon} style={{ fontSize: '16px', color }}></i>
               {row.original.vehicleType}
@@ -241,6 +284,7 @@ const OrderListTable = ({ orderData }) => {
                   menuItemProps: {
                     onClick: () => {
                       const selectedId = row.original._id;
+
                       if (selectedId) {
                         console.log('Navigating to Order Details:', selectedId); // ✅ Debugging
                         router.push(`/apps/ecommerce/orders/details/${selectedId}`); // ✅ Navigate with Next.js
@@ -257,25 +301,36 @@ const OrderListTable = ({ orderData }) => {
                     onClick: async () => {
                       try {
                         const selectedId = row.original._id;
+
                         if (!selectedId) {
                           console.error('⚠️ Booking ID is missing!');
-                          return;
+                          
+return;
                         }
+
                         console.log('Attempting to delete Booking ID:', selectedId);
+
                         // ✅ Show confirmation alert before deleting
                         const isConfirmed = window.confirm("Are you sure you want to delete this booking?");
+
                         if (!isConfirmed) {
                           console.log('Deletion cancelled');
-                          return;
+                          
+return;
                         }
+
+
                         // ✅ Call API to delete the booking
                         const response = await fetch(`${API_URL}/vendor/deletebooking/${selectedId}`, {
                           method: 'DELETE'
                         });
+
                         if (!response.ok) {
                           throw new Error('Failed to delete booking');
                         }
+
                         console.log('✅ Booking Deleted:', selectedId);
+
                         // ✅ Update the table after deletion
                         setData(prevData => prevData.filter(booking => booking._id !== selectedId));
                       } catch (error) {
@@ -305,6 +360,7 @@ const OrderListTable = ({ orderData }) => {
     ],
     [data, filteredData]
   );
+
   const table = useReactTable({
     data: filteredData.length > 0 || globalFilter ? filteredData : data, // ✅ Fix applied here
     columns,
@@ -332,8 +388,10 @@ const OrderListTable = ({ orderData }) => {
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   });
+
   const getAvatar = params => {
     const { avatar, customer } = params
+
     if (avatar) {
       return <CustomAvatar src={avatar} skin='light' size={34} />
     } else {
@@ -344,7 +402,9 @@ const OrderListTable = ({ orderData }) => {
       )
     }
   }
-  return (
+
+  
+return (
     <Card>
       <CardHeader title='Request Management' />
       {/* <TableFilters setData={setFilteredData} bookingData={data} /> */}
@@ -442,4 +502,5 @@ const OrderListTable = ({ orderData }) => {
     </Card>
   )
 }
+
 export default OrderListTable

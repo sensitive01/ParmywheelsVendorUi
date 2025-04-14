@@ -1,6 +1,8 @@
 // React Imports
 import { useState, useEffect, forwardRef, useCallback } from 'react'
+
 import { useSession } from 'next-auth/react'
+
 // MUI Imports
 import {
   Box,
@@ -17,21 +19,30 @@ import {
   FormControl,
   FormControlLabel
 } from '@mui/material'
+
 // Third-party Imports
 import { useForm, Controller } from 'react-hook-form'
 import PerfectScrollbar from 'react-perfect-scrollbar'
+
+
 // Styled Component Imports
 import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
+
 // Vars
 const capitalize = string => string && string[0].toUpperCase() + string.slice(1)
+
 // API URL (Ensure it's set in your environment variables)
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+
 const AddEventSidebar = props => {
   // Props
   const { addEventSidebarOpen, handleAddEventSidebarToggle } = props
+
   // Session for vendor details
   const { data: session } = useSession()
   const vendorId = session?.user?.id
+
+
   // States
   const [meetingDetails, setMeetingDetails] = useState({
     name: '',
@@ -41,6 +52,8 @@ const AddEventSidebar = props => {
     businessURL: '',
     callbackTime: new Date()
   })
+
+
   // React Hook Form
   const {
     control,
@@ -49,12 +62,16 @@ const AddEventSidebar = props => {
     handleSubmit,
     formState: { errors }
   } = useForm({ defaultValues: { name: '', email: '', mobile: '' } })
+
+
   // Handle form submission
   const onSubmit = async data => {
     if (!vendorId) {
       alert('Vendor not logged in')
-      return
+      
+return
     }
+
     const meetingData = {
       name: meetingDetails.name,
       department: meetingDetails.department,
@@ -64,13 +81,16 @@ const AddEventSidebar = props => {
       callbackTime: meetingDetails.callbackTime,
       vendorId
     }
+
     try {
       const response = await fetch(`${API_URL}/vendor/createmeeting`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(meetingData)
       })
+
       const result = await response.json()
+
       if (response.ok) {
         alert('Meeting created successfully!')
         handleAddEventSidebarToggle() // Close sidebar after success
@@ -82,7 +102,9 @@ const AddEventSidebar = props => {
       alert('Something went wrong!')
     }
   }
-  return (
+
+  
+return (
     <Drawer
       anchor='right'
       open={addEventSidebarOpen}
@@ -167,4 +189,5 @@ const AddEventSidebar = props => {
     </Drawer>
   )
 }
+
 export default AddEventSidebar

@@ -1,19 +1,29 @@
 'use client'
+
 // React Imports
 import { Children, cloneElement, createContext, forwardRef, useEffect, useRef, useState } from 'react'
+
+
 // Next Imports
 import { usePathname } from 'next/navigation'
+
+
 // Third-party Imports
 import classnames from 'classnames'
 import styled from '@emotion/styled'
 import {  useFloating,  autoUpdate,  offset,  flip,  shift,  useHover,  useRole,  useInteractions,  useClick,  safePolygon,  useDismiss,  useFloatingNodeId,  FloatingNode,  FloatingPortal,  useMergeRefs,  useFloatingParentNodeId,  useFloatingTree,  useTransitionStyles} from '@floating-ui/react'
+
+
 // Component Imports
 import SubMenuContent from './SubMenuContent'
+
 // Hook Imports
 import useHorizontalMenu from '../../hooks/useHorizontalMenu'
+
 // Util Imports
 import { menuClasses } from '../../utils/menuClasses'
 import { confirmUrlInChildren, renderMenuIcon } from '../../utils/menuUtils'
+
 // Styled Component Imports
 import MenuButton, { menuButtonStyles } from './MenuButton'
 import StyledMenuLabel from '../../styles/StyledMenuLabel'
@@ -23,10 +33,13 @@ import StyledHorizontalNavExpandIcon, {
   StyledHorizontalNavExpandIconWrapper
 } from '../../styles/horizontal/StyledHorizontalNavExpandIcon'
 import StyledSubMenuContentWrapper from '../../styles/horizontal/StyledHorizontalSubMenuContentWrapper'
+
 // Style Imports
 import ulStyles from '../../styles/horizontal/horizontalUl.module.css'
+
 // Icon Imports
 import ChevronRight from '../../svg/ChevronRight'
+
 const StyledSubMenu = styled.li`
   ${({ level }) => level === 0 && { borderRadius: '6px', overflow: 'hidden' }}
   &.${menuClasses.open} > .${menuClasses.button} {
@@ -44,7 +57,9 @@ const StyledSubMenu = styled.li`
     ${({ buttonStyles }) => buttonStyles};
   }
 `
+
 export const HorizontalSubMenuContext = createContext({ getItemProps: () => ({}) })
+
 const SubMenu = (props, ref) => {
   // Props
   const {
@@ -65,20 +80,26 @@ const SubMenu = (props, ref) => {
     onOpenChange,
     ...rest
   } = props
+
+
   // States
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(false)
+
   // Refs
   const SubMenuWithRef = forwardRef(SubMenu);
+
 console.log('SubMenuWithRef===',SubMenuWithRef);
 
   const dir = useRef('ltr')
   const listItemsRef = useRef([])
+
   // Hooks
   const pathname = usePathname()
   const tree = useFloatingTree()
   const nodeId = useFloatingNodeId()
   const parentId = useFloatingParentNodeId()
+
   const {
     triggerPopout,
     renderExpandIcon,
@@ -94,19 +115,23 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
   // Vars
   // Filter out falsy values from children
   const childNodes = Children.toArray(children).filter(Boolean)
+
   const mainAxisOffset =
     popoutMenuOffset &&
     popoutMenuOffset.mainAxis &&
     (typeof popoutMenuOffset.mainAxis === 'function' ? popoutMenuOffset.mainAxis({ level }) : popoutMenuOffset.mainAxis)
+
   const alignmentAxisOffset =
     popoutMenuOffset &&
     popoutMenuOffset.alignmentAxis &&
     (typeof popoutMenuOffset.alignmentAxis === 'function'
       ? popoutMenuOffset.alignmentAxis({ level })
       : popoutMenuOffset.alignmentAxis)
+
   useEffect(() => {
     dir.current = window.getComputedStyle(document.documentElement).getPropertyValue('direction')
   }, [])
+
   const { y, refs, floatingStyles, context } = useFloating({
     open,
     nodeId,
@@ -122,6 +147,8 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
     ],
     whileElementsMounted: autoUpdate
   })
+
+
   // Floating UI Transition Styles
   const { isMounted, styles } = useTransitionStyles(context, {
     // Configure both open and close durations:
@@ -139,6 +166,7 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
       transform: 'translateY(10px)'
     }
   })
+
   const hover = useHover(context, {
     handleClose: safePolygon({
       blockPointerEvents: true
@@ -147,31 +175,40 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
     enabled: triggerPopout === 'hover', // Only enable hover effect when triggerPopout option is set to 'hover',
     delay: { open: 75 } // Delay opening submenu by 75ms
   })
+
   const click = useClick(context, {
     enabled: triggerPopout === 'click', // Only enable click effect when triggerPopout option is set to 'click'
     toggle: false
   })
+
   const dismiss = useDismiss(context)
   const role = useRole(context, { role: 'menu' })
+
   // Merge all the interactions into prop getters
   const { getReferenceProps, getFloatingProps, getItemProps } = useInteractions([hover, click, dismiss, role])
+
   const handleOnClick = event => {
     onClick?.(event)
     triggerPopout === 'click' && setOpen(!open)
   }
+
   const handleOnKeyUp = event => {
     onKeyUp?.(event)
+
     if (event.key === 'Enter') {
       setOpen(!open)
     }
   }
+
   const getSubMenuItemStyles = element => {
     // If the menuItemStyles prop is provided, get the styles for the specified element.
     if (menuItemStyles) {
       // Define the parameters that are passed to the style functions.
       const params = { level, disabled, active, isSubmenu: true, open: open }
+
       // Get the style function for the specified element.
       const styleFunction = menuItemStyles[element]
+
       if (styleFunction) {
         // If the style function is a function, call it and return the result.
         // Otherwise, return the style function itself.
@@ -179,20 +216,26 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
       }
     }
   }
+
+
   // Event emitter allows you to communicate across tree components.
   // This effect closes all menus when an item gets clicked anywhere in the tree.
   useEffect(() => {
     const handleTreeClick = () => {
       setOpen(false)
     }
+
     const onSubMenuOpen = event => {
       if (event.nodeId !== nodeId && event.parentId === parentId) {
         setOpen(false)
       }
     }
+
     tree?.events.on('click', handleTreeClick)
     tree?.events.on('menuopen', onSubMenuOpen)
-    return () => {
+
+    
+return () => {
       tree?.events.off('click', handleTreeClick)
       tree?.events.off('menuopen', onSubMenuOpen)
     }
@@ -205,6 +248,7 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
       })
     }
   }, [tree, open, nodeId, parentId])
+
   // Change active state when the url changes
   useEffect(() => {
     // Check if the current url matches any of the children urls
@@ -215,14 +259,18 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
+
   // User event handler for open state change
   useEffect(() => {
     onOpenChange?.(open)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
   // Merge the reference ref with the ref passed to the component
   const referenceRef = useMergeRefs([refs.setReference, ref])
-  return (
+
+  
+return (
     <FloatingNode id={nodeId}>
       {/* Sub Menu */}
       <StyledSubMenu
@@ -353,4 +401,5 @@ console.log('SubMenuWithRef===',SubMenuWithRef);
     </FloatingNode>
   )
 }
+
 export default forwardRef(SubMenu)

@@ -1,5 +1,7 @@
 // React Imports
 import { useState } from 'react'
+
+
 // MUI Imports
 import Grid from '@mui/material/Grid2'
 import TextField from '@mui/material/TextField'
@@ -14,8 +16,12 @@ import Button from '@mui/material/Button'
 import Autocomplete from '@mui/material/Autocomplete'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Chip from '@mui/material/Chip'
+
+
 // Component Imports
 import DirectionalIcon from '@components/DirectionalIcon'
+
+
 // Vars
 const furnishingArray = [
   'AC',
@@ -30,10 +36,13 @@ const furnishingArray = [
   'Dining Table',
   'Washing Machine'
 ]
+
 const StepPropertyFeatures = ({ activeStep, handleNext, handlePrev, steps }) => {
   // States
   const [furnishingDetails, setFurnishingDetails] = useState(['Fridge', 'AC', 'TV'])
-  return (
+
+  
+return (
     <Grid container spacing={5}>
       <Grid size={{ xs: 12, md: 6 }}>
         <TextField fullWidth label='Bedrooms' placeholder='3' />
@@ -69,7 +78,9 @@ const StepPropertyFeatures = ({ activeStep, handleNext, handlePrev, steps }) => 
           renderTags={(value, getTagProps) =>
             value.map((option, index) => {
               const { key, ...otherProps } = getTagProps({ index })
-              return <Chip key={key} size='small' label={option} {...otherProps} />
+
+              
+return <Chip key={key} size='small' label={option} {...otherProps} />
             })
           }
         />
@@ -122,4 +133,5 @@ const StepPropertyFeatures = ({ activeStep, handleNext, handlePrev, steps }) => 
     </Grid>
   )
 }
+
 export default StepPropertyFeatures

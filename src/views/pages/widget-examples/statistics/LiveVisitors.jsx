@@ -70,8 +70,10 @@
 // }
 // export default Sales
 'use client'
+
 // MUI Imports
 import { useEffect, useState } from 'react'
+
 import Card from '@mui/material/Card'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
@@ -91,10 +93,13 @@ import IconButton from '@mui/material/IconButton'
 import CloseIcon from '@mui/icons-material/Close'
 import axios from 'axios'
 import { useSession } from 'next-auth/react'
+
+
 // Components Imports
+import EditIcon from '@mui/icons-material/Edit'
+
 import OptionMenu from '@core/components/option-menu'
 import CustomAvatar from '@core/components/mui/Avatar'
-import EditIcon from '@mui/icons-material/Edit'
 
 // Vars
 const Sales = () => {
@@ -104,23 +109,28 @@ const Sales = () => {
     { stats: '0', color: 'info', title: 'Bike Slots', icon: 'ri-motorbike-line' },
     { stats: '0', color: 'primary', title: 'Other Slots', icon: 'ri-user-star-line' }
   ])
+
   const [openDialog, setOpenDialog] = useState(false)
   const [parkingEntries, setParkingEntries] = useState([])
   const API_URL = process.env.NEXT_PUBLIC_API_URL
   const { data: session } = useSession()
   const vendorid = session?.user?.id
+
   useEffect(() => {
     if (!vendorid) return // Prevent API call if vendorid is undefined
+
     const fetchData = async () => {
       try {
         const response = await axios.get(`${API_URL}/vendor/fetch-slot-vendor-data/${vendorid}`)
         const { totalCount, Cars, Bikes, Others } = response.data
+
         setData([
           { stats: totalCount, color: 'success', title: 'Total Slots', icon: 'ri-database-2-line' },
           { stats: Cars, color: 'warning', title: 'Car Slots', icon: 'ri-car-line' },
           { stats: Bikes, color: 'info', title: 'Bike Slots', icon: 'ri-motorbike-line' },
           { stats: Others, color: 'primary', title: 'Other Slots', icon: 'ri-user-star-line' }
         ])
+
         // Set parkingEntries for dialog form
         setParkingEntries([
           { type: 'car', count: Cars || 0 },
@@ -131,48 +141,66 @@ const Sales = () => {
         console.error('Error fetching data:', error)
       }
     }
+
     fetchData()
   }, [vendorid])
+
+
   // Open Dialog
   const handleOpenDialog = () => {
     setOpenDialog(true)
   }
+
+
   // Close Dialog
   const handleCloseDialog = () => {
     setOpenDialog(false)
   }
+
+
   // Add New Parking Entry
   const handleAddParkingEntry = () => {
     setParkingEntries([...parkingEntries, { type: '', count: '' }])
   }
+
+
   // Remove Parking Entry
   const handleRemoveParkingEntry = (index) => {
     setParkingEntries(parkingEntries.filter((_, i) => i !== index))
   }
+
+
   // Handle Input Changes
   const handleInputChange = (index, field, value) => {
     const updatedEntries = [...parkingEntries]
+
     updatedEntries[index][field] = value
     setParkingEntries(updatedEntries)
   }
+
   const handleSubmit = async () => {
     try {
       const formattedEntries = parkingEntries.map(entry => ({
         type: entry.type === "car" ? "Cars" : entry.type === "bike" ? "Bikes" : "Others",
         count: entry.count.toString()  // Ensure count is always a string
       }));
+
       console.log("Formatted Payload:", JSON.stringify({ parkingEntries: formattedEntries }, null, 2)); // Debugging
+
       const response = await axios.put(
         `${API_URL}/vendor/update-parking-entries-vendor-data/${vendorid}`,
         { parkingEntries: formattedEntries }
       );
+
       alert("Vendor details updated successfully!");
       handleCloseDialog();
     } catch (error) {
       console.error("Error updating vendor details:", error.response?.data || error.message);
     }
   };
-  return (
+
+  
+return (
     <Card>
       <CardHeader
         title='Total Slots'
@@ -259,4 +287,5 @@ const Sales = () => {
     </Card>
   )
 }
+
 export default Sales

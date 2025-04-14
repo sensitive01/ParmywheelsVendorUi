@@ -200,13 +200,17 @@
 // export const { getActiveUserData, addNewChat, setUserStatus, sendMsg } = chatSlice.actions
 // export default chatSlice.reducer
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit'
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+
 // Async Thunk: Create Vendor Help Support Request
 export const sendMessageToVendor = createAsyncThunk(
   'chat/sendMessageToVendor',
   async (requestData, { rejectWithValue }) => {
     try {
       const { vendorid, description, vendoractive = true, chatbox = [] } = requestData;
+
       const response = await fetch(`${API_URL}/vendor/createhelpvendor`, {
         method: 'POST',
         headers: {
@@ -224,25 +228,33 @@ export const sendMessageToVendor = createAsyncThunk(
           }))
         }),
       });
+
       const result = await response.json();
+
       if (!response.ok) {
         throw new Error(result.message || 'Failed to create help request');
       }
-      return result.helpRequest;
+
+      
+return result.helpRequest;
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
+
 // Async Thunk: Fetch Vendor Contacts
 export const fetchVendors = createAsyncThunk('chat/fetchVendors', async (_, { rejectWithValue }) => {
   try {
     const response = await fetch(`${API_URL}/vendor/fetch-all-vendor-data`);
     const result = await response.json();
+
     if (!response.ok) {
       throw new Error(result.message || 'Failed to fetch vendors');
     }
-    return result.data.map(vendor => ({
+
+    
+return result.data.map(vendor => ({
       id: vendor._id,
       fullName: vendor.vendorName,
       email: vendor.contacts.length > 0 ? vendor.contacts[0].mobile : 'N/A',
@@ -268,15 +280,18 @@ export const chatSlice = createSlice({
     getActiveUserData: (state, action) => {
       const activeUser = state.contacts.find(user => user.id === action.payload);
       const chat = state.chats.find(chat => chat.userId === action.payload);
+
       if (chat && chat.unseenMsgs > 0) {
         chat.unseenMsgs = 0;
       }
+
       if (activeUser) {
         state.activeUser = activeUser;
       }
     },
     addNewChat: (state, action) => {
       const { id } = action.payload;
+
       state.contacts.find(contact => {
         if (contact.id === id && !state.chats.find(chat => chat.userId === contact.id)) {
           state.chats.unshift({
@@ -297,6 +312,7 @@ export const chatSlice = createSlice({
     sendMsg: (state, action) => {
       const { msg } = action.payload;
       const existingChat = state.chats.find(chat => chat.userId === state.activeUser?.id);
+
       if (existingChat) {
         existingChat.chat.push({
           message: msg,

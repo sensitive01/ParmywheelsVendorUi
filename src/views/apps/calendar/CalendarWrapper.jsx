@@ -1,17 +1,25 @@
 'use client'
+
 // React Imports
 import { useEffect, useState } from 'react'
+
 import { useSession } from 'next-auth/react'
 import axios from 'axios'
+
 // MUI Imports
 import { useMediaQuery } from '@mui/material'
+
 // Redux Imports
 import { useDispatch, useSelector } from 'react-redux'
-import { setFetchedEvents, filterEventsUsingCheckbox, filterCalendarLabel, filterAllCalendarLabels } from '@/redux-store/slices/calendar'
+
+import { setFetchedEvents,  filterCalendarLabel, filterAllCalendarLabels } from '@/redux-store/slices/calendar'
+
 // Component Imports
 import Calendar from './Calendar'
 import SidebarLeft from './SidebarLeft'
 import AddEventSidebar from './AddEventSidebar'
+
+
 // CalendarColors Object
 const calendarsColor = {
   Sales: 'error',
@@ -20,6 +28,7 @@ const calendarsColor = {
   Product: 'success',
   Operations: 'info'
 }
+
 const AppCalendar = () => {
   const dispatch = useDispatch()
   const calendarStore = useSelector(state => state.calendarReducer)
@@ -30,21 +39,26 @@ const AppCalendar = () => {
   const handleLeftSidebarToggle = () => setLeftSidebarOpen(!leftSidebarOpen)
   const handleAddEventSidebarToggle = () => setAddEventSidebarOpen(!addEventSidebarOpen)
   const [selectedDate, setSelectedDate] = useState(new Date()) // ✅ Store selected date
+
   const handleDateClick = (info) => {
     setSelectedDate(new Date(info.dateStr)) // ✅ Set clicked date
     handleAddEventSidebarToggle() // ✅ Open sidebar
   }
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL
+
   // Session for vendor details
   const { data: session } = useSession()
   const vendorId = session?.user?.id
+
   console.log('vendorid===', vendorId);
   useEffect(() => {
     const fetchMeetings = async () => {
       try {
         if (!vendorId) {
           console.warn("Vendor ID not available yet."); // ✅ Debugging
-          return
+          
+return
         }
 
         console.log("Fetching meetings for vendor:", vendorId); // ✅ Debugging
@@ -54,9 +68,11 @@ const AppCalendar = () => {
         if (response.data.meetings) {
           const events = response.data.meetings.map(meeting => {
             let startTime = new Date(meeting.callbackTime);
+
             if (isNaN(startTime.getTime())) {
               startTime = new Date(meeting.callbackTime.replace(/-/g, '/'));
             }
+
             const eventDetails = {
               id: meeting._id,
               title: meeting.name,
@@ -125,4 +141,5 @@ const AppCalendar = () => {
     </>
   )
 }
+
 export default AppCalendar

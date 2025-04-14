@@ -79,7 +79,8 @@ module.exports = {
         pathGroupsExcludedImportTypes: ['react', 'type'],
         'newlines-between': 'always-and-inside-groups'
       }
-    ]
+    ],
+    'react/no-unescaped-entities': 'off'
   },
   settings: {
     react: {

@@ -1,6 +1,9 @@
 'use client'
+
 // React Imports
 import { useState } from 'react'
+
+
 // MUI Imports
 import { styled } from '@mui/material/styles'
 import Grid from '@mui/material/Grid2'
@@ -20,30 +23,40 @@ import FormControl from '@mui/material/FormControl'
 import FormHelperText from '@mui/material/FormHelperText'
 import InputAdornment from '@mui/material/InputAdornment'
 import IconButton from '@mui/material/IconButton'
+
 // Third-party Imports
 import { toast } from 'react-toastify'
 import { Controller, useForm } from 'react-hook-form'
 import { valibotResolver } from '@hookform/resolvers/valibot'
 import { email, object, minLength, string, array, forward, pipe, nonEmpty, check } from 'valibot'
+
+
 // Component Imports
 import StepperWrapper from '@core/styles/stepper'
 import StepperCustomDot from '@components/stepper-dot'
 import DirectionalIcon from '@components/DirectionalIcon'
+
+
 // Vars
 const steps = [
   {
     title: 'Account Details',
+
     // subtitle: 'Enter your account details'
   },
   {
     title: 'Personal Info',
+
     // subtitle: 'Setup Information'
   },
   {
     title: 'Social Links',
+
     // subtitle: 'Add Social Links'
   }
 ]
+
+
 // Styled Components
 const Stepper = styled(MuiStepper)(({ theme }) => ({
   justifyContent: 'center',
@@ -59,6 +72,7 @@ const Stepper = styled(MuiStepper)(({ theme }) => ({
     }
   }
 }))
+
 const accountValidationSchema = object({
   username: pipe(string(), nonEmpty('This field is required'), minLength(1)),
   email: pipe(string(), nonEmpty('This field is required'), email('Please enter a valid email address')),
@@ -69,6 +83,7 @@ const accountValidationSchema = object({
   ),
   confirmPassword: pipe(string(), nonEmpty('This field is required'), minLength(1))
 })
+
 const accountSchema = pipe(
   accountValidationSchema,
   forward(
@@ -76,25 +91,31 @@ const accountSchema = pipe(
     ['confirmPassword']
   )
 )
+
 const personalSchema = object({
   firstName: pipe(string(), nonEmpty('This field is required'), minLength(1)),
   lastName: pipe(string(), nonEmpty('This field is required'), minLength(1)),
   country: pipe(string(), nonEmpty('This field is required'), minLength(1)),
   language: pipe(array(string()), nonEmpty('This field is required'), minLength(1))
 })
+
 const socialSchema = object({
   twitter: pipe(string(), nonEmpty('This field is required'), minLength(1)),
   facebook: pipe(string(), nonEmpty('This field is required'), minLength(1)),
   google: pipe(string(), nonEmpty('This field is required'), minLength(1)),
   linkedIn: pipe(string(), nonEmpty('This field is required'), minLength(1))
 })
+
 const StepperLinearWithValidation = () => {
   // States
   const [activeStep, setActiveStep] = useState(0)
   const [isPasswordShown, setIsPasswordShown] = useState(false)
   const [isConfirmPasswordShown, setIsConfirmPasswordShown] = useState(false)
+
   // Vars
   const Languages = ['English', 'French', 'Spanish', 'Portuguese', 'Italian', 'German', 'Arabic']
+
+
   // Hooks
   const {
     reset: accountReset,
@@ -110,6 +131,7 @@ const StepperLinearWithValidation = () => {
       confirmPassword: ''
     }
   })
+
   const {
     reset: personalReset,
     control: personalControl,
@@ -124,6 +146,7 @@ const StepperLinearWithValidation = () => {
       language: []
     }
   })
+
   const {
     reset: socialReset,
     control: socialControl,
@@ -138,17 +161,22 @@ const StepperLinearWithValidation = () => {
       linkedIn: ''
     }
   })
+
   const handleClickShowPassword = () => setIsPasswordShown(show => !show)
   const handleClickShowConfirmPassword = () => setIsConfirmPasswordShown(show => !show)
+
   const onSubmit = () => {
     setActiveStep(prevActiveStep => prevActiveStep + 1)
+
     if (activeStep === steps.length - 1) {
       toast.success('Form Submitted')
     }
   }
+
   const handleBack = () => {
     setActiveStep(prevActiveStep => prevActiveStep - 1)
   }
+
   const handleReset = () => {
     setActiveStep(0)
     accountReset({ email: '', username: '', password: '', confirmPassword: '' })
@@ -157,6 +185,7 @@ const StepperLinearWithValidation = () => {
     setIsPasswordShown(false)
     setIsConfirmPasswordShown(false)
   }
+
   const renderStepContent = activeStep => {
     switch (activeStep) {
       case 0:
@@ -504,15 +533,19 @@ const StepperLinearWithValidation = () => {
         return <Typography color='text.primary'>Unknown stepIndex</Typography>
     }
   }
-  return (
+
+  
+return (
     <Card>
       <CardContent>
         <StepperWrapper>
           <Stepper activeStep={activeStep}>
             {steps.map((label, index) => {
               const labelProps = {}
+
               if (index === activeStep) {
                 labelProps.error = false
+
                 if (
                   (accountErrors.email ||
                     accountErrors.username ||
@@ -538,7 +571,9 @@ const StepperLinearWithValidation = () => {
                   labelProps.error = false
                 }
               }
-              return (
+
+              
+return (
                 <Step key={index}>
                   <StepLabel
                     {...labelProps}
@@ -580,4 +615,5 @@ const StepperLinearWithValidation = () => {
     </Card>
   )
 }
+
 export default StepperLinearWithValidation

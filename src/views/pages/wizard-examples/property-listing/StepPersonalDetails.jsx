@@ -1,16 +1,23 @@
 // React Imports
 import { useState } from 'react'
+
+
 // MUI Imports
 import Grid from '@mui/material/Grid2'
 import Button from '@mui/material/Button'
 import TextField from '@mui/material/TextField'
 import IconButton from '@mui/material/IconButton'
 import InputAdornment from '@mui/material/InputAdornment'
+
 // Third-party Imports
 import classnames from 'classnames'
+
+
 // Component Imports
 import CustomInputVertical from '@core/components/custom-inputs/Vertical'
 import DirectionalIcon from '@components/DirectionalIcon'
+
+
 // Vars
 const data = [
   {
@@ -33,14 +40,18 @@ const data = [
     asset: 'ri-money-dollar-circle-line'
   }
 ]
+
 const StepPersonalDetails = ({ activeStep, handleNext, handlePrev, steps }) => {
   // Vars
   const initialSelectedOption = data.filter(item => item.isSelected)[data.filter(item => item.isSelected).length - 1]
     .value
+
+
   // States
   const [selectedOption, setSelectedOption] = useState(initialSelectedOption)
   const [isPasswordShown, setIsPasswordShown] = useState(false)
   const handleClickShowPassword = () => setIsPasswordShown(show => !show)
+
   const handleOptionChange = prop => {
     if (typeof prop === 'string') {
       setSelectedOption(prop)
@@ -48,16 +59,21 @@ const StepPersonalDetails = ({ activeStep, handleNext, handlePrev, steps }) => {
       setSelectedOption(prop.target.value)
     }
   }
-  return (
+
+  
+return (
     <Grid container spacing={6}>
       <Grid size={{ xs: 12 }}>
         <Grid container spacing={5}>
           {data.map((item, index) => {
             let asset
+
             if (item.asset && typeof item.asset === 'string') {
               asset = <i className={classnames(item.asset, 'text-[28px]')} />
             }
-            return (
+
+            
+return (
               <CustomInputVertical
                 type='radio'
                 key={index}
@@ -155,4 +171,5 @@ const StepPersonalDetails = ({ activeStep, handleNext, handlePrev, steps }) => {
     </Grid>
   )
 }
+
 export default StepPersonalDetails

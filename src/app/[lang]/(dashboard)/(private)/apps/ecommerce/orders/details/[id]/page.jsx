@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+
 import OrderDetails from '@views/apps/ecommerce/orders/details'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
@@ -30,6 +31,7 @@ const OrderDetailsPage = async ({ params }) => {
     }
 
     const data = await response.json()
+
     console.log('✅ API Data:', data) 
 
     const orderData = data?.timeline

@@ -1,4 +1,5 @@
 import CredentialProvider from "next-auth/providers/credentials";
+
 export const authOptions = {
   providers: [
     CredentialProvider({
@@ -9,17 +10,22 @@ export const authOptions = {
       },
       async authorize(credentials) {
         const { mobile, password } = credentials;
+
         try {
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/login`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ mobile, password }),
           });
+
           const data = await res.json();
+
           if (!res.ok) {
             throw new Error(data.message || "Login failed");
           }
+
           console.log("Login successful:", data);
+
           // Return user data (do NOT use localStorage here)
           return {
             id: data.vendorId,
@@ -44,11 +50,14 @@ export const authOptions = {
       if (user) {
         token = { ...token, ...user };
       }
-      return token;
+
+      
+return token;
     },
     async session({ session, token }) {
       session.user = token;
-      return session;
+      
+return session;
     },
   },
   pages: { signIn: "/login" },

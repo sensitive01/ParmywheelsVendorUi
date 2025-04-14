@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+
 import { 
   Box, 
   Tab, 
@@ -21,11 +22,13 @@ import {
   KeyboardArrowUp,
   KeyboardArrowDown
 } from '@mui/icons-material';
+
 const TabPanel = ({ children, value, index, ...other }) => (
   <div role="tabpanel" hidden={value !== index} {...other}>
     {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
   </div>
 );
+
 const Dashboard = () => {
   const [value, setValue] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -33,9 +36,11 @@ const Dashboard = () => {
   const [expandedCard, setExpandedCard] = useState(null);
   const theme = useTheme();
   const PLATFORM_FEE_PERCENTAGE = 20;
+
   useEffect(() => {
     fetchTransactions();
   }, []);
+
   const fetchTransactions = async () => {
     try {
       const response = await fetch('https://parkmywheelsapi.onrender.com/vendor/getbookingdata/679cbab22cd53a01b512d354');
@@ -56,14 +61,19 @@ const Dashboard = () => {
   
   const calculatePayout = (amount) => {
     const platformFee = (Number(amount) * PLATFORM_FEE_PERCENTAGE) / 100;
-    return Number(amount) - platformFee;
+
+    
+return Number(amount) - platformFee;
   };
+
   const handleChange = (event, newValue) => {
     setValue(newValue);
   };
+
   const handleCardExpand = (id) => {
     setExpandedCard(expandedCard === id ? null : id);
   };
+
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { 
@@ -77,6 +87,7 @@ const Dashboard = () => {
       transition: { duration: 0.3 }
     }
   };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -84,6 +95,7 @@ const Dashboard = () => {
       </Box>
     );
   }
+
   const renderCard = (transaction, isPayout = false) => (
     <motion.div
       key={transaction._id}
@@ -167,7 +179,9 @@ const Dashboard = () => {
       </Card>
     </motion.div>
   );
-  return (
+
+  
+return (
     <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto', p: 3 }}>
       <Tabs 
         value={value} 
@@ -220,4 +234,5 @@ const Dashboard = () => {
     </Box>
   );
 };
+
 export default Dashboard;

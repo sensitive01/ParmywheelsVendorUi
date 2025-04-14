@@ -1,14 +1,20 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
+
 import { useRouter } from 'next/navigation'
+
+import { useSession } from 'next-auth/react'
 import { Button, Card, CardContent, Grid, TextField, Typography, FormControl, InputLabel, Select, MenuItem, IconButton, InputAdornment } from '@mui/material';
 import { Controller, useForm } from 'react-hook-form';
-import CustomIconButton from '@/@core/components/mui/IconButton';
+
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
+
+import CustomIconButton from '@/@core/components/mui/IconButton';
 import ProductImage from '../../../apps/ecommerce/products/add/ProductImage'
+
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+
 const VendorRegistration = () => {
   const { data: session } = useSession()
   const router = useRouter()
@@ -26,15 +32,20 @@ const VendorRegistration = () => {
   const mapRef = useRef(null)
   const markerRef = useRef(null)
   const autocompleteRef = useRef(null)
+
+
   // Load session data into form fields
   useEffect(() => {
     if (session?.user) {
       const user = session.user
+
       setVendorName(user.name || '')
       setAddress(user.address || '')
       setLatitude(user.latitude || '')
       setLongitude(user.longitude || '')
       setContacts(user.contacts || [{ id: 1, name: '', mobile: '' }])
+
+
       // **Load Image Preview**
       // ✅ Ensure correct image field
       // **Ensure correct image field is used**
@@ -44,6 +55,8 @@ const VendorRegistration = () => {
       } else {
         setImagePreview(null);
       }
+
+
       // **Ensure Parking Entries are Loaded**
       if (user.parkingEntries && Array.isArray(user.parkingEntries)) {
         setParkingEntries(user.parkingEntries)
@@ -56,6 +69,7 @@ const VendorRegistration = () => {
     if (showMap && GOOGLE_MAPS_API_KEY) {
       if (!window.google) {
         const script = document.createElement('script')
+
         script.src = `https://maps.gomaps.pro/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`
         script.async = true
         script.onload = initMap
@@ -65,14 +79,18 @@ const VendorRegistration = () => {
       }
     }
   }, [showMap])
+
   const initMap = () => {
     const map = new window.google.maps.Map(mapRef.current, { center: { lat: 28.6139, lng: 77.209 }, zoom: 15 })
+
     markerRef.current = new window.google.maps.Marker({ position: map.getCenter(), map, draggable: true })
     const input = document.getElementById('autocomplete')
+
     autocompleteRef.current = new window.google.maps.places.Autocomplete(input)
     autocompleteRef.current.bindTo('bounds', map)
     autocompleteRef.current.addListener('place_changed', () => {
       const place = autocompleteRef.current.getPlace()
+
       if (!place.geometry) return
       map.setCenter(place.geometry.location)
       markerRef.current.setPosition(place.geometry.location)
@@ -81,32 +99,42 @@ const VendorRegistration = () => {
       setLongitude(place.geometry.location.lng())
     })
   }
+
   const handleAddContact = () => setContacts([...contacts, { id: contacts.length + 1, name: '', mobile: '' }])
   const handleRemoveContact = id => setContacts(contacts.filter(contact => contact.id !== id))
   const handleAddParkingEntry = () => setParkingEntries([...parkingEntries, { type: '', count: '' }])
   const handleRemoveParkingEntry = index => setParkingEntries(parkingEntries.filter((_, i) => i !== index))
+
   const handleSubmit = async () => {
     const vendorId = session?.user?.id
+
     if (!vendorId) {
       alert('User not logged in')
-      return
+      
+return
     }
+
     const formData = new FormData()
+
     formData.append('vendorName', vendorName)
     formData.append('address', address)
     formData.append('latitude', latitude)
     formData.append('longitude', longitude)
     formData.append('contacts', JSON.stringify(contacts))
     formData.append('parkingEntries', JSON.stringify(parkingEntries))
+
     if (image) {
       formData.append('image', image)
     }
+
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/updatevendor/${vendorId}`, {
         method: 'PUT',
         body: formData
       })
+
       const result = await response.json()
+
       if (response.ok) {
         alert('Vendor details updated successfully!')
         router.push('/') // Redirect after successful update
@@ -118,7 +146,9 @@ const VendorRegistration = () => {
       alert('Something went wrong!')
     }
   }
-  return (
+
+  
+return (
     <Card >
       <CardContent>
         <Typography variant='h4' className='mbe-1' align='center'>
@@ -145,6 +175,7 @@ const VendorRegistration = () => {
                 <Grid item xs={12} sm={6}>
                   <TextField fullWidth label={`Contact Name ${index + 1}`} value={contact.name} onChange={e => {
                     const updatedContacts = [...contacts]
+
                     updatedContacts[index].name = e.target.value
                     setContacts(updatedContacts)
                   }} />
@@ -153,6 +184,7 @@ const VendorRegistration = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <TextField fullWidth label={`Contact Number ${index + 1}`} value={contact.mobile} onChange={e => {
                       const updatedContacts = [...contacts]
+
                       updatedContacts[index].mobile = e.target.value
                       setContacts(updatedContacts)
                     }}
@@ -233,6 +265,7 @@ const VendorRegistration = () => {
                           value={entry.type}
                           onChange={(e) => {
                             const updatedEntries = [...parkingEntries];
+
                             updatedEntries[index].type = e.target.value;
                             setParkingEntries(updatedEntries);
                           }}
@@ -251,6 +284,7 @@ const VendorRegistration = () => {
                           value={entry.count}
                           onChange={(e) => {
                             const updatedEntries = [...parkingEntries];
+
                             updatedEntries[index].count = e.target.value;
                             setParkingEntries(updatedEntries);
                           }}
@@ -285,4 +319,5 @@ const VendorRegistration = () => {
     </Card>
   )
 }
+
 export default VendorRegistration
