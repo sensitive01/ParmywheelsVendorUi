@@ -634,6 +634,7 @@ export default function ParkingBooking() {
   const [loading, setLoading] = useState(false)
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' })
   const [errors, setErrors] = useState({})
+  
 
   useEffect(() => {
     if (sts === 'Instant') {
@@ -708,7 +709,7 @@ export default function ParkingBooking() {
         sts
       }
 
-      const response = await axios.post('http://13.48.42.169:4000/vendor/createbooking', payload)
+      const response = await axios.post(`${API_URL}/vendor/createbooking`, payload);
 
       // Show a browser notification
       showNotification('New Booking Created', {
