@@ -183,6 +183,15 @@ const HorizontalMenu = ({ dictionary }) => {
           <MenuItem href={`/${locale}/pages/faq`} icon={<i className='ri-question-line' />}>
             {dictionary['navigation'].faq}
           </MenuItem>
+          <MenuItem href={`/${locale}/pages/onboardingprocess`} icon={<i className='ri-money-dollar-circle-line' />}>
+            {dictionary['navigation'].onBoardingProcess}
+          </MenuItem>
+          <MenuItem href={`/${locale}/pages/bankdetails`} icon={<i className='ri-money-dollar-circle-line' />}>
+            {dictionary['navigation'].bankdetails}
+          </MenuItem>
+          <MenuItem href={`/${locale}/pages/helpandsupport`} icon={<i className='ri-money-dollar-circle-line' />}>
+            {dictionary['navigation'].helpandsupport}
+          </MenuItem>
           <MenuItem href={`/${locale}/pages/pricing`} icon={<i className='ri-money-dollar-circle-line' />}>
             {dictionary['navigation'].pricing}
           </MenuItem>
@@ -293,6 +302,7 @@ const HorizontalMenu = ({ dictionary }) => {
             </MenuItem>
           </SubMenu>*/}
         </SubMenu> 
+        <MenuItem href={`/${locale}/pages/notifications`} icon={<i className='ri-notification-3-line' style={{ color: '#329a73', fontSize: '24px' }} />} />
           {/* <SubMenu label={dictionary['navigation'].formsAndTables} icon={<i className='ri-pages-line' />}>
           <MenuItem href={`/${locale}/forms/form-layouts`} icon={<i className='ri-layout-4-line' />}>
             {dictionary['navigation'].formLayouts}

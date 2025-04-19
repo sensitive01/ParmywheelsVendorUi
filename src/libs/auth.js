@@ -30,12 +30,12 @@ export const authOptions = {
           return {
             id: data.vendorId,
             name: data.vendorName,
-            contacts: data.contacts,
-            latitude: data.latitude,
-            longitude: data.longitude,
-            address: data.address,
-            image: data.image,
-            parkingEntries: data.parkingEntries,
+            contacts: data.contacts || [],
+            latitude: data.latitude || '',
+            longitude: data.longitude || '',
+            address: data.address || '',
+            image: data.image || '', // Ensure image is returned correctly
+            parkingEntries: data.parkingEntries || [], // Ensure parkingEntries is returned correctly
           };
         } catch (error) {
           console.error("Error during login:", error);

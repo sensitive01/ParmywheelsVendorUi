@@ -214,7 +214,7 @@ const ProductImage = ({ onChange }) => {
 return (
     <Dropzone>
       <Card>
-        <CardHeader title='Product Image' />
+        <CardHeader title='Upload Vendor Banner' />
         <CardContent>
           <div {...getRootProps({ className: 'dropzone' })}>
             <input {...getInputProps()} />

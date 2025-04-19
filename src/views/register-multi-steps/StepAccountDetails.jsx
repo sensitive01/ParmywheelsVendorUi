@@ -259,9 +259,9 @@ return (
                               ]);
                             }}
                           >
-                            <MenuItem value="bike">Bike</MenuItem>
-                            <MenuItem value="car">Car</MenuItem>
-                            <MenuItem value="others">Others</MenuItem>
+                            <MenuItem value="Bikes">Bike</MenuItem>
+                            <MenuItem value="Cars">Car</MenuItem>
+                            <MenuItem value="Others">Others</MenuItem>
                           </Select>
                         </FormControl>
                       )}
