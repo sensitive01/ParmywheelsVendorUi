@@ -65,7 +65,7 @@ return total + amount;
     setIsLoading(true);
 
     try {
-      let url = `http://13.48.42.169:4000/vendor/fetchbookingtransaction/${vendorId}`;
+      let url = `https://parkmywheelsapi.onrender.com/vendor/fetchbookingtransaction/${vendorId}`;
 
       if (dateFilter && startDate && endDate) {
         url += `?startDate=${startDate}&endDate=${endDate}`;

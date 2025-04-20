@@ -79,7 +79,7 @@ const ChatLog = ({ chatStore, isBelowLgScreen, isBelowMdScreen, isBelowSmScreen 
   const fetchMessages = async () => {
     try {
       setLoading(true)
-      const response = await axios.get(`http://13.48.42.169:4000/vendor/gethelpvendor/${activeUser.id}`)
+      const response = await axios.get(`https://parkmywheelsapi.onrender.com/vendor/gethelpvendor/${activeUser.id}`)
       const helpRequests = response.data.helpRequests || []
 
       const extractedMessages = helpRequests.flatMap(request =>
