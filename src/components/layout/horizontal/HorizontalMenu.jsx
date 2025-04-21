@@ -139,6 +139,9 @@ const HorizontalMenu = ({ dictionary }) => {
           <MenuItem href={`/${locale}/apps/chat`} icon={<i className='ri-wechat-line' />}>
             {dictionary['navigation'].chat}
           </MenuItem>
+          <MenuItem href={`/${locale}/pages/subscriptionbooking`} icon={<i className='ri-wechat-line' />}>
+            {dictionary['navigation'].SubscriptionBooking}
+          </MenuItem>
 
 
           {/* <SubMenu label={dictionary['navigation'].invoice} icon={<i className='ri-file-list-2-line' />}>
