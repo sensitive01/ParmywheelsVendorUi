@@ -215,7 +215,7 @@
 //         sts
 //       }
 
-//       const response = await axios.post('http://13.48.42.169:4000/vendor/createbooking', payload)
+//       const response = await axios.post('https://parkmywheelsapi.onrender.com/vendor/createbooking', payload)
 
 //       setAlert({
 //         show: true,
