@@ -29,7 +29,7 @@ const SupportChatView = () => {
   const [sending, setSending] = useState(false)
   const fileInputRef = useRef(null)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://parkmywheelsapi.onrender.com'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://13.48.42.169:4000'
 
   // Get helpRequestId from URL
   useEffect(() => {

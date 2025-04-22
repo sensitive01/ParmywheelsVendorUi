@@ -32,21 +32,16 @@ const UploadDocuments = () => {
   const [loading, setLoading] = useState(false)
   const [fetchLoading, setFetchLoading] = useState(true)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' })
-  
-  // Form state
+  const [kycExists, setKycExists] = useState(false)
   const [idProof, setIdProof] = useState('')
   const [idProofNumber, setIdProofNumber] = useState('')
   const [addressProof, setAddressProof] = useState('')
   const [addressProofNumber, setAddressProofNumber] = useState('')
   const [kycStatus, setKycStatus] = useState('pending')
-  
-  // File state
   const [idProofImage, setIdProofImage] = useState(null)
   const [addressProofImage, setAddressProofImage] = useState(null)
   const [idProofFile, setIdProofFile] = useState(null)
   const [addressProofFile, setAddressProofFile] = useState(null)
-
-  // Fetch KYC data on component mount and when session loads
   useEffect(() => {
     if (sessionStatus !== 'authenticated' || !vendorId) {
       if (sessionStatus !== 'loading') {
@@ -66,48 +61,32 @@ const UploadDocuments = () => {
       const { data } = response.data
       
       console.log('Full KYC Data:', data)
-      console.log('Address Proof:', data.addressProof)
-      console.log('ID Proof:', data.idProof)
-      
-      // Set form data
-      if (data.idProof) {
-        console.log('Setting ID Proof:', data.idProof)
-        setIdProof(data.idProof)
-      }
-      
-      if (data.idProofNumber) setIdProofNumber(data.idProofNumber)
-      
-      if (data.addressProof) {
-        console.log('Setting Address Proof:', data.addressProof)
-        setAddressProof(data.addressProof)
+      if (data) {
+        setKycExists(true)
+        if (data.idProof) setIdProof(data.idProof)
+        if (data.idProofNumber) setIdProofNumber(data.idProofNumber)
+        if (data.addressProof) setAddressProof(data.addressProof)
+        if (data.addressProofNumber) setAddressProofNumber(data.addressProofNumber)
+        if (data.status) setKycStatus(data.status)
+        if (data.idProofImage) setIdProofImage(data.idProofImage)
+        if (data.addressProofImage) setAddressProofImage(data.addressProofImage)
       } else {
-        console.log('Address Proof data is missing or undefined')
+        setKycExists(false)
       }
-      
-      if (data.addressProofNumber) setAddressProofNumber(data.addressProofNumber)
-      if (data.status) setKycStatus(data.status)
-      
-      // Set image previews if they exist
-      if (data.idProofImage) {
-        setIdProofImage(data.idProofImage)
-      }
-      
-      if (data.addressProofImage) {
-        setAddressProofImage(data.addressProofImage)
-      }
-      
-      console.log('Final state values after setting:')
-      console.log('addressProof state:', addressProof)
-      console.log('idProof state:', idProof)
       
       setFetchLoading(false)
     } catch (error) {
       console.error('Error fetching KYC data:', error)
-      setSnackbar({ 
-        open: true, 
-        message: error.response?.data?.message || 'Failed to fetch KYC data', 
-        severity: 'error' 
-      })
+      if (error.response && error.response.status === 404) {
+        setKycExists(false)
+      } else {
+        setSnackbar({ 
+          open: true, 
+          message: error.response?.data?.message || 'Failed to fetch KYC data', 
+          severity: 'error' 
+        })
+      }
+      
       setFetchLoading(false)
     }
   }
@@ -148,9 +127,7 @@ const UploadDocuments = () => {
       })
       return
     }
-    
-    // Validate that images are selected if not already uploaded
-    if (!idProofImage) {
+    if (!idProofImage && !idProofFile) {
       setSnackbar({ 
         open: true, 
         message: 'Please upload ID proof image', 
@@ -159,7 +136,7 @@ const UploadDocuments = () => {
       return
     }
     
-    if (!addressProofImage) {
+    if (!addressProofImage && !addressProofFile) {
       setSnackbar({ 
         open: true, 
         message: 'Please upload address proof image', 
@@ -170,55 +147,69 @@ const UploadDocuments = () => {
     
     try {
       setLoading(true)
-      
-      // Create form data for file upload
       const formData = new FormData()
+      formData.append('vendorId', vendorId)
       formData.append('idProof', idProof)
       formData.append('idProofNumber', idProofNumber)
       formData.append('addressProof', addressProof)
       formData.append('addressProofNumber', addressProofNumber)
       formData.append('status', kycStatus)
-      
-      // Only append files if they're newly selected
-      if (idProofFile) {
-        formData.append('idProofImage', idProofFile)
+      if (!kycExists || idProofFile) {
+        formData.append('idProofImage', idProofFile || idProofImage)
       }
       
-      if (addressProofFile) {
-        formData.append('addressProofImage', addressProofFile)
+      if (!kycExists || addressProofFile) {
+        formData.append('addressProofImage', addressProofFile || addressProofImage)
       }
       
-      console.log(`Updating KYC data at: ${API_URL}/vendor/updatekyc/${vendorId}`)
+      let response;
       
-      // Send update request
-      const response = await axios.put(
-        `${API_URL}/vendor/updatekyc/${vendorId}`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
+      if (kycExists) {
+        console.log(`Updating KYC data at: ${API_URL}/vendor/updatekyc/${vendorId}`)
+        response = await axios.put(
+          `${API_URL}/vendor/updatekyc/${vendorId}`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
           }
-        }
-      )
-      
-      console.log('Update response:', response.data)
-      
-      setSnackbar({ 
-        open: true, 
-        message: 'KYC details updated successfully', 
-        severity: 'success' 
-      })
-      
-      // Reset file states to avoid re-uploading the same files
+        )
+        console.log('Update response:', response.data)
+        setSnackbar({ 
+          open: true, 
+          message: 'KYC details updated successfully', 
+          severity: 'success' 
+        })
+      } else {
+        console.log(`Creating new KYC data at: ${API_URL}/vendor/createkyc`)
+        response = await axios.post(
+          `${API_URL}/vendor/createkyc`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          }
+        )
+        console.log('Create response:', response.data)
+        setKycExists(true)
+        setSnackbar({ 
+          open: true, 
+          message: 'KYC details created successfully', 
+          severity: 'success' 
+        })
+      }
       setIdProofFile(null)
       setAddressProofFile(null)
+      fetchKycData()
       
       setLoading(false)
     } catch (error) {
-      console.error('Error updating KYC details:', error)
+      console.error('Error processing KYC details:', error)
       setSnackbar({ 
         open: true, 
-        message: error.response?.data?.message || 'Failed to update KYC details', 
+        message: error.response?.data?.message || 'Failed to process KYC details', 
         severity: 'error' 
       })
       setLoading(false)
@@ -228,12 +219,6 @@ const UploadDocuments = () => {
   const handleCloseSnackbar = () => {
     setSnackbar({ ...snackbar, open: false })
   }
-
-  const handleGoBack = () => {
-    router.back()
-  }
-
-  // Display loading while session is loading or data is fetching
   if (sessionStatus === 'loading' || fetchLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -242,7 +227,6 @@ const UploadDocuments = () => {
     )
   }
   
-  // Display error if not authenticated
   if (sessionStatus === 'unauthenticated') {
     return (
       <Box sx={{ p: 4, textAlign: 'center' }}>
@@ -258,24 +242,15 @@ const UploadDocuments = () => {
       </Box>
     )
   }
-
-  // Helper function to determine the image source
   const getImageSource = (imageUrl) => {
     if (!imageUrl) return null;
-    
-    // If it's a blob URL (newly uploaded)
     if (typeof imageUrl === 'string' && imageUrl.startsWith('blob:')) {
       return imageUrl;
     }
-    
-    // If it's a full URL with http/https
     if (typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
       return imageUrl;
     }
-    
-    // If it's a relative path from API
     if (typeof imageUrl === 'string') {
-      // Make sure API_URL doesn't end with slash and imageUrl doesn't start with slash
       const baseUrl = API_URL?.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
       const imagePath = imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`;
       return `${baseUrl}${imagePath}`;
@@ -286,15 +261,13 @@ const UploadDocuments = () => {
 
   return (
     <Box sx={{ width: '100%', p: 4 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h3" component="h1" fontWeight="medium">
-          Upload Documents
-        </Typography>
-      </Box>
-
+<Box sx={{ display: 'flex', justifyContent: 'center', mb: 4 }}>
+  <Typography variant="h3" component="h1" fontWeight="medium">
+    Upload Document
+  </Typography>
+</Box>
       <form onSubmit={handleSubmit}>
         <Grid container spacing={4}>
-          {/* Owner KYC Section */}
           <Grid item xs={12} md={6}>
             <Paper elevation={0} sx={{ p: 3, border: '1px solid #e0e0e0', borderRadius: 2 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Owner KYC</Typography>
@@ -339,7 +312,7 @@ const UploadDocuments = () => {
                   border: '1px solid #e0e0e0', 
                   borderRadius: 1, 
                   mb: 2, 
-                  height: 200, // Reduced height
+                  height: 200,
                   display: 'flex', 
                   justifyContent: 'center', 
                   alignItems: 'center',
@@ -356,9 +329,9 @@ const UploadDocuments = () => {
                       sx={{ 
                         maxWidth: '100%',  
                         maxHeight: '100%',
-                        width: 'auto',     // Auto width
-                        height: 'auto',    // Auto height
-                        objectFit: 'contain' // Changed to contain
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain'
                       }} 
                     />
                     <Button
@@ -389,8 +362,6 @@ const UploadDocuments = () => {
               </Box>
             </Paper>
           </Grid>
-
-          {/* Business Docs Section */}
           <Grid item xs={12} md={6}>
             <Paper elevation={0} sx={{ p: 3, border: '1px solid #e0e0e0', borderRadius: 2 }}>
               <Typography variant="h6" sx={{ mb: 2 }}>Business Documents</Typography>
@@ -430,7 +401,7 @@ const UploadDocuments = () => {
                   border: '1px solid #e0e0e0', 
                   borderRadius: 1, 
                   mb: 2, 
-                  height: 200, // Reduced height
+                  height: 200,
                   display: 'flex', 
                   justifyContent: 'center', 
                   alignItems: 'center',
@@ -447,9 +418,9 @@ const UploadDocuments = () => {
                       sx={{ 
                         maxWidth: '100%',  
                         maxHeight: '100%',
-                        width: 'auto',     // Auto width
-                        height: 'auto',    // Auto height
-                        objectFit: 'contain' // Changed to contain
+                        width: 'auto',
+                        height: 'auto',
+                        objectFit: 'contain'
                       }} 
                     />
                     <Button
@@ -481,8 +452,6 @@ const UploadDocuments = () => {
             </Paper>
           </Grid>
         </Grid>
-
-        {/* Update Button */}
         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
           <Button 
             type="submit"
@@ -499,12 +468,10 @@ const UploadDocuments = () => {
             }}
             disabled={loading}
           >
-            {loading ? 'Updating...' : 'Update Documents'}
+            {loading ? 'Processing...' : kycExists ? 'Update Documents' : 'Submit Documents'}
           </Button>
         </Box>
       </form>
-
-      {/* Snackbar for notifications */}
       <Snackbar 
         open={snackbar.open} 
         autoHideDuration={6000} 
@@ -524,3 +491,4 @@ const UploadDocuments = () => {
 }
 
 export default UploadDocuments
+

@@ -43,7 +43,7 @@ const NewTicket = () => {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://parkmywheelsapi.onrender.com'
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://13.48.42.169:4000'
 
   // Mark component as mounted after initial render
   useEffect(() => {
