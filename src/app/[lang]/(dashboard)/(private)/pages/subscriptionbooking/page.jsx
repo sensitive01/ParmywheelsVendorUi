@@ -979,6 +979,7 @@
 // }
 
 // export default OrderListTable
+
 'use client'
 
 // React Imports
@@ -1069,11 +1070,25 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
 }
 
-// Function to format date string (DD-MM-YYYY) to JS Date object
 const parseBookingDate = (dateStr) => {
   if (!dateStr) return null
-  const [day, month, year] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day) // Month is 0-indexed in JS
+  
+  try {
+    // If date is in YYYY-MM-DD format
+    if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+      return new Date(dateStr)
+    }
+    // If date is in DD-MM-YYYY format
+    else if (dateStr.includes('-')) {
+      const [day, month, year] = dateStr.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+    
+    return null
+  } catch (e) {
+    console.error("Error parsing date:", e, dateStr)
+    return null
+  }
 }
 
 // Function to calculate subscription days left
@@ -1136,18 +1151,29 @@ const formatTimeDisplay = (timeStr) => {
   }
 }
 
-// Format date for display
 const formatDateDisplay = (dateStr) => {
   if (!dateStr) return 'N/A'
   
   try {
-    const [day, month, year] = dateStr.split('-')
-    return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    })
+    if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      })
+    } 
+    else if (dateStr.includes('-')) {
+      const [day, month, year] = dateStr.split('-')
+      return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      })
+    }
+    
+    return dateStr
   } catch (e) {
+    console.error("Date parsing error:", e, dateStr)
     return dateStr
   }
 }
@@ -1173,6 +1199,7 @@ const OrderListTable = ({ orderData }) => {
       setLoading(true)
       setError(null)
       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+      console.log("response", response)
       
       if (!response.ok) {
         throw new Error('Failed to fetch bookings')
