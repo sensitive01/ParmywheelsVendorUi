@@ -332,6 +332,7 @@ import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
 import CustomIconButton from '@/@core/components/mui/IconButton';
 import ProductImage from '../../../apps/ecommerce/products/add/ProductImage'
+import BusinessHoursUpdate from '@/views/apps/ecommerce/products/add/BusinessHoursUpdate';
 
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
 
@@ -820,6 +821,7 @@ const VendorRegistration = () => {
             </Button>
           </Grid>
         </Grid>
+        <BusinessHoursUpdate/>
       </CardContent>
     </Card>
   )

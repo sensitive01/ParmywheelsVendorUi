@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import axios from 'axios'
 import {
   Box,
@@ -24,11 +23,10 @@ import {
   IconButton
 } from '@mui/material'
 import ChatIcon from '@mui/icons-material/Chat'
-import VisibilityIcon from '@mui/icons-material/Visibility' // For view details icon
 
-const NewTicket = () => {
+const VendorHelpAndSupport = () => {
   const { data: session, status } = useSession()
-  const vendorId = session?.user?.id
+  const vendorId = session?.user?.id 
   const router = useRouter()
   
   const [description, setDescription] = useState('')
@@ -43,9 +41,7 @@ const NewTicket = () => {
   const [isMounted, setIsMounted] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://parkmywheelsapi.onrender.com'
-
-  // Mark component as mounted after initial render
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
   useEffect(() => {
     setIsMounted(true)
   }, [])
@@ -74,9 +70,7 @@ const NewTicket = () => {
     try {
       await axios.post(`${API_URL}/vendor/createhelpvendor`, {
         vendorid: vendorId,
-        description,
-        vendoractive: true,
-        chatbox: [],
+        description: description,
       })
 
       setNotification({
@@ -106,8 +100,6 @@ const NewTicket = () => {
       setLoading(true)
       const response = await axios.get(`${API_URL}/vendor/gethelpvendor/${vendorId}`)
       console.log('Help requests response:', response.data)
-      
-      // Check for the expected structure and set with fallback to empty array
       const requests = response.data?.helpRequests || []
       setHelpRequests(Array.isArray(requests) ? requests : [])
       setError(null)
@@ -124,14 +116,16 @@ const NewTicket = () => {
     setNotification({ ...notification, open: false })
   }
   
- const navigateToChat = (helpRequestId) => {
-  if (isMounted) {
-    router.push(`/support-chat/${helpRequestId}`)
+  const navigateToChat = (helpRequestId) => {
+    if (isMounted) {
+      router.push(`/pages/supportchat/${helpRequestId}`)
+    }
   }
-}
 
-
-  // Fetch help requests when the component mounts or session changes
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A'
+    return new Date(dateString).toLocaleString()
+  }
   useEffect(() => {
     if (isMounted && (status === 'authenticated' && vendorId)) {
       fetchHelpRequests()
@@ -148,11 +142,11 @@ const NewTicket = () => {
 
   return (
     <Container maxWidth="lg" sx={{ pt: 2, pb: 4, minHeight: '100vh' }}>
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3, pt: 1 }}>
-  <Typography variant="h3" component="h1" fontWeight="medium" textAlign="center">
-    Help & Support
-  </Typography>
-</Box>
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mb: 3, pt: 1 }}>
+        <Typography variant="h3" component="h1" fontWeight="medium" textAlign="center">
+          Vendor Help & Support
+        </Typography>
+      </Box>
 
       <Paper elevation={0} sx={{ p: 3, bgcolor: 'transparent' }}>
         <Box sx={{ textAlign: 'center', mb: 4 }}>
@@ -167,7 +161,7 @@ const NewTicket = () => {
             Need Assistance?
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Our support team is available 24/7 to help you.
+            Our support team is available 24/7 to help you with your vendor-related questions.
           </Typography>
         </Box>
 
@@ -226,19 +220,21 @@ const NewTicket = () => {
           {notification.message}
         </Alert>
       </Snackbar>
+      
       <Paper sx={{ mt: 4, p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-  <TextField
-    label="Search by description"
-    variant="outlined"
-    size="small"
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-    sx={{ width: 300 }}
-  />
-</Box>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+          <TextField
+            label="Search by description"
+            variant="outlined"
+            size="small"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ width: 300 }}
+          />
+        </Box>
+        
         <Typography variant="h6" component="h2" fontWeight="bold" gutterBottom>
-          Your Help & Support Requests
+          Your Support Requests
         </Typography>
 
         {loading ? (  
@@ -256,32 +252,30 @@ const NewTicket = () => {
         ) : (
           <TableContainer>
             <Table sx={{ minWidth: 650 }} aria-label="help requests table">
-            <TableHead>
-  <TableRow>
-    <TableCell sx={{ fontWeight: 'bold', fontSize: '16px' }}>Description</TableCell>
-    <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '16px' }}>Status</TableCell>
-    <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '16px' }}>Date</TableCell>
-    <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '16px' }}>Action</TableCell>
-  </TableRow>
-</TableHead>
-
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '16px' }}>Description</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '16px' }}>Status</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '16px' }}>Date</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '16px' }}>Action</TableCell>
+                </TableRow>
+              </TableHead>
               <TableBody>
                 {helpRequests
-  .filter((request) =>
-    request.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ).map((request) => (
+                  .filter((request) =>
+                    request.description.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).map((request) => (
                   <TableRow key={request._id}>
                     <TableCell component="th" scope="row">
                       {request.description}
                     </TableCell>
                     <TableCell align="right">
-                    {request.vendoractive ? 'Pending' : 'Resolved'}
+                      {request.status || "Pending"}
                     </TableCell>
                     <TableCell align="right">
-                      {request.date ? new Date(request.date).toLocaleString() : 'N/A'}
+                      {formatDate(request.date)}
                     </TableCell>
                     <TableCell align="right">
-                 
                       <Button
                         variant="contained"
                         sx={{ 
@@ -290,11 +284,7 @@ const NewTicket = () => {
                           textTransform: 'none'
                         }}
                         startIcon={<ChatIcon />}
-                        onClick={() => {
-                          if (isMounted) {
-                            router.push(`/pages/supportchat`)
-                          }
-                        }}
+                        onClick={() => navigateToChat(request._id)}
                       >
                         View Chat
                       </Button>
@@ -310,4 +300,4 @@ const NewTicket = () => {
   )
 }
 
-export default NewTicket
+export default VendorHelpAndSupport

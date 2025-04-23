@@ -1,166 +1,9 @@
-// import axios from 'axios';
-// import { useState } from 'react';
-// import { Grid, Button, TextField, Typography, IconButton, InputAdornment, MenuItem, Select, FormControl, InputLabel } from '@mui/material';
-// import { Controller, useForm } from 'react-hook-form';
-// import CustomIconButton from '@/@core/components/mui/IconButton';
-// import ProductImage from '../apps/ecommerce/products/add/ProductImage';
-// const StepAccountDetails = ({ handleNext, handlePrev }) => {
-//   const [isPasswordShown, setIsPasswordShown] = useState(false);
-//   const [isConfirmPasswordShown, setIsConfirmPasswordShown] = useState(false);
-//   // Form Setup
-//   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
-//     defaultValues: {
-//       password: '',
-//       confirmPassword: '',
-//       image: '',
-//       parkingEntries: [{ type: '', count: '' }],
-//     }
-//   });
-//   // Watch parkingEntries to update dynamically
-//   const parkingEntries = watch("parkingEntries");
-//   // Password toggle functions
-//   const handleClickShowPassword = () => setIsPasswordShown(!isPasswordShown);
-//   const handleClickShowConfirmPassword = () => setIsConfirmPasswordShown(!isConfirmPasswordShown);
-//   // Handle Parking Entry Updates
-// const handleAddParkingEntry = () => {
-//   setValue("parkingEntries", [...parkingEntries, { type: '', count: '' }]);
-// };
-// const handleDeleteParkingEntry = index => {
-//   setValue("parkingEntries", parkingEntries.filter((_, i) => i !== index));
-// };
-//   // Handle Image Change
-//   const handleImageChange = (imageUrl) => {
-//     setValue("image", imageUrl);
-//   };
-//   // Submit Form
-//   const submitVendorData = (data) => {
-//     console.log("Form Data:", data);
-//     axios.post('/api/vendor', data)
-//       .then(response => {
-//         console.log("Success:", response.data);
-//         handleNext();
-//       })
-//       .catch(error => {
-//         console.error("Error submitting:", error);
-//       });
-//   };
-//   return (
-//     <>
-//       <div className="mbe-5">
-//         <Typography variant="h4" className="mbe-1">Account Information</Typography>
-//         <Typography>Enter Vendor Account Details</Typography>
-//       </div>
-//       <Grid container spacing={5}>
-//         {parkingEntries.map((entry, index) => (
-//           <Grid key={index} item xs={12}>
-//             <Grid container spacing={2}>
-//               <Grid item xs={12} sm={6}>
-//                 <Controller
-//                   name={`parkingEntries.${index}.type`}
-//                   control={control}
-//                   render={({ field }) => (
-//                     <FormControl fullWidth>
-//                       <InputLabel>Parking Type</InputLabel>
-//                       <Select {...field} label="Parking Type">
-//                         <MenuItem value="bike">Bike</MenuItem>
-//                         <MenuItem value="car">Car</MenuItem>
-//                         <MenuItem value="others">Others</MenuItem>
-//                       </Select>
-//                     </FormControl>
-//                   )}
-//                 />
-//               </Grid>
-//               <Grid item xs={12} sm={6}>
-//                 <div className="flex items-center gap-6">
-//                   <Controller
-//                     name={`parkingEntries.${index}.count`}
-//                     control={control}
-//                     render={({ field }) => (
-//                       <TextField fullWidth label="Parking Count" {...field} placeholder="2" />
-//                     )}
-//                   />
-//                   <CustomIconButton onClick={() => handleDeleteParkingEntry(index)} className="min-is-fit">
-//                     <i className="ri-close-line" />
-//                   </CustomIconButton>
-//                 </div>
-//               </Grid>
-//             </Grid>
-//           </Grid>
-//         ))}
-//         <Grid item xs={12}>
-//           <Button variant="contained" onClick={handleAddParkingEntry} startIcon={<i className="ri-add-line" />}>
-//             Add Another Option
-//           </Button>
-//         </Grid>
-//         <Grid item xs={12}>
-//           <ProductImage onChange={handleImageChange} />
-//         </Grid>
-//         <Grid item xs={12} sm={6}>
-//           <Controller
-//             name="password"
-//             control={control}
-//             render={({ field }) => (
-//               <TextField
-//                 fullWidth
-//                 label="Password"
-//                 type={isPasswordShown ? 'text' : 'password'}
-//                 {...field}
-//                 InputProps={{
-//                   endAdornment: (
-//                     <InputAdornment position="end">
-//                       <IconButton onClick={handleClickShowPassword} size="small">
-//                         <i className={isPasswordShown ? 'ri-eye-off-line' : 'ri-eye-line'} />
-//                       </IconButton>
-//                     </InputAdornment>
-//                   )
-//                 }}
-//               />
-//             )}
-//           />
-//         </Grid>
-//         <Grid item xs={12} sm={6}>
-//           <Controller
-//             name="confirmPassword"
-//             control={control}
-//             render={({ field }) => (
-//               <TextField
-//                 fullWidth
-//                 label="Confirm Password"
-//                 type={isConfirmPasswordShown ? 'text' : 'password'}
-//                 {...field}
-//                 InputProps={{
-//                   endAdornment: (
-//                     <InputAdornment position="end">
-//                       <IconButton onClick={handleClickShowConfirmPassword} size="small">
-//                         <i className={isConfirmPasswordShown ? 'ri-eye-off-line' : 'ri-eye-line'} />
-//                       </IconButton>
-//                     </InputAdornment>
-//                   )
-//                 }}
-//               />
-//             )}
-//           />
-//         </Grid>
-//         <Grid item xs={12} className="flex justify-between">
-//           <Button variant="outlined" color="secondary" onClick={handlePrev}>
-//             Previous
-//           </Button>
-//           <Button variant="contained" color="success" onClick={handleSubmit(submitVendorData)}>
-//             Register Vendor
-//           </Button>
-//         </Grid>
-//       </Grid>
-//     </>
-//   );
-// };
-// export default StepAccountDetails;
-
 'use client';
 
 // MUI Imports
 import { useState } from 'react';
 
-import { Button, Grid, TextField, Typography, FormControl, InputLabel, Select, MenuItem, IconButton, InputAdornment } from '@mui/material';
+import { Button, Grid, TextField, Typography, FormControl, InputLabel, Select, MenuItem, IconButton, InputAdornment, FormControlLabel, FormHelperText, Checkbox } from '@mui/material';
 
 // Hook Imports
 import { Controller, useForm } from 'react-hook-form';
@@ -176,6 +19,7 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
   const [isPasswordShown, setIsPasswordShown] = useState(false);
   const [isConfirmPasswordShown, setIsConfirmPasswordShown] = useState(false);
   const [image, setImage] = useState(null);
+  const [termsError, setTermsError] = useState('');
 
   // Form Setup
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
@@ -184,6 +28,7 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
       confirmPassword: '',
       image: '',
       parkingEntries: [{ type: '', count: '' }],
+      termsAccepted: false
     }
   });
 
@@ -226,7 +71,15 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
   const handleChange = (field, value) => {
     setAccountDetails(prev => ({ ...prev, [field]: value }));
   };
-
+  const handleRegisterVendor = () => {
+    if (!accountDetails.termsAccepted) {
+      setTermsError('You must accept the terms and conditions to register');
+      return;
+    }
+    setTermsError('');
+    handleNext();
+  };
+  
   
 return (
     <div className="p-4">
@@ -343,15 +196,33 @@ return (
             }}
           />
         </Grid>
+        <Grid item xs={12} style={{marginBottom:'20px'}}>
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={accountDetails.termsAccepted || false}
+                onChange={(e) => handleChange('termsAccepted', e.target.checked)}
+                color="primary"
+              />
+            }
+            label="I agree to the terms and conditions"
+          />
+          {termsError && (
+            <FormHelperText error>{termsError}</FormHelperText>
+          )}
+        </Grid>
 
         <br />
-        {/* Navigation Buttons */}
         <Grid item xs={12} className="flex justify-between" >
           <Button variant="outlined" color="secondary" onClick={handlePrev} startIcon={<DirectionalIcon ltrIconClass='ri-arrow-left-line' />}
           >
             Previous
           </Button>
-          <Button variant="contained" color="success" onClick={handleNext}>
+          <Button 
+            variant="contained" 
+            color="success" 
+            onClick={handleRegisterVendor}
+          >
             Register Vendor
           </Button>
         </Grid>
@@ -361,55 +232,3 @@ return (
 };
 
 export default StepAccountDetails;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

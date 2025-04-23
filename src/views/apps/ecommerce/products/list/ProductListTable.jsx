@@ -88,6 +88,55 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
 }
 
+const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
+  const [elapsedTime, setElapsedTime] = useState('00:00:00')
+  
+  useEffect(() => {
+    if (!parkedDate || !parkedTime) {
+      setElapsedTime('00:00:00')
+      return
+    }
+    const [day, month, year] = parkedDate.split('-')
+    const [timePart, ampm] = parkedTime.split(' ')
+    let [hours, minutes] = timePart.split(':')
+    if (ampm && ampm.toUpperCase() === 'PM' && hours !== '12') {
+      hours = parseInt(hours) + 12
+    } else if (ampm && ampm.toUpperCase() === 'AM' && hours === '12') {
+      hours = '00'
+    }
+    const parkingStartTime = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`)
+    const timer = setInterval(() => {
+      const now = new Date()
+      const diffMs = now - parkingStartTime
+      if (diffMs < 0) {
+        setElapsedTime('00:00:00')
+        return
+      }
+      
+      // Convert milliseconds to hours, minutes, seconds
+      const diffSecs = Math.floor(diffMs / 1000)
+      const hours = Math.floor(diffSecs / 3600)
+      const minutes = Math.floor((diffSecs % 3600) / 60)
+      const seconds = diffSecs % 60
+      
+      // Format with leading zeros
+      const formattedHours = hours.toString().padStart(2, '0')
+      const formattedMinutes = minutes.toString().padStart(2, '0')
+      const formattedSeconds = seconds.toString().padStart(2, '0')
+      
+      setElapsedTime(`${formattedHours}:${formattedMinutes}:${formattedSeconds}`)
+    }, 1000)
+    
+    return () => clearInterval(timer)
+  }, [parkedDate, parkedTime])
+  
+  return (
+    <Typography sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+      {elapsedTime}
+    </Typography>
+  )
+}
+
 const columnHelper = createColumnHelper()
 
 const OrderListTable = ({ orderData }) => {
@@ -182,6 +231,27 @@ const OrderListTable = ({ orderData }) => {
               {`${formatDate(row.original.bookingDate)}, ${row.original.bookingTime || 'N/A'}`}
             </Typography>
           )
+        }
+      }),
+      columnHelper.accessor('payableTime', {
+        header: 'Payable Time',
+        cell: ({ row }) => {
+          // Show timer only if status is PARKED
+          const isParked = row.original.status && row.original.status.toLowerCase() === 'parked'
+          
+          if (isParked) {
+            return (
+              <div className="flex items-center gap-2">
+                <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
+                <PayableTimeTimer 
+                  parkedDate={row.original.parkedDate}
+                  parkedTime={row.original.parkedTime}
+                />
+              </div>
+            )
+          }
+          
+          return <Typography>--:--:--</Typography>
         }
       }),
       columnHelper.accessor('customerName', {

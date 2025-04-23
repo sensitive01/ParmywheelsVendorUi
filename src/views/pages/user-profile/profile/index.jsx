@@ -5,8 +5,10 @@ import Grid from '@mui/material/Grid2'
 import AboutOverview from './AboutOverview'
 import ActivityTimeline from './ActivityTimeline'
 import ConnectionsTeams from './ConnectionsTeams'
-import ProjectsTable from './ProjectsTables'
+// import ProjectsTable from './ProjectsTables'
 import MySpaceDetails from './MySpaceDetails'
+import BusinessHoursTable from './BusinessHoursTable'
+
 
 const ProfileTab = ({ data }) => {
   return (
@@ -19,15 +21,14 @@ const ProfileTab = ({ data }) => {
           <Grid size={{ xs: 12 }}>
             <ActivityTimeline />
           </Grid>
-          {/* <ConnectionsTeams connections={data?.connections} teamsTech={data?.teamsTech} /> */}
-          {/* <Grid size={{ xs: 12 }}>
-            <ProjectsTable projectTable={data?.projectTable} />
-          </Grid> */}
         </Grid>
         <Grid size={{ xs: 12 }}>
            <MySpaceDetails/>
           </Grid>
       </Grid>
+      <Grid size={{ xs: 12 }}>
+           <BusinessHoursTable/>
+          </Grid>
     </Grid>
     
   )

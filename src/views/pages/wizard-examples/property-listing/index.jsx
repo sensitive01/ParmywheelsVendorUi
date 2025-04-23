@@ -158,8 +158,8 @@ export default function ParkingBooking() {
 
         break
       case 2:
-        if (!personName) newErrors.personName = 'Name is required'
-        if (!mobileNumber) newErrors.mobileNumber = 'Mobile number is required'
+        // if (!personName) newErrors.personName = 'Name is required'
+        // if (!mobileNumber) newErrors.mobileNumber = 'Mobile number is required'
 
         if (mobileNumber && !/^\d{10}$/.test(mobileNumber)) {
           newErrors.mobileNumber = 'Enter a valid 10-digit number'
@@ -279,6 +279,9 @@ export default function ParkingBooking() {
       </Grid>
     </Box>
   )
+  const handleVehicleNumberChange = (e) => {
+    setVehicleNumber(e.target.value.toUpperCase());
+  }
 
   const renderBookingDetailsStep = () => (
     <Box>
@@ -313,10 +316,13 @@ export default function ParkingBooking() {
             fullWidth
             label="Vehicle Number"
             value={vehicleNumber}
-            onChange={(e) => setVehicleNumber(e.target.value)}
+            onChange={handleVehicleNumberChange}
             error={!!errors.vehicleNumber}
             helperText={errors.vehicleNumber}
             placeholder="Enter vehicle number"
+            inputProps={{
+              style: { textTransform: 'uppercase' }  
+            }}
           />
         </Grid>
         {sts === 'Subscription' && (
@@ -394,8 +400,8 @@ export default function ParkingBooking() {
             label="Full Name"
             value={personName}
             onChange={(e) => setPersonName(e.target.value)}
-            error={!!errors.personName}
-            helperText={errors.personName}
+            // error={!!errors.personName}
+            // helperText={errors.personName}
             placeholder="Enter your full name"
           />
         </Grid>
