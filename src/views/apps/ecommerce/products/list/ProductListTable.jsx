@@ -219,26 +219,85 @@ const OrderListTable = ({ orderData }) => {
       columnHelper.accessor('bookingDate', {
         header: 'Booking Date & Time',
         cell: ({ row }) => {
-          const formatDate = (dateStr) => {
+          const formatDateDisplay = (dateStr) => {
             if (!dateStr) return 'N/A'
-            const [day, month, year] = dateStr.split('-')
-            return new Date(`${year}-${month}-${day}`).toLocaleDateString()
+            
+            try {
+              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+                return new Date(dateStr).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })
+              } 
+              else if (dateStr.includes('-')) {
+                const [day, month, year] = dateStr.split('-')
+                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })
+              }
+              
+              return dateStr
+            } catch (e) {
+              console.error("Date parsing error:", e, dateStr)
+              return dateStr
+            }
           }
-
+          const formatTimeDisplay = (timeStr) => {
+            if (!timeStr) return ''
+            if (timeStr.includes('AM') || timeStr.includes('PM')) {
+              return timeStr
+            }
+            try {
+              const [hours, minutes] = timeStr.split(':').map(Number)
+              const period = hours >= 12 ? 'PM' : 'AM'
+              const hours12 = hours % 12 || 12
+              return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`
+            } catch (e) {
+              return timeStr
+            }
+          }
+      
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line text-[26px]" style={{ fontSize: '16px', color: '#666' }}></i>
-              {`${formatDate(row.original.bookingDate)}, ${row.original.bookingTime || 'N/A'}`}
+              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              {`${formatDateDisplay(row.original.bookingDate)}, ${formatTimeDisplay(row.original.bookingTime || 'N/A')}`}
             </Typography>
           )
         }
       }),
+      // columnHelper.accessor('payableTime', {
+      //   header: 'Payable Time',
+      //   cell: ({ row }) => {
+      //     const isParked = row.original.status && row.original.status.toLowerCase() === 'parked'
+          
+      //     if (isParked) {
+      //       return (
+      //         <div className="flex items-center gap-2">
+      //           <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
+      //           <PayableTimeTimer 
+      //             parkedDate={row.original.parkedDate}
+      //             parkedTime={row.original.parkedTime}
+      //           />
+      //         </div>
+      //       )
+      //     }
+          
+      //     return <Typography>--:--:--</Typography>
+      //   }
+      // }),
+
       columnHelper.accessor('payableTime', {
         header: 'Payable Time',
         cell: ({ row }) => {
-          // Show timer only if status is PARKED
-          const isParked = row.original.status && row.original.status.toLowerCase() === 'parked'
+          // Check booking status
+          const status = row.original.status?.toLowerCase()
+          const isParked = status === 'parked'
+          const isCompleted = status === 'completed'
           
+          // Show real-time timer for PARKED status
           if (isParked) {
             return (
               <div className="flex items-center gap-2">
@@ -251,6 +310,73 @@ const OrderListTable = ({ orderData }) => {
             )
           }
           
+          // Show total time for COMPLETED status using exit vehicle data
+          if (isCompleted && row.original.exitvehicledate && row.original.exitvehicletime) {
+            // Calculate and format the total parking duration
+            const calculateTotalTime = () => {
+              try {
+                // Parse the parking start time
+                const [startDay, startMonth, startYear] = row.original.parkedDate.split('-')
+                const [startTimePart, startAmpm] = row.original.parkedTime.split(' ')
+                let [startHours, startMinutes] = startTimePart.split(':').map(Number)
+                
+                // Convert to 24-hour format if needed
+                if (startAmpm && startAmpm.toUpperCase() === 'PM' && startHours !== 12) {
+                  startHours += 12
+                } else if (startAmpm && startAmpm.toUpperCase() === 'AM' && startHours === 12) {
+                  startHours = 0
+                }
+                
+                // Create start date object
+                const startTime = new Date(`${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}:00`)
+                
+                // Parse the exit vehicle time
+                const [endDay, endMonth, endYear] = row.original.exitvehicledate.split('-')
+                const [endTimePart, endAmpm] = row.original.exitvehicletime.split(' ')
+                let [endHours, endMinutes] = endTimePart.split(':').map(Number)
+                
+                // Convert to 24-hour format if needed
+                if (endAmpm && endAmpm.toUpperCase() === 'PM' && endHours !== 12) {
+                  endHours += 12
+                } else if (endAmpm && endAmpm.toUpperCase() === 'AM' && endHours === 12) {
+                  endHours = 0
+                }
+                
+                // Create end date object
+                const endTime = new Date(`${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`)
+                
+                // Calculate difference in milliseconds
+                const diffMs = endTime - startTime
+                
+                // Convert to days, hours, minutes
+                const diffSecs = Math.floor(diffMs / 1000)
+                const days = Math.floor(diffSecs / (3600 * 24))
+                const hours = Math.floor((diffSecs % (3600 * 24)) / 3600)
+                const minutes = Math.floor((diffSecs % 3600) / 60)
+                
+                // Format the output
+                if (days > 0) {
+                  return `${days}d ${hours}h ${minutes}m`
+                } else {
+                  return `${hours}h ${minutes}m`
+                }
+              } catch (e) {
+                console.error("Error calculating total time:", e)
+                return 'N/A'
+              }
+            }
+            
+            return (
+              <div className="flex items-center gap-2">
+                <i className="ri-time-line" style={{ fontSize: '16px', color: '#72e128' }}></i>
+                <Typography sx={{ fontWeight: 500, color: '#72e128' }}>
+                  {calculateTotalTime()}
+                </Typography>
+              </div>
+            )
+          }
+          
+          // Default case for other statuses
           return <Typography>--:--:--</Typography>
         }
       }),
@@ -392,6 +518,7 @@ const OrderListTable = ({ orderData }) => {
           <BookingActionButton
             bookingId={row.original._id}
             currentStatus={row.original.status}
+            // vehicleType={row.original.vehicleType} 
             onUpdate={fetchData}
           />
         ),

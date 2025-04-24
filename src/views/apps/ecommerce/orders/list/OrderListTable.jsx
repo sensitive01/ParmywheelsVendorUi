@@ -723,44 +723,157 @@ const OrderListTable = ({ orderData }) => {
         header: 'Booking Date & Time',
         cell: ({ row }) => {
           const formatDate = (dateStr) => {
-            if (!dateStr) return 'Invalid Date'; // Handle missing values
-            const [day, month, year] = dateStr.split('-'); // Extract day, month, year
-            const formattedDate = new Date(`${year}-${month}-${day}`).toDateString(); // Convert and format
-
+            if (!dateStr) return 'N/A'; // Better fallback than 'Invalid Date'
             
-return formattedDate; // Example Output: "Sat Feb 08 2025"
+            try {
+              // Check if date is in YYYY-MM-DD format
+              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+                return new Date(dateStr).toDateString();
+              }
+              // Otherwise assume DD-MM-YYYY format
+              else if (dateStr.includes('-')) {
+                const [day, month, year] = dateStr.split('-');
+                // Make sure all parts exist before creating Date
+                if (day && month && year) {
+                  return new Date(`${year}-${month}-${day}`).toDateString();
+                }
+              }
+              
+              // If we can't parse it, just return the original string
+              return dateStr;
+            } catch (e) {
+              console.error("Date parsing error:", e, dateStr);
+              return dateStr; // Return original if parsing fails
+            }
           };
-
-          
-return (
+      
+          // Format time display
+          const formatTimeDisplay = (timeStr) => {
+            if (!timeStr) return 'N/A';
+            return timeStr; // Keep the original time format
+          };
+      
+          return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line text-[26px]" style={{ fontSize: '16px', color: '#666' }}></i>
-              {`${formatDate(row.original.bookingDate)}, ${row.original.bookingTime || 'N/A'}`}
+              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              {`${formatDate(row.original.bookingDate)}, ${formatTimeDisplay(row.original.bookingTime)}`}
             </Typography>
           );
         }
       }),
-      columnHelper.accessor('payableTime', {
-        header: 'Payable Time',
-        cell: ({ row }) => {
-          // Show timer only if status is PARKED
-          const isParked = row.original.status && row.original.status.toLowerCase() === 'parked';
+      // columnHelper.accessor('payableTime', {
+      //   header: 'Payable Time',
+      //   cell: ({ row }) => {
+      //     // Show timer only if status is PARKED
+      //     const isParked = row.original.status && row.original.status.toLowerCase() === 'parked';
           
-          if (isParked) {
-            return (
-              <div className="flex items-center gap-2">
-                <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                <PayableTimeTimer 
-                  parkedDate={row.original.parkedDate}
-                  parkedTime={row.original.parkedTime}
-                />
-              </div>
-            );
-          }
+      //     if (isParked) {
+      //       return (
+      //         <div className="flex items-center gap-2">
+      //           <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
+      //           <PayableTimeTimer 
+      //             parkedDate={row.original.parkedDate}
+      //             parkedTime={row.original.parkedTime}
+      //           />
+      //         </div>
+      //       );
+      //     }
           
-          return <Typography>--:--:--</Typography>;
-        }
-      }),
+      //     return <Typography>--:--:--</Typography>;
+      //   }
+      // }),
+      
+            columnHelper.accessor('payableTime', {
+              header: 'Payable Time',
+              cell: ({ row }) => {
+                // Check booking status
+                const status = row.original.status?.toLowerCase()
+                const isParked = status === 'parked'
+                const isCompleted = status === 'completed'
+                
+                // Show real-time timer for PARKED status
+                if (isParked) {
+                  return (
+                    <div className="flex items-center gap-2">
+                      <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
+                      <PayableTimeTimer 
+                        parkedDate={row.original.parkedDate}
+                        parkedTime={row.original.parkedTime}
+                      />
+                    </div>
+                  )
+                }
+                
+                // Show total time for COMPLETED status using exit vehicle data
+                if (isCompleted && row.original.exitvehicledate && row.original.exitvehicletime) {
+                  // Calculate and format the total parking duration
+                  const calculateTotalTime = () => {
+                    try {
+                      // Parse the parking start time
+                      const [startDay, startMonth, startYear] = row.original.parkedDate.split('-')
+                      const [startTimePart, startAmpm] = row.original.parkedTime.split(' ')
+                      let [startHours, startMinutes] = startTimePart.split(':').map(Number)
+                      
+                      // Convert to 24-hour format if needed
+                      if (startAmpm && startAmpm.toUpperCase() === 'PM' && startHours !== 12) {
+                        startHours += 12
+                      } else if (startAmpm && startAmpm.toUpperCase() === 'AM' && startHours === 12) {
+                        startHours = 0
+                      }
+                      
+                      // Create start date object
+                      const startTime = new Date(`${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}:00`)
+                      
+                      // Parse the exit vehicle time
+                      const [endDay, endMonth, endYear] = row.original.exitvehicledate.split('-')
+                      const [endTimePart, endAmpm] = row.original.exitvehicletime.split(' ')
+                      let [endHours, endMinutes] = endTimePart.split(':').map(Number)
+                      
+                      // Convert to 24-hour format if needed
+                      if (endAmpm && endAmpm.toUpperCase() === 'PM' && endHours !== 12) {
+                        endHours += 12
+                      } else if (endAmpm && endAmpm.toUpperCase() === 'AM' && endHours === 12) {
+                        endHours = 0
+                      }
+                      
+                      // Create end date object
+                      const endTime = new Date(`${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`)
+                      
+                      // Calculate difference in milliseconds
+                      const diffMs = endTime - startTime
+                      
+                      // Convert to days, hours, minutes
+                      const diffSecs = Math.floor(diffMs / 1000)
+                      const days = Math.floor(diffSecs / (3600 * 24))
+                      const hours = Math.floor((diffSecs % (3600 * 24)) / 3600)
+                      const minutes = Math.floor((diffSecs % 3600) / 60)
+                      
+                      // Format the output
+                      if (days > 0) {
+                        return `${days}d ${hours}h ${minutes}m`
+                      } else {
+                        return `${hours}h ${minutes}m`
+                      }
+                    } catch (e) {
+                      console.error("Error calculating total time:", e)
+                      return 'N/A'
+                    }
+                  }
+                  
+                  return (
+                    <div className="flex items-center gap-2">
+                      <i className="ri-time-line" style={{ fontSize: '16px', color: '#72e128' }}></i>
+                      <Typography sx={{ fontWeight: 500, color: '#72e128' }}>
+                        {calculateTotalTime()}
+                      </Typography>
+                    </div>
+                  )
+                }
+                
+                // Default case for other statuses
+                return <Typography>--:--:--</Typography>
+              }
+            }),
       columnHelper.accessor('customerName', {
         header: 'Customer',
         cell: ({ row }) => (
