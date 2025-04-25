@@ -512,14 +512,26 @@ const OrderListTable = ({ orderData }) => {
         ),
         enableSorting: false
       }),
+      // columnHelper.accessor('statusAction', {
+      //   header: 'Change Status',
+      //   cell: ({ row }) => (
+      //     <BookingActionButton
+      //       bookingId={row.original._id}
+      //       currentStatus={row.original.status}
+      //       // vehicleType={row.original.vehicleType} 
+      //       onUpdate={fetchData}
+      //     />
+      //   ),
+      //   enableSorting: false
+      // })
       columnHelper.accessor('statusAction', {
         header: 'Change Status',
         cell: ({ row }) => (
           <BookingActionButton
             bookingId={row.original._id}
             currentStatus={row.original.status}
-            // vehicleType={row.original.vehicleType} 
             onUpdate={fetchData}
+            bookingDetails={row.original} 
           />
         ),
         enableSorting: false
