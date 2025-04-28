@@ -367,9 +367,12 @@
 // export default BookingActionButton
 
 
+
+
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { 
   Button, 
   Menu, 
@@ -385,15 +388,15 @@ import {
   Stack,
   Typography
 } from '@mui/material'
+import ExitVehicleCalculator from './ExitVehicleCalculator'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetails }) => {
+const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdate }) => {
+  const { data: session } = useSession()
   const [anchorEl, setAnchorEl] = useState(null)
   const [openDialog, setOpenDialog] = useState(false)
   const [actionType, setActionType] = useState('')
-  const [amount, setAmount] = useState('')
-  const [hours, setHours] = useState('')
   const [dateInput, setDateInput] = useState('')
   const [timeInput, setTimeInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -435,18 +438,10 @@ const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetail
     setDateInput(formattedDate)
     setTimeInput(formattedTime)
     
-    // Pre-populate amount and hours for exit vehicle action
-    if (action === 'exitVehicle' && bookingDetails) {
-      setAmount(bookingDetails.amount || '')
-      setHours(bookingDetails.hour || '')
-    }
-    
     setOpenDialog(true)
   }
 
   const resetFields = () => {
-    setAmount('')
-    setHours('')
     setDateInput('')
     setTimeInput('')
   }
@@ -476,22 +471,13 @@ const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetail
       let endpoint = ''
       let options = {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.accessToken}`
+        }
       }
 
       switch (actionType) {
-        case 'exitVehicle':
-          if (!amount || !hours) {
-            showSnackbar('Amount and hours are required', 'error')
-            setLoading(false)
-            return
-          }
-          endpoint = `${API_URL}/vendor/exitvehicle/${bookingId}`
-          options.body = JSON.stringify({
-            amount: Number(amount),
-            hour: Number(hours)
-          })
-          break
         case 'approve':
           if (!dateInput || !timeInput) {
             showSnackbar('Approval date and time are required', 'error')
@@ -502,16 +488,21 @@ const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetail
           endpoint = `${API_URL}/vendor/approvebooking/${bookingId}`
           options.body = JSON.stringify({
             approvedDate: dateInput,
-            approvedTime: timeInput
+            approvedTime: timeInput,
+            vendorId: session?.user?.id
           })
           break
         case 'cancel':
           endpoint = `${API_URL}/vendor/cancelbooking/${bookingId}`
-          options.body = JSON.stringify({})  // Empty body as the API uses server timestamp
+          options.body = JSON.stringify({
+            vendorId: session?.user?.id
+          })
           break
         case 'cancelApproved':
           endpoint = `${API_URL}/vendor/approvedcancelbooking/${bookingId}`
-          options.body = JSON.stringify({})  // Empty body as the API uses server timestamp
+          options.body = JSON.stringify({
+            vendorId: session?.user?.id
+          })
           break
         case 'allowParking':
           if (!dateInput || !timeInput) {
@@ -523,7 +514,8 @@ const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetail
           endpoint = `${API_URL}/vendor/allowparking/${bookingId}`
           options.body = JSON.stringify({
             parkedDate: dateInput,
-            parkedTime: timeInput
+            parkedTime: timeInput,
+            vendorId: session?.user?.id
           })
           break
         default:
@@ -572,30 +564,24 @@ const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetail
     }
   }
 
+  const handleExitSuccess = (message) => {
+    showSnackbar(message)
+    handleDialogClose()
+    if (onUpdate) onUpdate()
+  }
+
   const renderDialogContent = () => {
     switch (actionType) {
       case 'exitVehicle':
         return (
-          <Stack spacing={3} sx={{ mt: 2 }}>
-            <TextField
-              label="Amount"
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              fullWidth
-              required
-              disabled={loading}
-            />
-            <TextField
-              label="Hours"
-              type="number"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              fullWidth
-              required
-              disabled={loading}
-            />
-          </Stack>
+          <ExitVehicleCalculator 
+            bookingId={bookingId}
+            vehicleType={bookingDetails?.vehicleType || 'Car'}
+            bookType={bookingDetails?.bookType || 'Hourly'}
+            bookingDetails={bookingDetails}
+            onClose={handleDialogClose}
+            onSuccess={handleExitSuccess}
+          />
         )
       case 'approve':
       case 'allowParking':
@@ -683,7 +669,7 @@ const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetail
       <Dialog 
         open={openDialog} 
         onClose={handleDialogClose} 
-        maxWidth="sm" 
+        maxWidth={actionType === 'exitVehicle' ? 'md' : 'sm'} 
         fullWidth
       >
         <DialogTitle>
@@ -696,29 +682,29 @@ const BookingActionButton = ({ bookingId, currentStatus, onUpdate, bookingDetail
           }[actionType] || 'Update Booking Status'}
         </DialogTitle>
         
-        <DialogContent>
-          {renderDialogContent()}
-        </DialogContent>
+        {renderDialogContent()}
         
-        <DialogActions>
-          <Button 
-            onClick={handleDialogClose} 
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            variant="contained" 
-            color={
-              actionType === 'cancel' || actionType === 'cancelApproved' ? 'error' : 
-              actionType === 'approve' ? 'success' : 'primary'
-            }
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={20} /> : 'Confirm'}
-          </Button>
-        </DialogActions>
+        {actionType !== 'exitVehicle' && (
+          <DialogActions>
+            <Button 
+              onClick={handleDialogClose} 
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit} 
+              variant="contained" 
+              color={
+                actionType === 'cancel' || actionType === 'cancelApproved' ? 'error' : 
+                actionType === 'approve' ? 'success' : 'primary'
+              }
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={20} /> : 'Confirm'}
+            </Button>
+          </DialogActions>
+        )}
       </Dialog>
 
       <Snackbar

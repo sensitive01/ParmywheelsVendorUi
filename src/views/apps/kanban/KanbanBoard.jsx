@@ -413,6 +413,9 @@
 
 // export default ParkingChargesKanban;
 
+
+
+
 'use client'
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -435,9 +438,9 @@ const categories = ['Car', 'Bike', 'Others'];
 const labels = ['Minimum Charges', 'Full Day', 'Additional Hour', 'Monthly'];
 
 const typesByLabel = {
-  'Minimum Charges': ['0 to 1 hours', '0 to 2 hours', '0 to 3 hours', '0 to 4 hour'],
-  'Additional Hour': ['Additional 0 to 1 hours', 'Additional 0 to 2 hours', 'Additional 0 to 3 hours', '0 to 4 hour'],
-  'Full Day': ['Full Day'],
+  'Minimum Charges': ['0 to 1 hour', '0 to 2 hours', '0 to 3 hours', '0 to 4 hours'],
+  'Additional Hour': ['Additional 1 hour', 'Additional 2 hours', 'Additional 3 hours', 'Additional 4 hours'],
+  'Full Day': ['Full day'],
   'Monthly': ['Monthly'],
 };
 
@@ -533,6 +536,28 @@ const getCategoryIcon = (category) => {
   }
 };
 
+// Helper function to get charge ID based on category and label
+const getChargeIdForNewEntry = (category, label) => {
+  // Simple mapping to assign single letter IDs like the backend expects
+  const idMap = {
+    'Car-Minimum Charges': 'A',
+    'Car-Additional Hour': 'B',
+    'Car-Full Day': 'C',
+    'Car-Monthly': 'D',
+    'Bike-Minimum Charges': 'E',
+    'Bike-Additional Hour': 'F',
+    'Bike-Full Day': 'G',
+    'Bike-Monthly': 'H',
+    'Others-Minimum Charges': 'I',
+    'Others-Additional Hour': 'J',
+    'Others-Full Day': 'K',
+    'Others-Monthly': 'L'
+  };
+  
+  const key = `${category}-${label}`;
+  return idMap[key] || key.substring(0, 1).toUpperCase(); // Fallback to first letter capitalized
+};
+
 const ParkingChargesKanban = () => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const theme = useTheme();
@@ -555,29 +580,40 @@ const ParkingChargesKanban = () => {
 
   useEffect(() => {
     if (vendorId) {
+      console.log('VendorID is available, fetching data:', vendorId);
       fetchCharges();
       fetchAvailableSlots();
+    } else {
+      console.log('No vendorId available yet');
     }
   }, [vendorId]);
 
   const fetchCharges = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/vendor/getchargesdata/${vendorId}`);
+      console.log(`Fetching charges from: ${API_URL}/vendor/getchargesdata/${vendorId}`);
+      
+      const response = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`);
+      console.log('Charges API response:', response.data);
 
-      if (!response.ok) throw new Error('Failed to fetch charges');
-      const { vendor } = await response.json();
-
+      if (!response.data || !response.data.vendor) {
+        throw new Error('Invalid response format');
+      }
+      
+      const { vendor } = response.data;
       const chargesMap = {};
 
       vendor.charges.forEach(charge => {
         let label;
-
-        if (charge.type.includes('Additional')) {
+        
+        // Case-insensitive type matching
+        const typeLC = charge.type.toLowerCase();
+        
+        if (typeLC.includes('additional')) {
           label = 'Additional Hour';
-        } else if (charge.type.includes('Full Day')) {
+        } else if (typeLC.includes('full day') || typeLC.includes('full day')) {
           label = 'Full Day';
-        } else if (charge.type.includes('Monthly')) {
+        } else if (typeLC.includes('monthly')) {
           label = 'Monthly';
         } else {
           label = 'Minimum Charges';
@@ -591,11 +627,12 @@ const ParkingChargesKanban = () => {
         };
       });
       
+      console.log('Mapped charges:', chargesMap);
       setCharges(chargesMap);
     } catch (err) {
       console.error('Error fetching charges:', err);
-      setError('Failed to load charges data');
-      setTimeout(() => setError(''), 3000);
+      setError(`Failed to load charges data: ${err.message}`);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
     }
@@ -603,8 +640,11 @@ const ParkingChargesKanban = () => {
 
   const fetchAvailableSlots = async () => {
     try {
+      console.log(`Fetching available slots from: ${API_URL}/vendor/availableslots/${vendorId}`);
       const response = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`);
-      const { Cars, Bikes, Others } = response.data;
+      console.log('Slots API response:', response.data);
+      
+      const { Cars = 0, Bikes = 0, Others = 0 } = response.data;
       
       setAvailableSlots({ Cars, Bikes, Others });
       
@@ -625,6 +665,8 @@ const ParkingChargesKanban = () => {
       }
     } catch (err) {
       console.error('Error fetching available slots:', err);
+      setError(`Failed to load available slots: ${err.message}`);
+      setTimeout(() => setError(''), 5000);
     }
   };
 
@@ -640,8 +682,9 @@ const ParkingChargesKanban = () => {
         throw new Error(`Cannot set charges for ${category} as there are no available slots`);
       }
 
-      // Generate a charge ID
-      const chargeid = `${category}-${label}`.toLowerCase();
+      // Get existing charge or generate a new ID
+      const existingCharge = charges[`${category}-${label}`];
+      const chargeid = existingCharge?.chargeid || getChargeIdForNewEntry(category, label);
 
       const chargeData = {
         type,
@@ -650,22 +693,16 @@ const ParkingChargesKanban = () => {
         chargeid
       };
 
+      console.log('Sending charge data:', chargeData);
+
       // Format payload to match API expectations
       const payload = {
         vendorid: vendorId,
         charges: [chargeData]
       };
 
-      const response = await fetch(`${API_URL}/vendor/addparkingcharges`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save charges');
-      }
+      const response = await axios.post(`${API_URL}/vendor/addparkingcharges`, payload);
+      console.log('Save API response:', response.data);
 
       // Refresh charges after saving
       await fetchCharges();
@@ -677,8 +714,8 @@ const ParkingChargesKanban = () => {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       console.error('Save error:', err);
-      setError(err.message);
-      setTimeout(() => setError(''), 3000);
+      setError(err.response?.data?.message || err.message || 'Failed to save charges');
+      setTimeout(() => setError(''), 5000);
     }
   };
 
@@ -721,6 +758,14 @@ const ParkingChargesKanban = () => {
       );
     }
 
+    const handleTypeChange = (e) => {
+      setFormData({ ...formData, type: e.target.value });
+    };
+
+    const handleAmountChange = (e) => {
+      setFormData({ ...formData, amount: e.target.value });
+    };
+
     return (
       <Grow in={true} timeout={300}>
         <StyledCard>
@@ -736,7 +781,7 @@ const ParkingChargesKanban = () => {
                       <InputLabel>Duration</InputLabel>
                       <Select
                         value={formData.type}
-                        onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                        onChange={handleTypeChange}
                         label="Duration"
                         startAdornment={<ClockIcon sx={{ mr: 1 }} />}
                       >
@@ -750,7 +795,7 @@ const ParkingChargesKanban = () => {
                       label="Amount"
                       type="number"
                       value={formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      onChange={handleAmountChange}
                       InputProps={{
                         startAdornment: '₹',
                       }}
@@ -875,6 +920,28 @@ const ParkingChargesKanban = () => {
         </Box>
       </Box>
       
+      {/* Error and success alerts */}
+      <Box sx={{ mb: 3 }}>
+        <Fade in={!!error}>
+          <Box>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+          </Box>
+        </Fade>
+        <Fade in={!!success}>
+          <Box>
+            {success && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                {success}
+              </Alert>
+            )}
+          </Box>
+        </Fade>
+      </Box>
+      
       {isMobile ? (
         <Box sx={{ width: '100%' }}>
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -890,6 +957,7 @@ const ParkingChargesKanban = () => {
                   label={category} 
                   icon={getCategoryIcon(category)}
                   iconPosition="start"
+                  disabled={!availableCategories.includes(category)}
                 />
               ))}
             </Tabs>
@@ -927,26 +995,6 @@ const ParkingChargesKanban = () => {
           ))}
         </KanbanContainer>
       )}
-      <Box sx={{ mt: 3 }}>
-        <Fade in={!!error}>
-          <Box>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-          </Box>
-        </Fade>
-        <Fade in={!!success}>
-          <Box>
-            {success && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                {success}
-              </Alert>
-            )}
-          </Box>
-        </Fade>
-      </Box>
     </Box>
   );
 };

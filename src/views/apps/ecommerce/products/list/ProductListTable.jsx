@@ -530,8 +530,8 @@ const OrderListTable = ({ orderData }) => {
           <BookingActionButton
             bookingId={row.original._id}
             currentStatus={row.original.status}
+            bookingDetails={row.original} // Pass the entire booking object
             onUpdate={fetchData}
-            bookingDetails={row.original} 
           />
         ),
         enableSorting: false
