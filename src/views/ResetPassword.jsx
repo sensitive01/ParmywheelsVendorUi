@@ -196,7 +196,7 @@ return
               {loading ? 'Updating...' : 'Set New Password'}
             </Button>
             <Typography className='flex justify-center items-center' color='primary.main'>
-              <Link href={getLocalizedUrl('/login', locale)} className='flex items-center gap-1.5'>
+              <Link href={getLocalizedUrl('/vendor', locale)} className='flex items-center gap-1.5'>
                 <DirectionalIcon
                   ltrIconClass='ri-arrow-left-s-line'
                   rtlIconClass='ri-arrow-right-s-line'

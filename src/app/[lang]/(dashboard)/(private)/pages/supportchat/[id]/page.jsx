@@ -65,7 +65,7 @@ const VendorSupportChatView = () => {
     } else {
       console.error("Could not find help request ID in URL");
     }
-  }, [params]);F
+  }, [params]);
   useEffect(() => {
     if (helpRequestId && vendorId) {
       fetchChatData()
