@@ -473,7 +473,7 @@ const OrderListTable = ({ orderData }) => {
                     onClick: () => {
                       const selectedId = row.original._id
                       if (selectedId) {
-                        router.push(`/apps/ecommerce/orders/details/${selectedId}`)
+                        router.push(`/pages/bookingdetails/${selectedId}`)
                       }
                     }
                   }

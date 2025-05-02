@@ -308,7 +308,9 @@ const HorizontalMenu = ({ dictionary }) => {
             </MenuItem>
           </SubMenu>*/}
         </SubMenu> 
-        <MenuItem href={`/${locale}/pages/notifications`} icon={<i className='ri-notification-3-line' style={{ color: '#329a73', fontSize: '24px' }} />} />
+        <MenuItem href={`/${locale}/pages/notifications`} icon={<i className='ri-notification-3-line' style={{ color: '#black', fontSize: '24px' }} />} />
+        <MenuItem href={`/${locale}/pages/search`} icon={<i className='ri-search-line'style={{ color: '#black', fontSize: '24px' }}  />}>
+          </MenuItem>
           {/* <SubMenu label={dictionary['navigation'].formsAndTables} icon={<i className='ri-pages-line' />}>
           <MenuItem href={`/${locale}/forms/form-layouts`} icon={<i className='ri-layout-4-line' />}>
             {dictionary['navigation'].formLayouts}

@@ -235,3 +235,165 @@ const NotificationBell = () => {
 };
 
 export default NotificationBell;
+
+
+
+// 'use client';
+
+// import { useState, useEffect } from 'react';
+// import { useSession } from 'next-auth/react';
+// import axios from 'axios';
+
+// // Environment variables
+// const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+// // Notification model class - matches Flutter implementation
+// class NotificationModel {
+//   constructor(title, message, createdAt) {
+//     this.title = title || 'No Title';
+//     this.message = message || 'No Message';
+//     this.createdAt = new Date(createdAt);
+//   }
+
+//   static fromJson(json) {
+//     return new NotificationModel(
+//       json.title,
+//       json.message,
+//       json.createdAt
+//     );
+//   }
+// }
+
+// // API function to fetch notifications - matches Flutter implementation
+// const fetchNotifications = async (vendorId) => {
+//   if (!vendorId) return [];
+  
+//   try {
+//     const response = await axios.get(`${API_URL}/vendor/fetchnotification/${vendorId}`);
+    
+//     if (response.status === 200) {
+//       const data = response.data.notifications;
+//       return data.map(notification => NotificationModel.fromJson(notification));
+//     } else {
+//       throw new Error('Failed to load notifications');
+//     }
+//   } catch (error) {
+//     console.error('Error fetching notifications:', error);
+//     throw error;
+//   }
+// };
+
+// // Format date to match Flutter's DateFormat('dd-MM-yyyy HH:mm')
+// const formatDate = (date) => {
+//   const day = date.getDate().toString().padStart(2, '0');
+//   const month = (date.getMonth() + 1).toString().padStart(2, '0');
+//   const year = date.getFullYear();
+//   const hours = date.getHours().toString().padStart(2, '0');
+//   const minutes = date.getMinutes().toString().padStart(2, '0');
+  
+//   return `${day}-${month}-${year} ${hours}:${minutes}`;
+// };
+
+// const NotificationScreen = () => {
+//   const { data: session } = useSession();
+//   const vendorId = session?.user?.id;
+//   const [notifications, setNotifications] = useState([]);
+//   const [loading, setLoading] = useState(true);
+//   const [error, setError] = useState(null);
+
+//   useEffect(() => {
+//     const getNotifications = async () => {
+//       try {
+//         setLoading(true);
+//         const data = await fetchNotifications(vendorId);
+//         setNotifications(data);
+//         setError(null);
+//       } catch (err) {
+//         setError('Failed to load notifications');
+//         console.error(err);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     if (vendorId) {
+//       getNotifications();
+//     } else {
+//       setLoading(false);
+//     }
+//   }, [vendorId]);
+
+//   // Colors to match Flutter implementation
+//   const primaryColor = '#4f46e5'; // Replace with your actual primary color from ColorUtils.primarycolor()
+//   const errorColor = '#ef4444'; // Equivalent to Colors.red
+
+//   return (
+//     <div className="container mx-auto px-4 py-6">
+//       <div className="mb-6">
+//         <h1 className="text-2xl font-bold">Notifications</h1>
+//       </div>
+      
+//       <div className="w-full">
+//         {loading ? (
+//           <div className="flex justify-center items-center py-20">
+//             {/* You could add a proper loader GIF here to match the Flutter asset */}
+//             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+//           </div>
+//         ) : error ? (
+//           <div className="text-center py-10 text-red-500">Error: {error}</div>
+//         ) : notifications.length === 0 ? (
+//           <div className="text-center py-10 text-gray-500">No notifications found.</div>
+//         ) : (
+//           <div className="space-y-4">
+//             {notifications.map((notification, index) => {
+//               const isSlotCancelled = notification.title.includes("Slot Cancelled");
+              
+//               return (
+//                 <div 
+//                   key={index}
+//                   className="p-4 rounded-lg border shadow-sm bg-white"
+//                   style={{ borderColor: isSlotCancelled ? errorColor : primaryColor }}
+//                 >
+//                   <div className="flex justify-between items-start mb-2">
+//                     <div className="font-bold text-sm">
+//                       {notification.title}
+//                     </div>
+//                     <div className="flex items-center">
+//                       <div 
+//                         className="w-4 h-4 rounded-full flex items-center justify-center mr-1"
+//                         style={{ backgroundColor: isSlotCancelled ? errorColor : primaryColor }}
+//                       >
+//                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+//                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+//                         </svg>
+//                       </div>
+//                       <span className="text-xs font-semibold">
+//                         {formatDate(notification.createdAt)}
+//                       </span>
+//                     </div>
+//                   </div>
+                  
+//                   <div className="flex items-start mt-2">
+//                     <div 
+//                       className="w-10 h-10 rounded-full flex items-center justify-center mr-3 flex-shrink-0"
+//                       style={{ backgroundColor: isSlotCancelled ? errorColor : primaryColor }}
+//                     >
+//                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+//                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+//                       </svg>
+//                     </div>
+//                     <p className="text-sm text-gray-800">
+//                       {notification.message}
+//                     </p>
+//                   </div>
+//                 </div>
+//               );
+//             })}
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default NotificationScreen;

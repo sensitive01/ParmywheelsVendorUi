@@ -103,7 +103,6 @@ const IconWrapper = styled(Box)(({ theme }) => ({
   color: theme.palette.primary.main
 }))
 
-// Custom styled toggle switch container
 const BookingTypeToggle = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
@@ -116,7 +115,6 @@ const BookingTypeToggle = styled(Box)(({ theme }) => ({
   marginBottom: theme.spacing(2)
 }))
 
-// Custom styled toggle switch with clock icon
 const StyledSwitch = styled(Switch)(({ theme }) => ({
   width: 120,
   height: 34,
@@ -197,20 +195,77 @@ export default function ParkingBooking() {
   const [carType, setCarType] = useState('')
   const [personName, setPersonName] = useState('')
   const [mobileNumber, setMobileNumber] = useState('')
-  const [subscriptionType, setSubscriptionType] = useState('')
+  const [subscriptionType, setSubscriptionType] = useState('Monthly') 
   const [loading, setLoading] = useState(false)
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' })
   const [errors, setErrors] = useState({})
   const [bookType, setBookType] = useState('Hourly')
   const [is24Hours, setIs24Hours] = useState(false)
+  const [minDate, setMinDate] = useState('')
+  const [minTime, setMinTime] = useState('')
+  const [minTentativeDateTime, setMinTentativeDateTime] = useState('')
+
+  useEffect(() => {
+    updateCurrentDateAndTime()
+  }, [])
 
   useEffect(() => {
     if (sts === 'Instant') {
-      const now = new Date().toISOString().slice(0, 16)
-      setParkingDate(now.split('T')[0])
-      setParkingTime(now.split('T')[1])
+      updateCurrentDateAndTime()
     }
   }, [sts])
+
+  useEffect(() => {
+    updateMinTentativeDateTime()
+  }, [parkingDate, parkingTime])
+
+  const updateCurrentDateAndTime = () => {
+    const now = new Date()
+    const dateString = now.toISOString().split('T')[0]
+    const timeString = now.toTimeString().slice(0, 5)
+    
+    setParkingDate(dateString)
+    setParkingTime(timeString)
+    setMinDate(dateString) 
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    setMinTime(`${hours}:${minutes}`)
+
+    updateMinTentativeDateTime(dateString, timeString)
+  }
+
+  const updateMinTentativeDateTime = (date = parkingDate, time = parkingTime) => {
+    if (!date || !time) return
+    
+    const dateTimeString = `${date}T${time}`
+    setMinTentativeDateTime(dateTimeString)
+
+    if (tentativeCheckout && tentativeCheckout < dateTimeString) {
+      setTentativeCheckout(dateTimeString)
+    }
+  }
+
+  const formatDate = (isoDate) => {
+    if (!isoDate) return ''
+    
+    const date = new Date(isoDate)
+    const day = date.getDate().toString().padStart(2, '0')
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const year = date.getFullYear()
+    
+    return `${day}-${month}-${year}`
+  }
+
+  const formatTime = (time24h) => {
+    if (!time24h) return ''
+    
+    const [hours, minutes] = time24h.split(':')
+    const h = parseInt(hours, 10)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour12 = h % 12 || 12
+    
+    return `${hour12.toString().padStart(2, '0')}:${minutes} ${ampm}`
+  }
 
   const validate = () => {
     const newErrors = {}
@@ -221,8 +276,23 @@ export default function ParkingBooking() {
         break
       case 1:
         if (!vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required'
-        if (sts === 'Subscription' && !subscriptionType) {
-          newErrors.subscriptionType = 'Please select a subscription type'
+
+        if (sts === 'Scheduled') {
+          const now = new Date()
+          const selectedDate = new Date(`${parkingDate}T${parkingTime}`)
+          
+          if (selectedDate < now) {
+            newErrors.parkingTime = 'You cannot select a past date or time'
+          }
+        }
+
+        if (tentativeCheckout) {
+          const checkoutDate = new Date(tentativeCheckout)
+          const parkingDateTime = new Date(`${parkingDate}T${parkingTime}`)
+          
+          if (checkoutDate <= parkingDateTime) {
+            newErrors.tentativeCheckout = 'Tentative checkout must be after parking time'
+          }
         }
         break
       case 2:
@@ -254,6 +324,9 @@ export default function ParkingBooking() {
     setLoading(true)
 
     try {
+      const formattedDate = formatDate(parkingDate)
+      const formattedTime = formatTime(parkingTime)
+      
       const payload = {
         vendorId,
         personName,
@@ -263,6 +336,10 @@ export default function ParkingBooking() {
         vehicleNumber,
         bookingDate: parkingDate,
         bookingTime: parkingTime,
+        parkedDate: parkingDate,
+        parkedTime: parkingTime,
+        parkingDate: formattedDate,
+        parkingTime: formattedTime,
         tenditivecheckout: tentativeCheckout,
         subsctiptiontype: sts === 'Subscription' ? subscriptionType : '',
         status: 'PENDING',
@@ -299,6 +376,9 @@ export default function ParkingBooking() {
         setMobileNumber('')
         setBookType('Hourly')
         setIs24Hours(false)
+        setTentativeCheckout('')
+        setSubscriptionType('Monthly') 
+        updateCurrentDateAndTime()
       }, 2000)
     } catch (error) {
       setAlert({
@@ -319,6 +399,49 @@ export default function ParkingBooking() {
 
   const handleVehicleNumberChange = (e) => {
     setVehicleNumber(e.target.value.toUpperCase());
+  }
+
+  const handleStsChange = (e) => {
+    const value = e.target.value
+    setSts(value)
+    if (value === 'Instant') {
+      updateCurrentDateAndTime()
+    }
+    if (value === 'Subscription') {
+      setSubscriptionType('Monthly')
+    }
+  }
+  
+  const handleParkingDateChange = (e) => {
+    const selectedDate = e.target.value
+    setParkingDate(selectedDate)
+    const today = new Date().toISOString().split('T')[0]
+    if (selectedDate === today) {
+      const now = new Date()
+      const hours = now.getHours().toString().padStart(2, '0')
+      const minutes = now.getMinutes().toString().padStart(2, '0')
+      setMinTime(`${hours}:${minutes}`)
+      if (parkingTime < `${hours}:${minutes}`) {
+        setParkingTime(`${hours}:${minutes}`)
+      }
+    } else {
+      setMinTime('00:00')
+    }
+  }
+  
+  const handleParkingTimeChange = (e) => {
+    const selectedTime = e.target.value
+    const today = new Date().toISOString().split('T')[0]
+    if (parkingDate === today && selectedTime < minTime) {
+      setAlert({
+        show: true,
+        message: 'You cannot select a past time',
+        type: 'error'
+      })
+      return
+    }
+    
+    setParkingTime(selectedTime)
   }
 
   const renderVehicleTypeStep = () => (
@@ -359,7 +482,7 @@ export default function ParkingBooking() {
       </Typography>
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <RadioGroup row value={sts} onChange={(e) => setSts(e.target.value)}>
+          <RadioGroup row value={sts} onChange={handleStsChange}>
             {[
               { value: 'Instant', label: 'Instant', icon: AccessTime },
               { value: 'Scheduled', label: 'Scheduled', icon: CalendarMonth },
@@ -424,9 +547,7 @@ export default function ParkingBooking() {
                 onChange={(e) => setSubscriptionType(e.target.value)}
                 label="Subscription Type"
               >
-                {['Weekly', 'Monthly', 'Yearly'].map((type) => (
-                  <MenuItem key={type} value={type}>{type}</MenuItem>
-                ))}
+                <MenuItem value="Monthly">Monthly</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -448,9 +569,12 @@ export default function ParkingBooking() {
             label="Parking Date"
             type="date"
             value={parkingDate}
-            onChange={(e) => setParkingDate(e.target.value)}
+            onChange={handleParkingDateChange}
             disabled={sts === 'Instant'}
+            error={!!errors.parkingDate}
+            helperText={errors.parkingDate}
             InputLabelProps={{ shrink: true }}
+            inputProps={{ min: minDate }}
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -459,9 +583,14 @@ export default function ParkingBooking() {
             label="Parking Time"
             type="time"
             value={parkingTime}
-            onChange={(e) => setParkingTime(e.target.value)}
+            onChange={handleParkingTimeChange}
             disabled={sts === 'Instant'}
+            error={!!errors.parkingTime}
+            helperText={errors.parkingTime}
             InputLabelProps={{ shrink: true }}
+            inputProps={{ 
+              min: parkingDate === minDate ? minTime : undefined 
+            }}
           />
         </Grid>
         <Grid item xs={12}>
@@ -471,7 +600,12 @@ export default function ParkingBooking() {
             type="datetime-local"
             value={tentativeCheckout}
             onChange={(e) => setTentativeCheckout(e.target.value)}
+            error={!!errors.tentativeCheckout}
+            helperText={errors.tentativeCheckout}
             InputLabelProps={{ shrink: true }}
+            inputProps={{
+              min: minTentativeDateTime
+            }}
           />
         </Grid>
       </Grid>
