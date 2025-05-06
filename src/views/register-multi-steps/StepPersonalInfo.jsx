@@ -408,9 +408,8 @@
 
 // export default StepPersonalInfo
 
-
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 import Grid from '@mui/material/Grid'
 import Button from '@mui/material/Button'
@@ -423,13 +422,55 @@ import RemoveIcon from '@mui/icons-material/Remove'
 
 import DirectionalIcon from '@components/DirectionalIcon'
 
-const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddress, vendorName, setVendorName, latitude, setLatitude, longitude, setLongitude, landmark, setLandmark }) => {
+const StepPersonalInfo = ({ 
+  handleNext, 
+  contacts, 
+  setContacts, 
+  address, 
+  setAddress, 
+  vendorName, 
+  setVendorName, 
+  latitude, 
+  setLatitude, 
+  longitude, 
+  setLongitude, 
+  landmark, 
+  setLandmark 
+}) => {
+  // State to track if add button should be enabled
+  const [addButtonEnabled, setAddButtonEnabled] = useState(false)
+
+  // Check if the last contact has both name and mobile filled
+  useEffect(() => {
+    if (contacts.length > 0) {
+      const lastContact = contacts[contacts.length - 1]
+      setAddButtonEnabled(
+        lastContact.name.trim() !== '' &&
+        /^\d{10}$/.test(lastContact.mobile.trim())
+      )
+      
+    } else {
+      setAddButtonEnabled(false)
+    }
+  }, [contacts])
+
   const handleAddContact = () => {
     setContacts([...contacts, { id: contacts.length + 1, name: '', mobile: '' }])
+    // Disable button after adding a new contact
+    setAddButtonEnabled(false)
   }
 
   const handleContactChange = (id, field, value) => {
-    setContacts(contacts.map(contact => (contact.id === id ? { ...contact, [field]: value } : contact)))
+    if (field === 'mobile') {
+      // Allow only digits and limit to 10 characters
+      if (!/^\d*$/.test(value) || value.length > 10) return
+    }
+    setContacts(contacts.map(contact => {
+      if (contact.id === id) {
+        return { ...contact, [field]: value }
+      }
+      return contact
+    }))
   }
 
   const handleRemoveContact = id => {
@@ -465,6 +506,7 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
                   placeholder='Contact Person'
                   value={contact.name}
                   onChange={e => handleContactChange(contact.id, 'name', e.target.value)}
+                  required
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -476,8 +518,10 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
                     value={contact.mobile}
                     onChange={e => handleContactChange(contact.id, 'mobile', e.target.value)}
                     InputProps={{
-                      startAdornment: <InputAdornment position='start'>IN (+91)</InputAdornment>
+                      startAdornment: <InputAdornment position='start'>IN (+91)</InputAdornment>,
+                      inputProps: { maxLength: 10 }
                     }}
+                    required
                   />
                   {index > 0 && (
                     <IconButton onClick={() => handleRemoveContact(contact.id)} color='error'>
@@ -490,7 +534,12 @@ const StepPersonalInfo = ({ handleNext, contacts, setContacts, address, setAddre
           </Grid>
         ))}
         <Grid item xs={12}>
-          <Button variant='contained' onClick={handleAddContact} startIcon={<AddIcon />}>
+          <Button 
+            variant='contained' 
+            onClick={handleAddContact} 
+            startIcon={<AddIcon />}
+            disabled={!addButtonEnabled}
+          >
             Add Another Contact
           </Button>
         </Grid>

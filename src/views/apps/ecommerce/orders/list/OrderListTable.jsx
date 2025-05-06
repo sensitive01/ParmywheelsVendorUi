@@ -2,15 +2,9 @@
 
 // React Imports
 import { useState, useEffect, useMemo } from 'react'
-
 import Link from 'next/link'
-
-import { useParams , useRouter } from 'next/navigation'
-
+import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-
-// Next Imports
-
 
 // MUI Imports
 import Card from '@mui/material/Card'
@@ -24,6 +18,7 @@ import TextField from '@mui/material/TextField'
 import CardHeader from '@mui/material/CardHeader'
 import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
+import Alert from '@mui/material/Alert'
 
 // Third-party Imports
 import classnames from 'classnames'
@@ -41,10 +36,7 @@ import {
   getSortedRowModel
 } from '@tanstack/react-table'
 
-
 // Component Imports
-import Alert from '@mui/material/Alert'
-
 import TableFilters from '../../products/list/TableFilters'
 import CustomAvatar from '@core/components/mui/Avatar'
 import OptionMenu from '@core/components/option-menu'
@@ -53,21 +45,17 @@ import OptionMenu from '@core/components/option-menu'
 import { getInitials } from '@/utils/getInitials'
 import { getLocalizedUrl } from '@/utils/i18n'
 
-
- // ✅ Import Next.js router
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-
-
 // Style Imports
 import tableStyles from '@core/styles/table.module.css'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export const stsChipColor = {
-  instant: { color: '#ff4d49', text: 'Instant' },       // Blue
-  subscription: { color: '#72e128', text: 'Subscription' }, // Green
-  schedule: { color: '#fdb528', text: 'Schedule' }      // Yellow
+  instant: { color: '#ff4d49', text: 'Instant' },
+  subscription: { color: '#72e128', text: 'Subscription' },
+  schedule: { color: '#fdb528', text: 'Schedule' }
 };
+
 export const statusChipColor = {
   completed: { color: 'success' },
   pending: { color: 'warning' },
@@ -78,12 +66,8 @@ export const statusChipColor = {
 
 const fuzzyFilter = (row, columnId, value, addMeta) => {
   const itemRank = rankItem(row.getValue(columnId), value)
-
-  addMeta({
-    itemRank
-  })
-  
-return itemRank.passed
+  addMeta({ itemRank })
+  return itemRank.passed
 }
 
 const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
@@ -92,62 +76,53 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   useEffect(() => {
     setValue(initialValue)
   }, [initialValue])
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       onChange(value)
     }, debounce)
 
-    
-return () => clearTimeout(timeout)
+    return () => clearTimeout(timeout)
   }, [value, debounce, onChange])
-  
-return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
+
+  return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
 }
 
-// Custom Timer component for the Payable Time column
 const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00')
   
   useEffect(() => {
-    // Return early if no parking date or time
     if (!parkedDate || !parkedTime) {
       setElapsedTime('00:00:00')
       return
     }
     
-    // Parse the parking date and time
     const [day, month, year] = parkedDate.split('-')
     const [timePart, ampm] = parkedTime.split(' ')
     let [hours, minutes] = timePart.split(':')
     
-    // Convert to 24-hour format
     if (ampm && ampm.toUpperCase() === 'PM' && hours !== '12') {
       hours = parseInt(hours) + 12
     } else if (ampm && ampm.toUpperCase() === 'AM' && hours === '12') {
       hours = '00'
     }
     
-    // Create parking start date object
     const parkingStartTime = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`)
     
-    // Update timer every second
     const timer = setInterval(() => {
       const now = new Date()
       const diffMs = now - parkingStartTime
       
-      // Don't show negative time
       if (diffMs < 0) {
         setElapsedTime('00:00:00')
         return
       }
       
-      // Convert milliseconds to hours, minutes, seconds
       const diffSecs = Math.floor(diffMs / 1000)
       const hours = Math.floor(diffSecs / 3600)
       const minutes = Math.floor((diffSecs % 3600) / 60)
       const seconds = diffSecs % 60
       
-      // Format with leading zeros
       const formattedHours = hours.toString().padStart(2, '0')
       const formattedMinutes = minutes.toString().padStart(2, '0')
       const formattedSeconds = seconds.toString().padStart(2, '0')
@@ -174,11 +149,63 @@ const OrderListTable = ({ orderData }) => {
   const [globalFilter, setGlobalFilter] = useState('')
   const [filteredData, setFilteredData] = useState(data)
   const { lang: locale } = useParams()
-  const paypal = '/images/apps/ecommerce/paypal.png'
-  const mastercard = '/images/apps/ecommerce/mastercard.png'
   const { data: session } = useSession()
-  const router = useRouter(); // ✅ Initialize router
+  const router = useRouter()
   const vendorId = session?.user?.id
+
+  // Function to sort bookings by date (newest first)
+  const sortBookingsByDate = (bookings) => {
+    return bookings.sort((a, b) => {
+      // Parse dates for comparison
+      const parseDate = (dateStr) => {
+        if (!dateStr) return 0;
+        
+        try {
+          // Check if date is in YYYY-MM-DD format
+          if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+            return new Date(dateStr).getTime();
+          }
+          // Otherwise assume DD-MM-YYYY format
+          else if (dateStr.includes('-')) {
+            const [day, month, year] = dateStr.split('-');
+            if (day && month && year) {
+              return new Date(`${year}-${month}-${day}`).getTime();
+            }
+          }
+          return 0;
+        } catch (e) {
+          console.error("Date parsing error:", e, dateStr);
+          return 0;
+        }
+      };
+
+      // Also consider booking time if available
+      const parseTime = (timeStr) => {
+        if (!timeStr) return 0;
+        
+        try {
+          const [timePart, ampm] = timeStr.split(' ');
+          let [hours, minutes] = timePart.split(':').map(Number);
+          
+          if (ampm && ampm.toUpperCase() === 'PM' && hours !== 12) {
+            hours += 12;
+          } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
+            hours = 0;
+          }
+          
+          return (hours * 60 * 60 * 1000) + (minutes * 60 * 1000);
+        } catch (e) {
+          console.error("Time parsing error:", e, timeStr);
+          return 0;
+        }
+      };
+
+      const dateA = parseDate(a.bookingDate) + parseTime(a.bookingTime);
+      const dateB = parseDate(b.bookingDate) + parseTime(b.bookingTime);
+      
+      return dateB - dateA; // Descending order (newest first)
+    });
+  };
 
   useEffect(() => {
     if (!vendorId) return
@@ -190,11 +217,12 @@ const OrderListTable = ({ orderData }) => {
         const result = await response.json()
 
         if (result && result.bookings) {
-          setData(result.bookings) // ✅ Set full data
-          setFilteredData(result.bookings) // ✅ Set initial filtered data to full data
+          const sortedBookings = sortBookingsByDate(result.bookings);
+          setData(sortedBookings);
+          setFilteredData(sortedBookings);
         } else {
-          setData([])
-          setFilteredData([])
+          setData([]);
+          setFilteredData([]);
         }
       } catch (error) {
         console.error('Error fetching vendor data:', error)
@@ -205,6 +233,13 @@ const OrderListTable = ({ orderData }) => {
 
     fetchData()
   }, [vendorId])
+
+  // Update the filtered data when data changes
+  useEffect(() => {
+    if (data.length > 0) {
+      setFilteredData(data);
+    }
+  }, [data]);
 
   const columns = useMemo(
     () => [
@@ -234,34 +269,28 @@ const OrderListTable = ({ orderData }) => {
         header: 'Booking Date & Time',
         cell: ({ row }) => {
           const formatDate = (dateStr) => {
-            if (!dateStr) return 'N/A'; // Better fallback than 'Invalid Date'
+            if (!dateStr) return 'N/A';
             
             try {
-              // Check if date is in YYYY-MM-DD format
               if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
                 return new Date(dateStr).toDateString();
               }
-              // Otherwise assume DD-MM-YYYY format
               else if (dateStr.includes('-')) {
                 const [day, month, year] = dateStr.split('-');
-                // Make sure all parts exist before creating Date
                 if (day && month && year) {
                   return new Date(`${year}-${month}-${day}`).toDateString();
                 }
               }
-              
-              // If we can't parse it, just return the original string
               return dateStr;
             } catch (e) {
               console.error("Date parsing error:", e, dateStr);
-              return dateStr; // Return original if parsing fails
+              return dateStr;
             }
           };
       
-          // Format time display
           const formatTimeDisplay = (timeStr) => {
             if (!timeStr) return 'N/A';
-            return timeStr; // Keep the original time format
+            return timeStr;
           };
       
           return (
@@ -272,130 +301,90 @@ const OrderListTable = ({ orderData }) => {
           );
         }
       }),
-      // columnHelper.accessor('payableTime', {
-      //   header: 'Payable Time',
-      //   cell: ({ row }) => {
-      //     // Show timer only if status is PARKED
-      //     const isParked = row.original.status && row.original.status.toLowerCase() === 'parked';
+      columnHelper.accessor('payableTime', {
+        header: 'Payable Time',
+        cell: ({ row }) => {
+          const status = row.original.status?.toLowerCase();
+          const isParked = status === 'parked';
+          const isCompleted = status === 'completed';
           
-      //     if (isParked) {
-      //       return (
-      //         <div className="flex items-center gap-2">
-      //           <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-      //           <PayableTimeTimer 
-      //             parkedDate={row.original.parkedDate}
-      //             parkedTime={row.original.parkedTime}
-      //           />
-      //         </div>
-      //       );
-      //     }
+          if (isParked) {
+            return (
+              <div className="flex items-center gap-2">
+                <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
+                <PayableTimeTimer 
+                  parkedDate={row.original.parkedDate}
+                  parkedTime={row.original.parkedTime}
+                />
+              </div>
+            );
+          }
           
-      //     return <Typography>--:--:--</Typography>;
-      //   }
-      // }),
-      
-            columnHelper.accessor('payableTime', {
-              header: 'Payable Time',
-              cell: ({ row }) => {
-                // Check booking status
-                const status = row.original.status?.toLowerCase()
-                const isParked = status === 'parked'
-                const isCompleted = status === 'completed'
+          if (isCompleted && row.original.exitvehicledate && row.original.exitvehicletime) {
+            const calculateTotalTime = () => {
+              try {
+                const [startDay, startMonth, startYear] = row.original.parkedDate.split('-');
+                const [startTimePart, startAmpm] = row.original.parkedTime.split(' ');
+                let [startHours, startMinutes] = startTimePart.split(':').map(Number);
                 
-                // Show real-time timer for PARKED status
-                if (isParked) {
-                  return (
-                    <div className="flex items-center gap-2">
-                      <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                      <PayableTimeTimer 
-                        parkedDate={row.original.parkedDate}
-                        parkedTime={row.original.parkedTime}
-                      />
-                    </div>
-                  )
+                if (startAmpm && startAmpm.toUpperCase() === 'PM' && startHours !== 12) {
+                  startHours += 12;
+                } else if (startAmpm && startAmpm.toUpperCase() === 'AM' && startHours === '12') {
+                  startHours = 0;
                 }
                 
-                // Show total time for COMPLETED status using exit vehicle data
-                if (isCompleted && row.original.exitvehicledate && row.original.exitvehicletime) {
-                  // Calculate and format the total parking duration
-                  const calculateTotalTime = () => {
-                    try {
-                      // Parse the parking start time
-                      const [startDay, startMonth, startYear] = row.original.parkedDate.split('-')
-                      const [startTimePart, startAmpm] = row.original.parkedTime.split(' ')
-                      let [startHours, startMinutes] = startTimePart.split(':').map(Number)
-                      
-                      // Convert to 24-hour format if needed
-                      if (startAmpm && startAmpm.toUpperCase() === 'PM' && startHours !== 12) {
-                        startHours += 12
-                      } else if (startAmpm && startAmpm.toUpperCase() === 'AM' && startHours === 12) {
-                        startHours = 0
-                      }
-                      
-                      // Create start date object
-                      const startTime = new Date(`${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}:00`)
-                      
-                      // Parse the exit vehicle time
-                      const [endDay, endMonth, endYear] = row.original.exitvehicledate.split('-')
-                      const [endTimePart, endAmpm] = row.original.exitvehicletime.split(' ')
-                      let [endHours, endMinutes] = endTimePart.split(':').map(Number)
-                      
-                      // Convert to 24-hour format if needed
-                      if (endAmpm && endAmpm.toUpperCase() === 'PM' && endHours !== 12) {
-                        endHours += 12
-                      } else if (endAmpm && endAmpm.toUpperCase() === 'AM' && endHours === 12) {
-                        endHours = 0
-                      }
-                      
-                      // Create end date object
-                      const endTime = new Date(`${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`)
-                      
-                      // Calculate difference in milliseconds
-                      const diffMs = endTime - startTime
-                      
-                      // Convert to days, hours, minutes
-                      const diffSecs = Math.floor(diffMs / 1000)
-                      const days = Math.floor(diffSecs / (3600 * 24))
-                      const hours = Math.floor((diffSecs % (3600 * 24)) / 3600)
-                      const minutes = Math.floor((diffSecs % 3600) / 60)
-                      
-                      // Format the output
-                      if (days > 0) {
-                        return `${days}d ${hours}h ${minutes}m`
-                      } else {
-                        return `${hours}h ${minutes}m`
-                      }
-                    } catch (e) {
-                      console.error("Error calculating total time:", e)
-                      return 'N/A'
-                    }
-                  }
-                  
-                  return (
-                    <div className="flex items-center gap-2">
-                      <i className="ri-time-line" style={{ fontSize: '16px', color: '#72e128' }}></i>
-                      <Typography sx={{ fontWeight: 500, color: '#72e128' }}>
-                        {calculateTotalTime()}
-                      </Typography>
-                    </div>
-                  )
+                const startTime = new Date(`${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}:00`);
+                
+                const [endDay, endMonth, endYear] = row.original.exitvehicledate.split('-');
+                const [endTimePart, endAmpm] = row.original.exitvehicletime.split(' ');
+                let [endHours, endMinutes] = endTimePart.split(':').map(Number);
+                
+                if (endAmpm && endAmpm.toUpperCase() === 'PM' && endHours !== 12) {
+                  endHours += 12;
+                } else if (endAmpm && endAmpm.toUpperCase() === 'AM' && endHours === '12') {
+                  endHours = 0;
                 }
                 
-                // Default case for other statuses
-                return <Typography>--:--:--</Typography>
+                const endTime = new Date(`${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`);
+                const diffMs = endTime - startTime;
+                const diffSecs = Math.floor(diffMs / 1000);
+                const days = Math.floor(diffSecs / (3600 * 24));
+                const hours = Math.floor((diffSecs % (3600 * 24)) / 3600);
+                const minutes = Math.floor((diffSecs % 3600) / 60);
+                
+                if (days > 0) {
+                  return `${days}d ${hours}h ${minutes}m`;
+                } else {
+                  return `${hours}h ${minutes}m`;
+                }
+              } catch (e) {
+                console.error("Error calculating total time:", e);
+                return 'N/A';
               }
-            }),
+            };
+            
+            return (
+              <div className="flex items-center gap-2">
+                <i className="ri-time-line" style={{ fontSize: '16px', color: '#72e128' }}></i>
+                <Typography sx={{ fontWeight: 500, color: '#72e128' }}>
+                  {calculateTotalTime()}
+                </Typography>
+              </div>
+            );
+          }
+          
+          return <Typography>--:--:--</Typography>;
+        }
+      }),
       columnHelper.accessor('customerName', {
         header: 'Customer',
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
-            {/* Static Avatar Image */}
             <img
               src="https://demos.pixinvent.com/materialize-nextjs-admin-template/demo-1/images/avatars/1.png"
               alt="Customer Avatar"
               className="w-8 h-8 rounded-full"
             />
-            {/* Customer Details */}
             <div className="flex flex-col">
               <Typography className="font-medium">{row.original.personName || 'Unknown'}</Typography>
               <Typography variant="body2">{row.original.mobileNumber || 'N/A'}</Typography>
@@ -406,11 +395,10 @@ const OrderListTable = ({ orderData }) => {
       columnHelper.accessor('sts', {
         header: 'Booking Type',
         cell: ({ row }) => {
-          const stsKey = row.original.sts?.toLowerCase(); // Convert to lowercase for case insensitivity
-          const chipData = stsChipColor[stsKey] || { color: 'text.secondary', text: row.original.sts || 'N/A' }; // Default text color
+          const stsKey = row.original.sts?.toLowerCase();
+          const chipData = stsChipColor[stsKey] || { color: 'text.secondary', text: row.original.sts || 'N/A' };
 
-          
-return (
+          return (
             <Typography
               sx={{ color: chipData.color, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}
             >
@@ -423,17 +411,16 @@ return (
       columnHelper.accessor('status', {
         header: 'Status',
         cell: ({ row }) => {
-          const statusKey = row.original.status?.toLowerCase(); // Case-insensitive lookup
+          const statusKey = row.original.status?.toLowerCase();
           const chipData = statusChipColor[statusKey] || { color: 'default' };
 
-          
-return (
+          return (
             <Chip
               label={row.original.status || 'N/A'}
               variant="tonal"
               size="small"
               sx={chipData.color.startsWith('#') ? { backgroundColor: chipData.color, color: 'white' } : {}}
-              color={!chipData.color.startsWith('#') ? chipData.color : undefined} // Use predefined MUI colors if available
+              color={!chipData.color.startsWith('#') ? chipData.color : undefined}
             />
           );
         }
@@ -441,18 +428,17 @@ return (
       columnHelper.accessor('vehicleType', {
         header: 'Vehicle Type',
         cell: ({ row }) => {
-          const vehicleType = row.original.vehicleType?.toLowerCase(); // Case-insensitive match
+          const vehicleType = row.original.vehicleType?.toLowerCase();
 
           const vehicleIcons = {
-            car: { icon: 'ri-car-fill', color: '#ff4d49' }, // Blue for Car
-            bike: { icon: 'ri-motorbike-fill', color: '#72e128' }, // Green for Bike
-            default: { icon: 'ri-roadster-fill', color: '#282a42' } // Grey for Others
+            car: { icon: 'ri-car-fill', color: '#ff4d49' },
+            bike: { icon: 'ri-motorbike-fill', color: '#72e128' },
+            default: { icon: 'ri-roadster-fill', color: '#282a42' }
           };
 
           const { icon, color } = vehicleIcons[vehicleType] || vehicleIcons.default;
 
-          
-return (
+          return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <i className={icon} style={{ fontSize: '16px', color }}></i>
               {row.original.vehicleType || 'N/A'}
@@ -474,63 +460,38 @@ return (
                   menuItemProps: {
                     onClick: () => {
                       const selectedId = row.original._id;
- 
                       if (selectedId) {
-                        console.log('Navigating to Order Details:', selectedId); // ✅ Debugging
-                        router.push(`/pages/bookingdetails/${selectedId}`); // ✅ Navigate with Next.js
-                      } else {
-                        console.error('⚠️ Booking ID is undefined!');
+                        router.push(`/pages/bookingdetails/${selectedId}`);
                       }
                     }
                   }
                 },
-                {
-                  text: 'Delete',
-                  icon: 'ri-delete-bin-7-line text-[22px]',
-                  menuItemProps: {
-                    onClick: async () => {
-                      try {
-                        const selectedId = row.original._id;
+                // {
+                //   text: 'Delete',
+                //   icon: 'ri-delete-bin-7-line text-[22px]',
+                //   menuItemProps: {
+                //     onClick: async () => {
+                //       try {
+                //         const selectedId = row.original._id;
+                //         if (!selectedId) return;
 
-                        if (!selectedId) {
-                          console.error('⚠️ Booking ID is missing!');
-                          
-return;
-                        }
+                //         const isConfirmed = window.confirm("Are you sure you want to delete this booking?");
+                //         if (!isConfirmed) return;
 
-                        console.log('Attempting to delete Booking ID:', selectedId);
+                //         const response = await fetch(`${API_URL}/vendor/deletebooking/${selectedId}`, {
+                //           method: 'DELETE'
+                //         });
 
-                        // ✅ Show confirmation alert before deleting
-                        const isConfirmed = window.confirm("Are you sure you want to delete this booking?");
+                //         if (!response.ok) throw new Error('Failed to delete booking');
 
-                        if (!isConfirmed) {
-                          console.log('Deletion cancelled');
-                          
-return;
-                        }
-
-
-                        // ✅ Call API to delete the booking
-                        const response = await fetch(`${API_URL}/vendor/deletebooking/${selectedId}`, {
-                          method: 'DELETE'
-                        });
-
-                        if (!response.ok) {
-                          throw new Error('Failed to delete booking');
-                        }
-
-                        console.log('✅ Booking Deleted:', selectedId);
-
-                        // ✅ Update the table after deletion
-                        setData(prevData => prevData.filter(booking => booking._id !== selectedId));
-                        setFilteredData(prevData => prevData.filter(booking => booking._id !== selectedId));
-                      } catch (error) {
-                        console.error('Error deleting booking:', error);
-                      }
-                    },
-                    className: 'flex items-center gap-2 pli-4'
-                  }
-                }
+                //         setData(prevData => prevData.filter(booking => booking._id !== selectedId));
+                //         setFilteredData(prevData => prevData.filter(booking => booking._id !== selectedId));
+                //       } catch (error) {
+                //         console.error('Error deleting booking:', error);
+                //       }
+                //     }
+                //   }
+                // }
               ]}
             />
           </div>
@@ -542,7 +503,7 @@ return;
   );
 
   const table = useReactTable({
-    data: filteredData.length > 0 || globalFilter ? filteredData : data, // ✅ Fix applied here
+    data: filteredData.length > 0 || globalFilter ? filteredData : data,
     columns,
     filterFns: {
       fuzzy: fuzzyFilter
@@ -569,22 +530,7 @@ return;
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   });
 
-  const getAvatar = params => {
-    const { avatar, customer } = params
-
-    if (avatar) {
-      return <CustomAvatar src={avatar} skin='light' size={34} />
-    } else {
-      return (
-        <CustomAvatar skin='light' size={34}>
-          {getInitials(customer)}
-        </CustomAvatar>
-      )
-    }
-  }
-
-  
-return (
+  return (
     <Card>
       <CardHeader title='Filters' />
       <TableFilters setData={setFilteredData} bookingData={data} />
@@ -596,9 +542,6 @@ return (
           placeholder='Search Order'
           className='sm:is-auto'
         />
-        {/* <Button variant='outlined' color='secondary' startIcon={<i className='ri-upload-2-line' />}>
-          Export
-        </Button> */}
         <Button
           variant='contained'
           component={Link}

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useSession } from 'next-auth/react'
 
@@ -204,35 +204,46 @@ export default function ParkingBooking() {
   const [minDate, setMinDate] = useState('')
   const [minTime, setMinTime] = useState('')
   const [minTentativeDateTime, setMinTentativeDateTime] = useState('')
+  const timerRef = useRef(null)
+
+  const updateCurrentDateTime = () => {
+    const now = new Date()
+    const dateString = now.toISOString().split('T')[0]
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    const timeString = `${hours}:${minutes}`
+    
+    setParkingDate(dateString)
+    setParkingTime(timeString)
+    setMinDate(dateString)
+    setMinTime(timeString)
+    
+    return { dateString, timeString }
+  }
 
   useEffect(() => {
-    updateCurrentDateAndTime()
-  }, [])
-
-  useEffect(() => {
-    if (sts === 'Instant') {
-      updateCurrentDateAndTime()
+    // Initialize with current time
+    updateCurrentDateTime()
+    
+    // Set up interval to update time every second
+    timerRef.current = setInterval(() => {
+      if (['Instant', 'Scheduled', 'Subscription'].includes(sts)) {
+        const { dateString, timeString } = updateCurrentDateTime()
+        updateMinTentativeDateTime(dateString, timeString)
+      }
+    }, 1000) // Update every second
+  
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
     }
   }, [sts])
+  
 
   useEffect(() => {
     updateMinTentativeDateTime()
   }, [parkingDate, parkingTime])
-
-  const updateCurrentDateAndTime = () => {
-    const now = new Date()
-    const dateString = now.toISOString().split('T')[0]
-    const timeString = now.toTimeString().slice(0, 5)
-    
-    setParkingDate(dateString)
-    setParkingTime(timeString)
-    setMinDate(dateString) 
-    const hours = now.getHours().toString().padStart(2, '0')
-    const minutes = now.getMinutes().toString().padStart(2, '0')
-    setMinTime(`${hours}:${minutes}`)
-
-    updateMinTentativeDateTime(dateString, timeString)
-  }
 
   const updateMinTentativeDateTime = (date = parkingDate, time = parkingTime) => {
     if (!date || !time) return
@@ -240,7 +251,8 @@ export default function ParkingBooking() {
     const dateTimeString = `${date}T${time}`
     setMinTentativeDateTime(dateTimeString)
 
-    if (tentativeCheckout && tentativeCheckout < dateTimeString) {
+    // Only enforce tentative checkout validation for Instant booking
+    if (sts === 'Instant' && tentativeCheckout && tentativeCheckout < dateTimeString) {
       setTentativeCheckout(dateTimeString)
     }
   }
@@ -276,24 +288,7 @@ export default function ParkingBooking() {
         break
       case 1:
         if (!vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required'
-
-        if (sts === 'Scheduled') {
-          const now = new Date()
-          const selectedDate = new Date(`${parkingDate}T${parkingTime}`)
-          
-          if (selectedDate < now) {
-            newErrors.parkingTime = 'You cannot select a past date or time'
-          }
-        }
-
-        if (tentativeCheckout) {
-          const checkoutDate = new Date(tentativeCheckout)
-          const parkingDateTime = new Date(`${parkingDate}T${parkingTime}`)
-          
-          if (checkoutDate <= parkingDateTime) {
-            newErrors.tentativeCheckout = 'Tentative checkout must be after parking time'
-          }
-        }
+        // No date/time validation for any booking type
         break
       case 2:
         if (mobileNumber && !/^\d{10}$/.test(mobileNumber)) {
@@ -378,7 +373,7 @@ export default function ParkingBooking() {
         setIs24Hours(false)
         setTentativeCheckout('')
         setSubscriptionType('Monthly') 
-        updateCurrentDateAndTime()
+        updateCurrentDateTime()
       }, 2000)
     } catch (error) {
       setAlert({
@@ -405,7 +400,7 @@ export default function ParkingBooking() {
     const value = e.target.value
     setSts(value)
     if (value === 'Instant') {
-      updateCurrentDateAndTime()
+      updateCurrentDateTime()
     }
     if (value === 'Subscription') {
       setSubscriptionType('Monthly')
@@ -415,30 +410,38 @@ export default function ParkingBooking() {
   const handleParkingDateChange = (e) => {
     const selectedDate = e.target.value
     setParkingDate(selectedDate)
-    const today = new Date().toISOString().split('T')[0]
-    if (selectedDate === today) {
-      const now = new Date()
-      const hours = now.getHours().toString().padStart(2, '0')
-      const minutes = now.getMinutes().toString().padStart(2, '0')
-      setMinTime(`${hours}:${minutes}`)
-      if (parkingTime < `${hours}:${minutes}`) {
-        setParkingTime(`${hours}:${minutes}`)
+    
+    // Only enforce time validation for Instant booking
+    if (sts === 'Instant') {
+      const today = new Date().toISOString().split('T')[0]
+      if (selectedDate === today) {
+        const now = new Date()
+        const hours = now.getHours().toString().padStart(2, '0')
+        const minutes = now.getMinutes().toString().padStart(2, '0')
+        setMinTime(`${hours}:${minutes}`)
+        if (parkingTime < `${hours}:${minutes}`) {
+          setParkingTime(`${hours}:${minutes}`)
+        }
+      } else {
+        setMinTime('00:00')
       }
-    } else {
-      setMinTime('00:00')
     }
   }
   
   const handleParkingTimeChange = (e) => {
     const selectedTime = e.target.value
-    const today = new Date().toISOString().split('T')[0]
-    if (parkingDate === today && selectedTime < minTime) {
-      setAlert({
-        show: true,
-        message: 'You cannot select a past time',
-        type: 'error'
-      })
-      return
+    
+    // Only restrict time selection for Instant booking
+    if (sts === 'Instant') {
+      const today = new Date().toISOString().split('T')[0]
+      if (parkingDate === today && selectedTime < minTime) {
+        setAlert({
+          show: true,
+          message: 'You cannot select a past time for instant booking',
+          type: 'error'
+        })
+        return
+      }
     }
     
     setParkingTime(selectedTime)
@@ -574,7 +577,10 @@ export default function ParkingBooking() {
             error={!!errors.parkingDate}
             helperText={errors.parkingDate}
             InputLabelProps={{ shrink: true }}
-            inputProps={{ min: minDate }}
+            inputProps={{ 
+              // Only enforce min date for Instant booking
+              min: sts === 'Instant' ? minDate : undefined 
+            }}
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -589,7 +595,8 @@ export default function ParkingBooking() {
             helperText={errors.parkingTime}
             InputLabelProps={{ shrink: true }}
             inputProps={{ 
-              min: parkingDate === minDate ? minTime : undefined 
+              // Only enforce min time for Instant booking
+              min: (sts === 'Instant' && parkingDate === minDate) ? minTime : undefined 
             }}
           />
         </Grid>
@@ -604,7 +611,8 @@ export default function ParkingBooking() {
             helperText={errors.tentativeCheckout}
             InputLabelProps={{ shrink: true }}
             inputProps={{
-              min: minTentativeDateTime
+              // Only enforce min datetime for Instant booking
+              min: sts === 'Instant' ? minTentativeDateTime : undefined
             }}
           />
         </Grid>

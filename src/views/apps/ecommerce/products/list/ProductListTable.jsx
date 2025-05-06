@@ -170,8 +170,49 @@ const OrderListTable = ({ orderData }) => {
           ["pending", "approved", "cancelled", "parked", "completed"]
             .includes(booking.status.toLowerCase())
         )
-        setData(filteredBookings)
-        setFilteredData(filteredBookings)
+        
+        // Sort bookings by creation date (latest first)
+        // First, try to get the creation timestamp if it exists
+        const sortedBookings = filteredBookings.sort((a, b) => {
+          // First try to use createdAt field if it exists
+          if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt) - new Date(a.createdAt)
+          }
+          
+          // Fall back to booking date and time if createdAt doesn't exist
+          try {
+            // Parse booking date for a
+            const parseBookingDateTime = (booking) => {
+              if (!booking.bookingDate || !booking.bookingTime) return new Date(0)
+              
+              const [day, month, year] = booking.bookingDate.split('-')
+              const [timePart, ampm] = booking.bookingTime.split(' ')
+              let [hours, minutes] = timePart.split(':').map(Number)
+              
+              if (ampm && ampm.toUpperCase() === 'PM' && hours !== 12) {
+                hours += 12
+              } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
+                hours = 0
+              }
+              
+              return new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`)
+            }
+            
+            const dateA = parseBookingDateTime(a)
+            const dateB = parseBookingDateTime(b)
+            
+            return dateB - dateA
+          } catch (e) {
+            // If all else fails, sort by ID if available (assuming newer IDs are larger)
+            if (a._id && b._id) {
+              return b._id.localeCompare(a._id)
+            }
+            return 0
+          }
+        })
+        
+        setData(sortedBookings)
+        setFilteredData(sortedBookings)
       } else {
         setData([])
         setFilteredData([])
@@ -268,27 +309,6 @@ const OrderListTable = ({ orderData }) => {
           )
         }
       }),
-      // columnHelper.accessor('payableTime', {
-      //   header: 'Payable Time',
-      //   cell: ({ row }) => {
-      //     const isParked = row.original.status && row.original.status.toLowerCase() === 'parked'
-          
-      //     if (isParked) {
-      //       return (
-      //         <div className="flex items-center gap-2">
-      //           <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-      //           <PayableTimeTimer 
-      //             parkedDate={row.original.parkedDate}
-      //             parkedTime={row.original.parkedTime}
-      //           />
-      //         </div>
-      //       )
-      //     }
-          
-      //     return <Typography>--:--:--</Typography>
-      //   }
-      // }),
-
       columnHelper.accessor('payableTime', {
         header: 'Payable Time',
         cell: ({ row }) => {
@@ -512,18 +532,6 @@ const OrderListTable = ({ orderData }) => {
         ),
         enableSorting: false
       }),
-      // columnHelper.accessor('statusAction', {
-      //   header: 'Change Status',
-      //   cell: ({ row }) => (
-      //     <BookingActionButton
-      //       bookingId={row.original._id}
-      //       currentStatus={row.original.status}
-      //       // vehicleType={row.original.vehicleType} 
-      //       onUpdate={fetchData}
-      //     />
-      //   ),
-      //   enableSorting: false
-      // })
       columnHelper.accessor('statusAction', {
         header: 'Change Status',
         cell: ({ row }) => (
