@@ -498,34 +498,34 @@ const OrderListTable = ({ orderData }) => {
                     }
                   }
                 },
-                {
-                  text: 'Delete',
-                  icon: 'ri-delete-bin-7-line',
-                  menuItemProps: {
-                    onClick: async () => {
-                      try {
-                        const selectedId = row.original._id
-                        if (!selectedId) return
+                // {
+                //   text: 'Delete',
+                //   icon: 'ri-delete-bin-7-line',
+                //   menuItemProps: {
+                //     onClick: async () => {
+                //       try {
+                //         const selectedId = row.original._id
+                //         if (!selectedId) return
 
-                        const isConfirmed = window.confirm("Are you sure you want to delete this booking?")
-                        if (!isConfirmed) return
+                //         const isConfirmed = window.confirm("Are you sure you want to delete this booking?")
+                //         if (!isConfirmed) return
 
-                        const response = await fetch(`${API_URL}/vendor/deletebooking/${selectedId}`, {
-                          method: 'DELETE'
-                        })
+                //         const response = await fetch(`${API_URL}/vendor/deletebooking/${selectedId}`, {
+                //           method: 'DELETE'
+                //         })
 
-                        if (!response.ok) {
-                          throw new Error('Failed to delete booking')
-                        }
+                //         if (!response.ok) {
+                //           throw new Error('Failed to delete booking')
+                //         }
 
-                        setData(prev => prev.filter(booking => booking._id !== selectedId))
-                        setFilteredData(prev => prev.filter(booking => booking._id !== selectedId))
-                      } catch (error) {
-                        console.error('Error deleting booking:', error)
-                      }
-                    }
-                  }
-                }
+                //         setData(prev => prev.filter(booking => booking._id !== selectedId))
+                //         setFilteredData(prev => prev.filter(booking => booking._id !== selectedId))
+                //       } catch (error) {
+                //         console.error('Error deleting booking:', error)
+                //       }
+                //     }
+                //   }
+                // }
               ]}
             />
           </div>

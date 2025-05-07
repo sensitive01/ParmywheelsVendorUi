@@ -471,7 +471,10 @@ import Chip from '@mui/material/Chip'
 import Checkbox from '@mui/material/Checkbox'
 import ListItemText from '@mui/material/ListItemText'
 import EditIcon from '@mui/icons-material/Edit'
-
+import CircularProgress from '@mui/material/CircularProgress'
+import Alert from '@mui/material/Alert'
+import Snackbar from '@mui/material/Snackbar'
+import InputAdornment from '@mui/material/InputAdornment'
 import Stack from '@mui/material/Stack'
 
 import CustomIconButton from '@core/components/mui/IconButton'
@@ -499,6 +502,12 @@ const ProductVariants = () => {
   const [savedData, setSavedData] = useState(null)
   const [isEditMode, setIsEditMode] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [updateLoading, setUpdateLoading] = useState(false)
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  })
   
   const { data: session } = useSession()
   const vendorId = session?.user?.id
@@ -536,14 +545,25 @@ const ProductVariants = () => {
 
     try {
       const response = await fetch(`${API_URL}/vendor/getamenitiesdata/${vendorId}`)
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`)
+      }
+      
       const data = await response.json()
 
-      if (data?.AmenitiesData) {
-        setSavedData(data.AmenitiesData)
+      if (data?.AmenitiesData || data?.updatedAmenitiesData) {
+        const amenitiesData = data?.AmenitiesData || data?.updatedAmenitiesData
+        setSavedData(amenitiesData)
         setShowForm(false)
       }
     } catch (error) {
       console.error('Error fetching amenities data:', error)
+      setSnackbar({
+        open: true,
+        message: 'Failed to load amenities data: ' + error.message,
+        severity: 'error'
+      })
     } finally {
       setIsLoading(false)
     }
@@ -573,7 +593,10 @@ const ProductVariants = () => {
   const handleEdit = () => {
     if (savedData) {
       setAmenities(savedData.amenities || [])
-      setParkingEntries(savedData.parkingEntries || [{ amount: '', text: '' }])
+      setParkingEntries(savedData.parkingEntries?.length > 0 
+        ? savedData.parkingEntries 
+        : [{ amount: '', text: '' }]
+      )
       setIsEditMode(true)
       setShowForm(true)
     }
@@ -583,7 +606,6 @@ const ProductVariants = () => {
     setShowForm(false)
     setIsEditMode(false)
 
-
     // Reset form data to saved state
     if (savedData) {
       setAmenities(savedData.amenities || [])
@@ -591,34 +613,173 @@ const ProductVariants = () => {
     }
   }
 
-  const handleSubmit = async () => {
-    const payload = {
-      vendorId,
-      amenities,
-      parkingEntries: parkingEntries.map(({ amount, text }) => ({ amount, text }))
-    }
-
+  // Function to update amenities only
+  const updateAmenities = async () => {
     try {
-      const url = isEditMode
+      const amenitiesPayload = {
+        vendorId,
+        amenities
+      }
+      
+      console.log('Submitting amenities payload:', amenitiesPayload)
+      
+      let url = isEditMode
         ? `${API_URL}/vendor/updateamenitiesdata/${vendorId}`
         : `${API_URL}/vendor/amenities`
       
-      const response = await fetch(url, {
+      const amenitiesResponse = await fetch(url, {
         method: isEditMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(amenitiesPayload),
+        credentials: 'include'
       })
       
-      const data = await response.json()
+      if (!amenitiesResponse.ok) {
+        throw new Error(`Server responded with status: ${amenitiesResponse.status}`)
+      }
+      
+      const amenitiesData = await amenitiesResponse.json()
+      console.log('Amenities update response:', amenitiesData)
+      
+      return amenitiesData
+    } catch (error) {
+      console.error('Error updating amenities:', error)
+      throw error
+    }
+  }
+  
+  // Function to update parking entries only
+  const updateParkingEntries = async () => {
+    try {
+      // Validate parking entries
+      if (parkingEntries.some(entry => !entry.text || !entry.amount)) {
+        throw new Error('Please fill in all service name and amount fields')
+      }
+      
+      const parkingPayload = {
+        vendorId,
+        parkingEntries
+      }
+      
+      console.log('Submitting parking entries payload:', parkingPayload)
+      
+      let url = isEditMode
+        ? `${API_URL}/vendor/updateparkingentries/${vendorId}`
+        : `${API_URL}/vendor/parkingentries`
+      
+      const parkingResponse = await fetch(url, {
+        method: isEditMode ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parkingPayload),
+        credentials: 'include'
+      })
+      
+      if (!parkingResponse.ok) {
+        throw new Error(`Server responded with status: ${parkingResponse.status}`)
+      }
+      
+      const parkingData = await parkingResponse.json()
+      console.log('Parking entries update response:', parkingData)
+      
+      return parkingData
+    } catch (error) {
+      console.error('Error updating parking entries:', error)
+      throw error
+    }
+  }
 
-      if (data?.AmenitiesData) {
-        setSavedData(data.AmenitiesData)
+  // Function to create both amenities and parking entries (for new data)
+  const createAmenitiesAndServices = async () => {
+    try {
+      // Validate data
+      if (parkingEntries.some(entry => !entry.text || !entry.amount)) {
+        throw new Error('Please fill in all service name and amount fields')
+      }
+      
+      const payload = {
+        vendorId,
+        amenities,
+        parkingEntries: parkingEntries.map(({ amount, text }) => ({ amount, text }))
+      }
+      
+      console.log('Creating new amenities and services:', payload)
+      
+      const response = await fetch(`${API_URL}/vendor/amenities`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        credentials: 'include'
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Server responded with status: ${response.status}`)
+      }
+      
+      const data = await response.json()
+      console.log('Create response:', data)
+      
+      return data
+    } catch (error) {
+      console.error('Error creating amenities and services:', error)
+      throw error
+    }
+  }
+
+  const handleSubmit = async () => {
+    // Validate form
+    if (parkingEntries.some(entry => !entry.text || !entry.amount)) {
+      setSnackbar({
+        open: true,
+        message: 'Please fill in all service name and amount fields',
+        severity: 'error'
+      })
+      return
+    }
+    
+    setUpdateLoading(true)
+    
+    try {
+      let result
+      
+      if (isEditMode) {
+        // Update mode - call both APIs separately
+        const amenitiesResult = await updateAmenities()
+        const parkingResult = await updateParkingEntries()
+        
+        // Use the amenities result as our main result
+        result = amenitiesResult
+      } else {
+        // Create mode - use the combined endpoint
+        result = await createAmenitiesAndServices()
+      }
+      
+      // Handle successful update/create
+      if (result?.AmenitiesData || result?.updatedAmenitiesData) {
+        const updatedData = result?.AmenitiesData || result?.updatedAmenitiesData
+        setSavedData(updatedData)
         setShowForm(false)
         setIsEditMode(false)
-        fetchAmenitiesData()
+        
+        setSnackbar({
+          open: true,
+          message: isEditMode 
+            ? 'Amenities and services updated successfully!' 
+            : 'Amenities and services created successfully!',
+          severity: 'success'
+        })
+        
+        // Refresh data to ensure consistency
+        await fetchAmenitiesData()
       }
     } catch (error) {
       console.error('Error submitting data:', error)
+      setSnackbar({
+        open: true,
+        message: error.message || 'Failed to save data',
+        severity: 'error'
+      })
+    } finally {
+      setUpdateLoading(false)
     }
   }
 
@@ -626,8 +787,8 @@ const ProductVariants = () => {
     if (isLoading) {
       return (
         <Card>
-          <CardContent>
-            <div>Loading...</div>
+          <CardContent sx={{ display: 'flex', justifyContent: 'center', p: 5 }}>
+            <CircularProgress />
           </CardContent>
         </Card>
       )
@@ -647,12 +808,15 @@ const ProductVariants = () => {
       <Card>
         <CardHeader
           title='Amenities & Services'
+          sx={{ bgcolor: 'primary.main' }}
+          titleTypographyProps={{ color: 'common.white' }}
           action={
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               startIcon={<EditIcon />}
               onClick={handleEdit}
+              sx={{ m: 1 }}
             >
               Edit
             </Button>
@@ -665,15 +829,19 @@ const ProductVariants = () => {
                 <CardHeader title="Available Amenities" />
                 <CardContent>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {savedData.amenities.map((amenity) => (
-                      <Chip
-                        key={amenity}
-                        label={amenity}
-                        color="primary"
-                        variant="outlined"
-                        style={{ padding: '15px', fontSize: '1rem' }}
-                      />
-                    ))}
+                    {savedData.amenities?.length > 0 ? (
+                      savedData.amenities.map((amenity) => (
+                        <Chip
+                          key={amenity}
+                          label={amenity}
+                          color="primary"
+                          variant="outlined"
+                          style={{ padding: '15px', fontSize: '1rem' }}
+                        />
+                      ))
+                    ) : (
+                      <p>No amenities added yet</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -682,24 +850,28 @@ const ProductVariants = () => {
               <Card>
                 <CardHeader title="Services & Pricing" />
                 <CardContent>
-                  <div style={{ height: 400, width: '100%' }}>
-                    <DataGrid
-                      rows={savedData.parkingEntries.map((entry, index) => ({
-                        id: index,
-                        ...entry
-                      }))}
-                      columns={parkingColumns}
-                      pageSize={5}
-                      rowsPerPageOptions={[5, 10, 20]}
-                      disableSelectionOnClick
-                      autoHeight
-                      sx={{
-                        '& .MuiDataGrid-cell:hover': {
-                          color: 'primary.main',
-                        },
-                      }}
-                    />
-                  </div>
+                  {savedData.parkingEntries?.length > 0 ? (
+                    <div style={{ height: 'auto', width: '100%' }}>
+                      <DataGrid
+                        rows={savedData.parkingEntries.map((entry, index) => ({
+                          id: index,
+                          ...entry
+                        }))}
+                        columns={parkingColumns}
+                        pageSize={5}
+                        rowsPerPageOptions={[5, 10, 20]}
+                        disableSelectionOnClick
+                        autoHeight
+                        sx={{
+                          '& .MuiDataGrid-cell:hover': {
+                            color: 'primary.main',
+                          },
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <p>No services added yet</p>
+                  )}
                 </CardContent>
               </Card>
             </Grid>
@@ -711,7 +883,11 @@ const ProductVariants = () => {
 
   const renderForm = () => (
     <Card>
-      <CardHeader title={isEditMode ? 'Edit Variants & Amenities' : 'Variants & Amenities'} />
+      <CardHeader 
+        title={isEditMode ? 'Edit Amenities & Services' : 'Add Amenities & Services'} 
+        sx={{ bgcolor: 'primary.main' }}
+        titleTypographyProps={{ color: 'common.white' }}
+      />
       <CardContent>
         <Grid container spacing={6}>
           <Grid item xs={12}>
@@ -745,7 +921,7 @@ const ProductVariants = () => {
                   <TextField
                     fullWidth
                     label='Service Name'
-                    value={entry.text}
+                    value={entry.text || ''}
                     onChange={e => handleParkingEntryChange(index, 'text', e.target.value)}
                     placeholder='Enter Service Name'
                   />
@@ -756,9 +932,12 @@ const ProductVariants = () => {
                       fullWidth
                       label='Amount'
                       type='number'
-                      value={entry.amount}
+                      value={entry.amount || ''}
                       onChange={e => handleParkingEntryChange(index, 'amount', e.target.value)}
                       placeholder='Enter Amount'
+                      InputProps={{
+                        startAdornment: <InputAdornment position='start'>₹</InputAdornment>
+                      }}
                     />
                     {parkingEntries.length > 1 && (
                       <CustomIconButton onClick={() => deleteParkingEntry(index)} className='min-is-fit'>
@@ -776,21 +955,43 @@ const ProductVariants = () => {
               onClick={addParkingEntry}
               startIcon={<i className='ri-add-line' />}
             >
-              Add Another Option
+              Add Another Service
             </Button>
           </Grid>
           <Grid item xs={12}>
             <Stack direction="row" spacing={2} justifyContent="flex-start">
-              <Button variant='contained' color='success' onClick={handleSubmit}>
-                {isEditMode ? 'Update' : 'Submit'} Data
+              <Button 
+                variant='contained' 
+                color='success' 
+                onClick={handleSubmit}
+                disabled={updateLoading}
+              >
+                {updateLoading ? (
+                  <>
+                    {isEditMode ? 'Updating...' : 'Submitting...'} 
+                    <CircularProgress size={24} sx={{ ml: 1, color: 'white' }} />
+                  </>
+                ) : (
+                  isEditMode ? 'Update' : 'Submit'
+                )}
               </Button>
-              <Button variant='outlined' color='secondary' onClick={handleCancel}>
+              <Button variant='outlined' color='secondary' onClick={handleCancel} disabled={updateLoading}>
                 Cancel
               </Button>
             </Stack>
           </Grid>
         </Grid>
       </CardContent>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert onClose={() => setSnackbar({ ...snackbar, open: false })} severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Card>
   )
 
