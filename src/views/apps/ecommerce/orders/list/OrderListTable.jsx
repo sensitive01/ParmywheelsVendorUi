@@ -627,3 +627,461 @@ const OrderListTable = ({ orderData }) => {
 }
 
 export default OrderListTable
+
+
+// 'use client'
+
+// // React Imports
+// import { useState, useEffect, useMemo } from 'react'
+// import Link from 'next/link'
+// import { useParams, useRouter } from 'next/navigation'
+// import { useSession } from 'next-auth/react'
+
+// // MUI Imports
+// import Card from '@mui/material/Card'
+// import CardContent from '@mui/material/CardContent'
+// import Button from '@mui/material/Button'
+// import Typography from '@mui/material/Typography'
+// import Checkbox from '@mui/material/Checkbox'
+// import Chip from '@mui/material/Chip'
+// import TablePagination from '@mui/material/TablePagination'
+// import TextField from '@mui/material/TextField'
+// import CardHeader from '@mui/material/CardHeader'
+// import Divider from '@mui/material/Divider'
+// import CircularProgress from '@mui/material/CircularProgress'
+// import Alert from '@mui/material/Alert'
+
+// // Third-party Imports
+// import classnames from 'classnames'
+// import { rankItem } from '@tanstack/match-sorter-utils'
+// import {
+//   createColumnHelper,
+//   flexRender,
+//   getCoreRowModel,
+//   useReactTable,
+//   getFilteredRowModel,
+//   getFacetedRowModel,
+//   getFacetedUniqueValues,
+//   getFacetedMinMaxValues,
+//   getPaginationRowModel,
+//   getSortedRowModel
+// } from '@tanstack/react-table'
+
+// // Component Imports
+// import TableFilters from '../../products/list/TableFilters'
+// import CustomAvatar from '@core/components/mui/Avatar'
+// import OptionMenu from '@core/components/option-menu'
+
+// // Util Imports
+// import { getInitials } from '@/utils/getInitials'
+// import { getLocalizedUrl } from '@/utils/i18n'
+
+// // Style Imports
+// import tableStyles from '@core/styles/table.module.css'
+
+// const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+// export const stsChipColor = {
+//   instant: { color: '#ff4d49', text: 'Instant' },
+//   subscription: { color: '#72e128', text: 'Subscription' },
+//   schedule: { color: '#fdb528', text: 'Schedule' }
+// };
+
+// export const statusChipColor = {
+//   completed: { color: 'success' },
+//   pending: { color: 'warning' },
+//   parked: { color: '#666CFF' },
+//   cancelled: { color: 'error' },
+//   approved: { color: 'info' }
+// };
+
+// const fuzzyFilter = (row, columnId, value, addMeta) => {
+//   const itemRank = rankItem(row.getValue(columnId), value)
+//   addMeta({ itemRank })
+//   return itemRank.passed
+// }
+
+// const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
+//   const [value, setValue] = useState(initialValue)
+
+//   useEffect(() => {
+//     setValue(initialValue)
+//   }, [initialValue])
+
+//   useEffect(() => {
+//     const timeout = setTimeout(() => {
+//       onChange(value)
+//     }, debounce)
+
+//     return () => clearTimeout(timeout)
+//   }, [value, debounce, onChange])
+
+//   return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
+// }
+
+// const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
+//   const [elapsedTime, setElapsedTime] = useState('00:00:00')
+  
+//   useEffect(() => {
+//     if (!parkedDate || !parkedTime) {
+//       setElapsedTime('00:00:00')
+//       return
+//     }
+    
+//     const [day, month, year] = parkedDate.split('-')
+//     const [timePart, ampm] = parkedTime.split(' ')
+//     let [hours, minutes] = timePart.split(':')
+    
+//     if (ampm && ampm.toUpperCase() === 'PM' && hours !== '12') {
+//       hours = parseInt(hours) + 12
+//     } else if (ampm && ampm.toUpperCase() === 'AM' && hours === '12') {
+//       hours = '00'
+//     }
+    
+//     const parkingStartTime = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`)
+    
+//     const timer = setInterval(() => {
+//       const now = new Date()
+//       const diffMs = now - parkingStartTime
+      
+//       if (diffMs < 0) {
+//         setElapsedTime('00:00:00')
+//         return
+//       }
+      
+//       const diffSecs = Math.floor(diffMs / 1000)
+//       const hours = Math.floor(diffSecs / 3600)
+//       const minutes = Math.floor((diffSecs % 3600) / 60)
+//       const seconds = diffSecs % 60
+      
+//       const formattedHours = hours.toString().padStart(2, '0')
+//       const formattedMinutes = minutes.toString().padStart(2, '0')
+//       const formattedSeconds = seconds.toString().padStart(2, '0')
+      
+//       setElapsedTime(`${formattedHours}:${formattedMinutes}:${formattedSeconds}`)
+//     }, 1000)
+    
+//     return () => clearInterval(timer)
+//   }, [parkedDate, parkedTime])
+  
+//   return (
+//     <Typography sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
+//       {elapsedTime}
+//     </Typography>
+//   )
+// }
+
+// const columnHelper = createColumnHelper()
+
+// const OrderListTable = ({ orderData }) => {
+//   const [rowSelection, setRowSelection] = useState({})
+//   const [data, setData] = useState([])
+//   const [loading, setLoading] = useState(true)
+//   const [globalFilter, setGlobalFilter] = useState('')
+//   const [filteredData, setFilteredData] = useState(data)
+//   const { lang: locale } = useParams()
+//   const { data: session } = useSession()
+//   const router = useRouter()
+//   const vendorId = session?.user?.id
+
+//   // Function to parse date string to DateTime object
+//   const parseDateTime = (dateStr, timeStr) => {
+//     if (!dateStr || !timeStr) return null;
+    
+//     try {
+//       // Check if date is in YYYY-MM-DD format
+//       let dateParts;
+//       if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+//         const [year, month, day] = dateStr.split('-');
+//         dateParts = { day, month, year };
+//       }
+//       // Otherwise assume DD-MM-YYYY format
+//       else if (dateStr.includes('-')) {
+//         const [day, month, year] = dateStr.split('-');
+//         dateParts = { day, month, year };
+//       } else {
+//         return null;
+//       }
+      
+//       // Parse time
+//       const [timePart, ampm] = timeStr.split(' ');
+//       let [hours, minutes] = timePart.split(':').map(Number);
+      
+//       if (ampm && ampm.toUpperCase() === 'PM' && hours !== 12) {
+//         hours += 12;
+//       } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
+//         hours = 0;
+//       }
+      
+//       return new Date(`${dateParts.year}-${dateParts.month}-${dateParts.day}T${hours}:${minutes}:00`);
+//     } catch (e) {
+//       console.error("Error parsing date/time:", e);
+//       return null;
+//     }
+//   };
+
+//   // Function to update booking status to Cancelled
+//   const updateBookingStatus = async (bookingId, status) => {
+//     try {
+//       const response = await fetch(`${API_URL}/vendor/updatebookingstatus/${bookingId}`, {
+//         method: 'PUT',
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({ status })
+//       });
+      
+//       if (!response.ok) {
+//         throw new Error('Failed to update booking status');
+//       }
+      
+//       return true;
+//     } catch (error) {
+//       console.error('Error updating booking status:', error);
+//       return false;
+//     }
+//   };
+
+//   // Function to check and update pending bookings
+//   const checkAndUpdatePendingBookings = async (bookings) => {
+//     const now = new Date();
+    
+//     for (const booking of bookings) {
+//       try {
+//         // Skip if booking is not pending
+//         if (booking.status.toLowerCase() !== 'pending') {
+//           console.log(`Skipping booking ${booking._id} as it is not pending.`);
+//           continue;
+//         }
+        
+//         // Parse scheduled date and time
+//         const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
+//         if (!scheduledDateTime) continue;
+        
+//         console.log('Current Time:', now);
+//         console.log('Scheduled Time:', scheduledDateTime);
+        
+//         // Check if scheduled time has passed by more than 10 minutes
+//         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        
+//         if (now > tenMinutesAfter) {
+//           const success = await updateBookingStatus(booking._id, 'Cancelled');
+//           if (success) {
+//             console.log(`Booking ${booking._id} has been cancelled.`);
+//           }
+//         }
+//       } catch (e) {
+//         console.error(`Error processing booking ${booking._id}:`, e);
+//       }
+//     }
+//   };
+
+//   // Function to check and update approved bookings
+//   const checkAndUpdateApprovedBookings = async (bookings) => {
+//     const now = new Date();
+    
+//     for (const booking of bookings) {
+//       try {
+//         // Skip if booking is not approved
+//         if (booking.status.toLowerCase() !== 'approved') {
+//           console.log(`Skipping booking ${booking._id} as it is not approved.`);
+//           continue;
+//         }
+        
+//         // Parse scheduled date and time
+//         const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
+//         if (!scheduledDateTime) continue;
+        
+//         // Check if scheduled time has passed by more than 10 minutes
+//         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        
+//         if (now > tenMinutesAfter) {
+//           const success = await updateBookingStatus(booking._id, 'Cancelled');
+//           if (success) {
+//             console.log(`Booking ${booking._id} has been cancelled (10 minutes past the scheduled time).`);
+//           }
+//         }
+//       } catch (e) {
+//         console.error(`Error processing booking ${booking._id}:`, e);
+//       }
+//     }
+//   };
+
+//   // Function to refresh booking list
+//   const refreshBookingList = async () => {
+//     try {
+//       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`);
+//       const result = await response.json();
+      
+//       if (result && result.bookings) {
+//         const sortedBookings = sortBookingsByDate(result.bookings);
+//         setData(sortedBookings);
+//         setFilteredData(sortedBookings);
+//         console.log('Booking list refreshed with', sortedBookings.length, 'bookings.');
+//         return sortedBookings;
+//       }
+//       return [];
+//     } catch (error) {
+//       console.error('Error refreshing booking list:', error);
+//       return [];
+//     }
+//   };
+
+//   // Function to sort bookings by date (newest first)
+//   const sortBookingsByDate = (bookings) => {
+//     return bookings.sort((a, b) => {
+//       const dateA = parseDateTime(a.bookingDate, a.bookingTime)?.getTime() || 0;
+//       const dateB = parseDateTime(b.bookingDate, b.bookingTime)?.getTime() || 0;
+      
+//       return dateB - dateA; // Descending order (newest first)
+//     });
+//   };
+
+//   useEffect(() => {
+//     if (!vendorId) return;
+
+//     const fetchDataAndCheckBookings = async () => {
+//       try {
+//         setLoading(true);
+//         const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`);
+//         const result = await response.json();
+
+//         if (result && result.bookings) {
+//           // First check and update pending bookings
+//           await checkAndUpdatePendingBookings(result.bookings);
+          
+//           // Then check and update approved bookings
+//           await checkAndUpdateApprovedBookings(result.bookings);
+          
+//           // Finally refresh the list to get updated statuses
+//           const updatedBookings = await refreshBookingList();
+          
+//           setData(updatedBookings);
+//           setFilteredData(updatedBookings);
+//         } else {
+//           setData([]);
+//           setFilteredData([]);
+//         }
+//       } catch (error) {
+//         console.error('Error fetching vendor data:', error);
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+
+//     fetchDataAndCheckBookings();
+
+//     // Set up interval to check bookings every minute
+//     const intervalId = setInterval(() => {
+//       fetchDataAndCheckBookings();
+//     }, 60000); // Check every minute
+
+//     return () => clearInterval(intervalId);
+//   }, [vendorId]);
+
+//   // Update the filtered data when data changes
+//   useEffect(() => {
+//     if (data.length > 0) {
+//       setFilteredData(data);
+//     }
+//   }, [data]);
+
+//   // ... [rest of your component code remains the same]
+
+//   return (
+//     <Card>
+//       <CardHeader title='Filters' />
+//       <TableFilters setData={setFilteredData} bookingData={data} />
+//       <Divider />
+//       <CardContent className='flex justify-between max-sm:flex-col sm:items-center gap-4'>
+//         <DebouncedInput
+//           value={globalFilter ?? ''}
+//           onChange={value => setGlobalFilter(String(value))}
+//           placeholder='Search Order'
+//           className='sm:is-auto'
+//         />
+//         <Button
+//           variant='contained'
+//           component={Link}
+//           href={getLocalizedUrl('/pages/wizard-examples/property-listing', locale)}
+//           startIcon={<i className='ri-add-line' />}
+//           className='max-sm:is-full is-auto'
+//         >
+//           New Booking
+//         </Button>
+//       </CardContent>
+//       <div className='overflow-x-auto'>
+//         {loading ? (
+//           <div className="flex justify-center items-center p-8">
+//             <CircularProgress />
+//           </div>
+//         ) : table.getFilteredRowModel().rows.length === 0 ? (
+//           <Alert severity="info" className="m-4">
+//             No bookings found
+//           </Alert>
+//         ) : (
+//           <table className={tableStyles.table}>
+//             <thead>
+//               {table.getHeaderGroups().map(headerGroup => (
+//                 <tr key={headerGroup.id}>
+//                   {headerGroup.headers.map(header => (
+//                     <th key={header.id}>
+//                       {header.isPlaceholder ? null : (
+//                         <>
+//                           <div
+//                             className={classnames({
+//                               'flex items-center': header.column.getIsSorted(),
+//                               'cursor-pointer select-none': header.column.getCanSort()
+//                             })}
+//                             onClick={header.column.getToggleSortingHandler()}
+//                           >
+//                             {flexRender(header.column.columnDef.header, header.getContext())}
+//                             {{
+//                               asc: <i className='ri-arrow-up-s-line text-xl' />,
+//                               desc: <i className='ri-arrow-down-s-line text-xl' />
+//                             }[header.column.getIsSorted()] ?? null}
+//                           </div>
+//                         </>
+//                       )}
+//                     </th>
+//                   ))}
+//                 </tr>
+//               ))}
+//             </thead>
+//             <tbody>
+//               {table
+//                 .getRowModel()
+//                 .rows.slice(0, table.getState().pagination.pageSize)
+//                 .map(row => {
+//                   return (
+//                     <tr key={row.id} className={classnames({ selected: row.getIsSelected() })}>
+//                       {row.getVisibleCells().map(cell => (
+//                         <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+//                       ))}
+//                     </tr>
+//                   )
+//                 })}
+//             </tbody>
+//           </table>
+//         )}
+//       </div>
+//       <TablePagination
+//         rowsPerPageOptions={[10, 25, 50, 100]}
+//         component='div'
+//         className='border-bs'
+//         count={table.getFilteredRowModel().rows.length}
+//         rowsPerPage={table.getState().pagination.pageSize}
+//         page={table.getState().pagination.pageIndex}
+//         SelectProps={{
+//           inputProps: { 'aria-label': 'rows per page' }
+//         }}
+//         onPageChange={(_, page) => {
+//           table.setPageIndex(page)
+//         }}
+//         onRowsPerPageChange={e => table.setPageSize(Number(e.target.value))}
+//       />
+//     </Card>
+//   )
+// }
+
+// export default OrderListTable

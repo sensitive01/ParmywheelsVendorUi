@@ -20,6 +20,7 @@
 // } from '@mui/material'
 
 // const API_URL = process.env.NEXT_PUBLIC_API_URL
+
 // const ParkedTimer = ({ parkedDate, parkedTime }) => {
 //   const [elapsedTime, setElapsedTime] = useState('00:00:00')
   
@@ -90,21 +91,74 @@
 //   const [calculationDetails, setCalculationDetails] = useState(null)
 //   const [bookingData, setBookingData] = useState(bookingDetails || null)
 //   const [otp, setOtp] = useState('')
-//   const [otpError, setOtpError] = useState('')
+//   const [backendOtp, setBackendOtp] = useState('')
 //   const is24Hours = bookingData?.bookType === '24 Hours' || bookType === '24 Hours'
+
+//   // New function to fetch booking details directly from provided API
+//   const fetchBookingDirectly = async (id) => {
+//     try {
+//       setFetchingBookingDetails(true)
+//       console.log(`Fetching booking details for ID: ${id} from direct API`)
+      
+//       const response = await fetch(`${API_URL}/vendor/getbooking/${id}`)
+      
+//       if (!response.ok) {
+//         throw new Error('Failed to fetch booking details')
+//       }
+      
+//       const data = await response.json()
+      
+//       if (!data || !data.booking) {
+//         throw new Error('Invalid booking data received')
+//       }
+      
+//       console.log('Received booking details from direct API:', data.booking)
+      
+//       // Set booking data and store backend OTP
+//       setBookingData(data.booking)
+//       if (data.booking.otp) {
+//         console.log('Received OTP from API:', data.booking.otp)
+//         setBackendOtp(data.booking.otp)
+//       }
+      
+//       return data.booking
+//     } catch (err) {
+//       console.error('Error fetching booking details from direct API:', err)
+//       setError('Failed to fetch booking details: ' + (err.message || ''))
+//       return null
+//     } finally {
+//       setFetchingBookingDetails(false)
+//     }
+//   }
 
 //   useEffect(() => {
 //     const getBookingDetails = async () => {
 //       if (bookingDetails) {
 //         setBookingData(bookingDetails)
+//         // Check if bookingDetails contains OTP
+//         if (bookingDetails.otp) {
+//           setBackendOtp(bookingDetails.otp)
+//         } else {
+//           // If no OTP in provided details, try to fetch it
+//           await fetchBookingDirectly(bookingId)
+//         }
 //         return
 //       }
       
 //       if (!bookingId) return
       
 //       try {
+//         // First try to fetch from the direct API endpoint for OTP
+//         const directBooking = await fetchBookingDirectly(bookingId)
+        
+//         if (directBooking) {
+//           // If we got data from direct API, we're done
+//           return
+//         }
+        
+//         // If direct API didn't work, fall back to original endpoint
 //         setFetchingBookingDetails(true)
-//         console.log(`Fetching booking details for ID: ${bookingId}`)
+//         console.log(`Falling back to original API for ID: ${bookingId}`)
         
 //         const response = await fetch(`${API_URL}/vendor/getbookingdetails/${bookingId}`)
         
@@ -118,8 +172,15 @@
 //           throw new Error('Invalid booking data received')
 //         }
         
-//         console.log('Received booking details:', data.booking)
+//         console.log('Received booking details from fallback:', data.booking)
 //         setBookingData(data.booking)
+        
+//         // If we got booking but no OTP, try direct API again
+//         if (!data.booking.otp) {
+//           await fetchBookingDirectly(bookingId)
+//         } else {
+//           setBackendOtp(data.booking.otp)
+//         }
 //       } catch (err) {
 //         console.error('Error fetching booking details:', err)
 //         setError('Failed to fetch booking details: ' + (err.message || ''))
@@ -128,7 +189,7 @@
 //       }
 //     }
     
-//     if (!bookingDetails && bookingId) {
+//     if (bookingId) {
 //       getBookingDetails()
 //     }
 //   }, [bookingId, bookingDetails])
@@ -339,17 +400,6 @@
 //     }
 //   }
 
-//   const handleOtpChange = (e) => {
-//     const value = e.target.value;
-//     setOtp(value);
-
-//     if (value && !/^\d{6}$/.test(value)) {
-//       setOtpError('OTP must be 6 digits');
-//     } else {
-//       setOtpError('');
-//     }
-//   }
-
 //   const formatDate = (dateStr) => {
 //     if (!dateStr) return 'N/A';
 //     return dateStr;
@@ -378,11 +428,12 @@
 //     }
 
 //     if (!otp) {
-//       setOtpError('OTP is required');
+//       setError('OTP is required');
 //       return;
 //     }
-
-//     if (otpError) {
+    
+//     if (otp !== backendOtp) {
+//       setError('OTP does not match the booking OTP');
 //       return;
 //     }
   
@@ -431,6 +482,7 @@
 //   }
 
 //   const isLoading = fetchingCharges || fetchingBookingDetails || loading
+//   const otpValidated = otp === backendOtp && !!otp;
 
 //   return (
 //     <Box>
@@ -452,7 +504,7 @@
 //           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
 //             <CircularProgress />
 //             <Typography variant="body2" sx={{ ml: 2 }}>
-//               {fetchingBookingDetails ? 'Loading booking details...' : 
+//               {fetchingBookingDetails ? 'Loading booking details and OTP...' : 
 //                fetchingCharges ? 'Loading charges data...' : 'Processing...'}
 //             </Typography>
 //           </Box>
@@ -468,14 +520,14 @@
 //                 </Typography>
 //                 <Divider sx={{ my: 1 }} />
 //                 <Typography variant="subtitle1" color="text.secondary">
-//                   Parked Since: {formatDate(bookingData?.parkedDate)} at {formatTime(bookingData?.parkedTime)}{' '}
-//                   {bookingData?.parkedDate && bookingData?.parkedTime && (
-//                     <ParkedTimer 
-//                       parkedDate={bookingData.parkedDate} 
-//                       parkedTime={bookingData.parkedTime} 
-//                     />
-//                   )}
-//                 </Typography>
+//   Parked Since: {formatDate(bookingData?.parkedDate)} at {formatTime(bookingData?.parkedTime)}{' '}
+//   {bookingData?.parkedDate && bookingData?.parkedTime && (
+//     <ParkedTimer 
+//       parkedDate={bookingData.parkedDate} 
+//       parkedTime={bookingData.parkedTime} 
+//     />
+//   )}
+// </Typography>
 //               </CardContent>
 //             </Card>
             
@@ -501,9 +553,9 @@
 //                   label="Enter OTP"
 //                   type="text"
 //                   value={otp}
-//                   onChange={handleOtpChange}
-//                   error={!!otpError}
-//                   helperText={otpError}
+//                   onChange={(e) => setOtp(e.target.value)}
+//                   error={!otp || (otp && backendOtp && otp !== backendOtp)}
+//                   helperText={!otp ? "OTP is required" : (otp !== backendOtp && backendOtp ? "OTP does not match" : "")}
 //                   disabled={isLoading}
 //                   required
 //                   inputProps={{
@@ -579,7 +631,7 @@
 //           onClick={handleSubmit} 
 //           variant="contained" 
 //           color="primary"
-//           disabled={isLoading || !vendorId || !otp || !!otpError}
+//           disabled={isLoading || !vendorId || !otp || otp !== backendOtp}
 //           startIcon={loading ? <CircularProgress size={20} /> : null}
 //         >
 //           {loading ? 'Processing...' : 'Confirm Exit'}
@@ -686,9 +738,13 @@ const ExitVehicleCalculator = ({
   const [bookingData, setBookingData] = useState(bookingDetails || null)
   const [otp, setOtp] = useState('')
   const [backendOtp, setBackendOtp] = useState('')
+  const [fullDayModes, setFullDayModes] = useState({
+    car: 'Full Day',
+    bike: 'Full Day',
+    others: 'Full Day'
+  })
   const is24Hours = bookingData?.bookType === '24 Hours' || bookType === '24 Hours'
 
-  // New function to fetch booking details directly from provided API
   const fetchBookingDirectly = async (id) => {
     try {
       setFetchingBookingDetails(true)
@@ -708,7 +764,6 @@ const ExitVehicleCalculator = ({
       
       console.log('Received booking details from direct API:', data.booking)
       
-      // Set booking data and store backend OTP
       setBookingData(data.booking)
       if (data.booking.otp) {
         console.log('Received OTP from API:', data.booking.otp)
@@ -725,15 +780,37 @@ const ExitVehicleCalculator = ({
     }
   }
 
+  const fetchFullDayModes = async () => {
+    try {
+      console.log(`Fetching full day modes for vendor: ${vendorId}`)
+      const response = await fetch(`${API_URL}/vendor/getfullday/${vendorId}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch full day modes')
+      }
+      
+      const data = await response.json()
+      console.log('Received full day modes:', data)
+      
+      if (data && data.data) {
+        setFullDayModes({
+          car: data.data.fulldaycar || 'Full Day',
+          bike: data.data.fulldaybike || 'Full Day',
+          others: data.data.fulldayothers || 'Full Day'
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching full day modes:', err)
+    }
+  }
+
   useEffect(() => {
     const getBookingDetails = async () => {
       if (bookingDetails) {
         setBookingData(bookingDetails)
-        // Check if bookingDetails contains OTP
         if (bookingDetails.otp) {
           setBackendOtp(bookingDetails.otp)
         } else {
-          // If no OTP in provided details, try to fetch it
           await fetchBookingDirectly(bookingId)
         }
         return
@@ -742,15 +819,12 @@ const ExitVehicleCalculator = ({
       if (!bookingId) return
       
       try {
-        // First try to fetch from the direct API endpoint for OTP
         const directBooking = await fetchBookingDirectly(bookingId)
         
         if (directBooking) {
-          // If we got data from direct API, we're done
           return
         }
         
-        // If direct API didn't work, fall back to original endpoint
         setFetchingBookingDetails(true)
         console.log(`Falling back to original API for ID: ${bookingId}`)
         
@@ -769,7 +843,6 @@ const ExitVehicleCalculator = ({
         console.log('Received booking details from fallback:', data.booking)
         setBookingData(data.booking)
         
-        // If we got booking but no OTP, try direct API again
         if (!data.booking.otp) {
           await fetchBookingDirectly(bookingId)
         } else {
@@ -789,6 +862,12 @@ const ExitVehicleCalculator = ({
   }, [bookingId, bookingDetails])
 
   useEffect(() => {
+    if (vendorId) {
+      fetchFullDayModes()
+    }
+  }, [vendorId])
+
+  useEffect(() => {
     const calculateDuration = () => {
       try {
         const parkingDate = bookingData?.parkedDate
@@ -801,10 +880,10 @@ const ExitVehicleCalculator = ({
         }
         
         const [day, month, year] = parkingDate.split('-').map(Number)
-
+    
         let [time, period] = parkingTime.split(' ')
         let [hours, minutes] = time.split(':').map(Number)
-
+    
         if (period === 'PM' && hours < 12) {
           hours += 12
         } else if (period === 'AM' && hours === 12) {
@@ -818,37 +897,98 @@ const ExitVehicleCalculator = ({
         console.log('Current date time:', currentDateTime);
         
         const diffMs = currentDateTime - parkingDateTime
-
+    
         if (is24Hours) {
-          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-          const calculatedDays = Math.max(1, diffDays)
-          console.log('Calculated days (24 Hours booking):', calculatedDays);
-          setHours(calculatedDays)
-          return calculatedDays
+          const effectiveVehicleType = bookingData?.vehicleType?.toLowerCase() || vehicleType.toLowerCase()
+          const fullDayMode = fullDayModes[effectiveVehicleType] || 'Full Day'
+          
+          console.log(`Using full day mode "${fullDayMode}" for ${effectiveVehicleType}`)
+          
+          if (fullDayMode === '24 Hours') {
+            // 24 Hours mode: Calculate complete 24-hour periods from parking time
+            const diffHours = diffMs / (1000 * 60 * 60)
+            const days = Math.ceil(diffHours / 24)
+            const calculatedDays = Math.max(1, days)
+            console.log('Calculated days (24 Hours mode):', calculatedDays);
+            
+            // Store calculation method for later display
+            const calculationMethod = {
+              methodName: '24 Hours',
+              description: 'Complete 24-hour periods from parking time',
+              parkingDateTime: parkingDateTime,
+              currentDateTime: currentDateTime,
+              diffHours: diffHours,
+              days: calculatedDays
+            }
+            
+            setHours(calculatedDays)
+            return { duration: calculatedDays, method: calculationMethod }
+          } else {
+            // Modified Full Day mode: Calculate calendar days but don't include current day unless complete
+            const parkingDay = new Date(year, month - 1, day)
+            const currentDay = new Date(
+              currentDateTime.getFullYear(), 
+              currentDateTime.getMonth(), 
+              currentDateTime.getDate()
+            )
+            
+            // Calculate the difference in days (not inclusive of the current day)
+            const timeDiff = currentDay.getTime() - parkingDay.getTime();
+            const diffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            
+            // Only add the current day if it's complete (already passed midnight)
+            // Always charge minimum 1 day
+            const calculatedDays = Math.max(1, diffDays);
+            
+            console.log('Calculated calendar days (Full Day mode):', calculatedDays);
+            
+            // Store calculation method for later display
+            const calculationMethod = {
+              methodName: 'Full Day', 
+              description: 'Calendar days (excluding current day unless complete)',
+              parkingDay: parkingDay,
+              currentDay: currentDay,
+              diffDays: calculatedDays,
+              explanation: 'Charges apply for each complete calendar day, excluding the current day if not yet complete'
+            }
+            
+            setHours(calculatedDays)
+            return { duration: calculatedDays, method: calculationMethod }
+          }
         } else {
+          // Hourly booking - unchanged
           const diffHours = Math.ceil(diffMs / (1000 * 60 * 60))
           const calculatedHours = Math.max(1, diffHours)
           console.log('Calculated hours (Hourly booking):', calculatedHours);
+          
+          // Store calculation method for later display
+          const calculationMethod = {
+            methodName: 'Hourly',
+            description: 'Hours since parking time',
+            parkingDateTime: parkingDateTime,
+            currentDateTime: currentDateTime,
+            diffHours: calculatedHours
+          }
+          
           setHours(calculatedHours)
-          return calculatedHours
+          return { duration: calculatedHours, method: calculationMethod }
         }
       } catch (err) {
         console.error('Error calculating duration:', err)
         setError('Failed to calculate parking duration. Using default value.')
         setHours(1)
-        return 1
+        return { duration: 1, method: null }
       }
     }
 
-    if (bookingData?.parkedDate && bookingData?.parkedTime) {
-      const calculatedDuration = calculateDuration()
+    if (bookingData?.parkedDate && bookingData?.parkedTime && fullDayModes) {
+      const result = calculateDuration()
       
       if (chargesData) {
-        calculateAmount(calculatedDuration, chargesData)
+        calculateAmount(result.duration, chargesData, result.method)
       }
     }
-  }, [bookingData, chargesData, is24Hours])
-
+  }, [bookingData, chargesData, is24Hours, fullDayModes, vehicleType])
 
   useEffect(() => {
     const fetchCharges = async () => {
@@ -887,20 +1027,20 @@ const ExitVehicleCalculator = ({
     fetchCharges()
   }, [vendorId])
 
-  const calculateAmount = (hoursValue, charges = chargesData) => {
+  const calculateAmount = (hoursValue, charges = chargesData, calculationMethod = null) => {
     if (!charges || !charges.charges || !charges.charges.length) {
       console.warn('No charges data available');
       return;
     }
 
     try {
-
       const effectiveVehicleType = bookingData?.vehicleType || vehicleType
       
       console.log('Calculating amount for:', { 
         hoursValue, 
         vehicleType: effectiveVehicleType, 
-        is24Hours
+        is24Hours,
+        calculationMethod
       });
       
       const relevantCharges = charges.charges.filter(charge => 
@@ -917,7 +1057,6 @@ const ExitVehicleCalculator = ({
       let details = {}
 
       if (is24Hours) {
-
         const fullDayCharge = relevantCharges.find(charge => 
           charge.type.toLowerCase().includes('full day') || 
           charge.type.toLowerCase().includes('24 hour')
@@ -930,16 +1069,20 @@ const ExitVehicleCalculator = ({
         const days = hoursValue
         calculatedAmount = Number(fullDayCharge.amount) * days
         
+        const vehicleTypeKey = effectiveVehicleType.toLowerCase()
+        const fullDayMode = fullDayModes[vehicleTypeKey] || 'Full Day'
+        
         details = {
           rateType: "Full day",
           baseRate: Number(fullDayCharge.amount),
           days: days,
-          calculation: `${fullDayCharge.amount} × ${days} day(s) = ${calculatedAmount}`
+          fullDayMode: fullDayMode,
+          calculation: `${fullDayCharge.amount} × ${days} day(s) = ${calculatedAmount}`,
+          calculationMethod: calculationMethod
         }
         
-        console.log('24-hour calculation details:', details);
+        console.log('Full day calculation details:', details);
       } else {
-
         const baseCharge = relevantCharges.find(charge => 
           charge.type.toLowerCase().includes('0 to 1') || 
           charge.type.toLowerCase().includes('first hour') ||
@@ -970,7 +1113,8 @@ const ExitVehicleCalculator = ({
           totalHours: hoursValue,
           calculation: hoursValue > 1 ? 
             `${baseCharge.amount} (first hour) + ${additionalRate} × ${hoursValue - 1} (additional hours) = ${calculatedAmount}` :
-            `${baseCharge.amount} (first hour) = ${calculatedAmount}`
+            `${baseCharge.amount} (first hour) = ${calculatedAmount}`,
+          calculationMethod: calculationMethod
         }
         
         console.log('Hourly calculation details:', details);
@@ -1005,13 +1149,26 @@ const ExitVehicleCalculator = ({
     let [time, period] = timeStr.split(' ');
     let [hours, minutes] = time.split(':').map(Number);
     
-
     if (period === 'PM' && hours < 12) {
       hours += 12;
     } else if (period === 'AM' && hours === 12) {
       hours = 0;
     }
     
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  }
+
+  // Format a date object to a readable date string
+  const formatDateObject = (date) => {
+    if (!date) return 'N/A';
+    return `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`;
+  }
+
+  // Format a date object to a readable time string
+  const formatTimeObject = (date) => {
+    if (!date) return 'N/A';
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 
@@ -1112,16 +1269,21 @@ const ExitVehicleCalculator = ({
                 <Typography variant="subtitle1" color="text.secondary" gutterBottom>
                   Booking Type: {bookingData?.bookType || bookType}
                 </Typography>
+                {is24Hours && (
+                  <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                    Full Day Mode: {fullDayModes[bookingData?.vehicleType?.toLowerCase() || vehicleType.toLowerCase()] || 'Full Day'}
+                  </Typography>
+                )}
                 <Divider sx={{ my: 1 }} />
                 <Typography variant="subtitle1" color="text.secondary">
-  Parked Since: {formatDate(bookingData?.parkedDate)} at {formatTime(bookingData?.parkedTime)}{' '}
-  {bookingData?.parkedDate && bookingData?.parkedTime && (
-    <ParkedTimer 
-      parkedDate={bookingData.parkedDate} 
-      parkedTime={bookingData.parkedTime} 
-    />
-  )}
-</Typography>
+                  Parked Since: {formatDate(bookingData?.parkedDate)} at {formatTime(bookingData?.parkedTime)}{' '}
+                  {bookingData?.parkedDate && bookingData?.parkedTime && (
+                    <ParkedTimer 
+                      parkedDate={bookingData.parkedDate} 
+                      parkedTime={bookingData.parkedTime} 
+                    />
+                  )}
+                </Typography>
               </CardContent>
             </Card>
             
@@ -1179,6 +1341,54 @@ const ExitVehicleCalculator = ({
                         <Typography variant="body2">
                           <strong>Number of Days:</strong> {calculationDetails.days}
                         </Typography>
+                        {calculationDetails.fullDayMode && (
+                          <Typography variant="body2">
+                            <strong>Full Day Mode:</strong> {calculationDetails.fullDayMode}
+                          </Typography>
+                        )}
+                        
+                        {/* New detailed calculation explanation */}
+                        {calculationDetails.calculationMethod && (
+                          <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
+                            <Typography variant="body2" fontWeight="medium">
+                              Calculation Mode: {calculationDetails.calculationMethod.methodName}
+                            </Typography>
+                            <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 0.5 }}>
+                              {calculationDetails.calculationMethod.description}
+                            </Typography>
+                            
+                            {calculationDetails.calculationMethod.methodName === 'Full Day' && (
+                              <>
+                                <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 1 }}>
+                                  Parking day: {formatDateObject(calculationDetails.calculationMethod.parkingDay)}
+                                </Typography>
+                                <Typography variant="body2" fontSize="0.875rem">
+                                  Current day: {formatDateObject(calculationDetails.calculationMethod.currentDay)}
+                                </Typography>
+                                <Typography variant="body2" fontSize="0.875rem">
+                                  Calendar days (inclusive): {calculationDetails.calculationMethod.diffDays}
+                                </Typography>
+                              </>
+                            )}
+                            
+                            {calculationDetails.calculationMethod.methodName === '24 Hours' && (
+                              <>
+                                <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 1 }}>
+                                  Parking time: {formatDateObject(calculationDetails.calculationMethod.parkingDateTime)} {formatTimeObject(calculationDetails.calculationMethod.parkingDateTime)}
+                                </Typography>
+                                <Typography variant="body2" fontSize="0.875rem">
+                                  Current time: {formatDateObject(calculationDetails.calculationMethod.currentDateTime)} {formatTimeObject(calculationDetails.calculationMethod.currentDateTime)}
+                                </Typography>
+                                <Typography variant="body2" fontSize="0.875rem">
+                                  Elapsed hours: {calculationDetails.calculationMethod.diffHours.toFixed(2)}
+                                </Typography>
+                                <Typography variant="body2" fontSize="0.875rem">
+                                  24-hour periods: {calculationDetails.calculationMethod.days}
+                                </Typography>
+                              </>
+                            )}
+                          </Box>
+                        )}
                       </>
                     ) : (
                       <>
@@ -1191,6 +1401,27 @@ const ExitVehicleCalculator = ({
                         <Typography variant="body2">
                           <strong>Total Hours:</strong> {calculationDetails.totalHours}
                         </Typography>
+                        
+                        {/* New detailed calculation explanation for hourly */}
+                        {calculationDetails.calculationMethod && (
+                          <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
+                            <Typography variant="body2" fontWeight="medium">
+                              Calculation Mode: {calculationDetails.calculationMethod.methodName}
+                            </Typography>
+                            <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 0.5 }}>
+                              {calculationDetails.calculationMethod.description}
+                            </Typography>
+                            <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 1 }}>
+                              Parking time: {formatDateObject(calculationDetails.calculationMethod.parkingDateTime)} {formatTimeObject(calculationDetails.calculationMethod.parkingDateTime)}
+                            </Typography>
+                            <Typography variant="body2" fontSize="0.875rem">
+                              Current time: {formatDateObject(calculationDetails.calculationMethod.currentDateTime)} {formatTimeObject(calculationDetails.calculationMethod.currentDateTime)}
+                            </Typography>
+                            <Typography variant="body2" fontSize="0.875rem">
+                              Elapsed hours: {calculationDetails.calculationMethod.diffHours}
+                            </Typography>
+                          </Box>
+                        )}
                       </>
                     )}
                     <Divider sx={{ my: 1 }} />
