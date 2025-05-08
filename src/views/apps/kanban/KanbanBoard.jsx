@@ -1,589 +1,3 @@
-// 'use client'
-// import React, { useState, useEffect } from 'react';
-// import { useSession } from 'next-auth/react';
-// import axios from 'axios';
-// import {
-//   Box, Card, CardContent, Typography, Button, TextField, FormControl,
-//   InputLabel, Select, MenuItem, Alert, Paper, Fade, Grow, Tabs, Tab,
-//   useMediaQuery, useTheme, CircularProgress, Chip
-// } from '@mui/material';
-// import { styled } from '@mui/material/styles';
-// import {
-//   Add as AddIcon, Edit as EditIcon, Save as SaveIcon,
-//   Close as CloseIcon, AccessTime as ClockIcon,
-//   DirectionsCar as CarIcon,
-//   TwoWheeler as BikeIcon,
-//   Category as OthersIcon
-// } from '@mui/icons-material';
-
-// const categories = ['Car', 'Bike', 'Others'];
-// const labels = ['Minimum Charges', 'Full Day', 'Additional Hour', 'Monthly'];
-
-// const typesByLabel = {
-//   'Minimum Charges': ['0 to 1 hour', '0 to 2 hours', '0 to 3 hours', '0 to 4 hours'],
-//   'Additional Hour': ['Additional 1 hour', 'Additional 2 hours', 'Additional 3 hours', 'Additional 4 hours'],
-//   'Full Day': ['Full day'],
-//   'Monthly': ['Monthly'],
-// };
-
-// // Styled components with responsive design
-// const KanbanColumn = styled(Paper)(({ theme }) => ({
-//   height: '100%',
-//   backgroundColor: theme.palette.grey[100],
-//   padding: theme.spacing(2),
-//   transition: 'transform 0.3s ease',
-//   '&:hover': {
-//     transform: 'translateY(-4px)',
-//   },
-//   [theme.breakpoints.down('md')]: {
-//     width: '100%',
-//     transform: 'none',
-//     '&:hover': {
-//       transform: 'none',
-//     },
-//   },
-// }));
-
-// const StyledCard = styled(Card)(({ theme }) => ({
-//   marginBottom: theme.spacing(2),
-//   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-//   '&:hover': {
-//     transform: 'scale(1.02)',
-//     boxShadow: theme.shadows[8],
-//   },
-//   [theme.breakpoints.down('sm')]: {
-//     '&:hover': {
-//       transform: 'scale(1.01)',
-//     },
-//   },
-// }));
-
-// const RateDisplay = styled(Box)(({ theme }) => ({
-//   backgroundColor: theme.palette.primary.light,
-//   padding: theme.spacing(2),
-//   borderRadius: theme.shape.borderRadius,
-//   textAlign: 'center',
-//   transform: 'translateZ(0)',
-//   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-//   '&:hover': {
-//     transform: 'scale(1.05)',
-//     backgroundColor: theme.palette.primary.main,
-//     '& .MuiTypography-root': {
-//       color: theme.palette.primary.contrastText,
-//     },
-//   },
-//   [theme.breakpoints.down('sm')]: {
-//     '&:hover': {
-//       transform: 'scale(1.02)',
-//     },
-//   },
-// }));
-
-// const KanbanContainer = styled(Box)(({ theme }) => ({
-//   display: 'flex',
-//   gap: theme.spacing(3),
-//   [theme.breakpoints.down('md')]: {
-//     flexDirection: 'column',
-//   },
-// }));
-
-// const TabPanel = ({ children, value, index, ...other }) => (
-//   <div
-//     role="tabpanel"
-//     hidden={value !== index}
-//     {...other}
-//   >
-//     <Fade in={value === index}>
-//       <Box sx={{ pt: 3 }}>
-//         {children}
-//       </Box>
-//     </Fade>
-//   </div>
-// );
-
-// // Helper function to map category name to slot property
-// const categoryToSlotProperty = {
-//   'Car': 'Cars',
-//   'Bike': 'Bikes',
-//   'Others': 'Others'
-// };
-
-// // Helper function to get category icon
-// const getCategoryIcon = (category) => {
-//   switch(category) {
-//     case 'Car': return <CarIcon />;
-//     case 'Bike': return <BikeIcon />;
-//     case 'Others': return <OthersIcon />;
-//     default: return null;
-//   }
-// };
-
-// // Helper function to get charge ID based on category and label
-// const getChargeIdForNewEntry = (category, label) => {
-//   // Simple mapping to assign single letter IDs like the backend expects
-//   const idMap = {
-//     'Car-Minimum Charges': 'A',
-//     'Car-Additional Hour': 'B',
-//     'Car-Full Day': 'C',
-//     'Car-Monthly': 'D',
-//     'Bike-Minimum Charges': 'E',
-//     'Bike-Additional Hour': 'F',
-//     'Bike-Full Day': 'G',
-//     'Bike-Monthly': 'H',
-//     'Others-Minimum Charges': 'I',
-//     'Others-Additional Hour': 'J',
-//     'Others-Full Day': 'K',
-//     'Others-Monthly': 'L'
-//   };
-  
-//   const key = `${category}-${label}`;
-//   return idMap[key] || key.substring(0, 1).toUpperCase(); // Fallback to first letter capitalized
-// };
-
-// const ParkingChargesKanban = () => {
-//   const API_URL = process.env.NEXT_PUBLIC_API_URL;
-//   const theme = useTheme();
-//   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-//   const [activeTab, setActiveTab] = useState(0);
-//   const [charges, setCharges] = useState({});
-//   const [error, setError] = useState('');
-//   const [success, setSuccess] = useState('');
-//   const [editStates, setEditStates] = useState({});
-//   const [loading, setLoading] = useState(true);
-//   const { data: session } = useSession();
-//   const [availableSlots, setAvailableSlots] = useState({
-//     Cars: 0,
-//     Bikes: 0,
-//     Others: 0
-//   });
-//   const [availableCategories, setAvailableCategories] = useState([]);
-
-//   const vendorId = session?.user?.id;
-
-//   useEffect(() => {
-//     if (vendorId) {
-//       console.log('VendorID is available, fetching data:', vendorId);
-//       fetchCharges();
-//       fetchAvailableSlots();
-//     } else {
-//       console.log('No vendorId available yet');
-//     }
-//   }, [vendorId]);
-
-//   const fetchCharges = async () => {
-//     try {
-//       setLoading(true);
-//       console.log(`Fetching charges from: ${API_URL}/vendor/getchargesdata/${vendorId}`);
-      
-//       const response = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`);
-//       console.log('Charges API response:', response.data);
-
-//       if (!response.data || !response.data.vendor) {
-//         throw new Error('Invalid response format');
-//       }
-      
-//       const { vendor } = response.data;
-//       const chargesMap = {};
-
-//       vendor.charges.forEach(charge => {
-//         let label;
-        
-//         // Case-insensitive type matching
-//         const typeLC = charge.type.toLowerCase();
-        
-//         if (typeLC.includes('additional')) {
-//           label = 'Additional Hour';
-//         } else if (typeLC.includes('full day') || typeLC.includes('full day')) {
-//           label = 'Full Day';
-//         } else if (typeLC.includes('monthly')) {
-//           label = 'Monthly';
-//         } else {
-//           label = 'Minimum Charges';
-//         }
-
-//         // Create a key using category and label
-//         const key = `${charge.category}-${label}`;
-//         chargesMap[key] = {
-//           ...charge,
-//           label
-//         };
-//       });
-      
-//       console.log('Mapped charges:', chargesMap);
-//       setCharges(chargesMap);
-//     } catch (err) {
-//       console.error('Error fetching charges:', err);
-//       setError(`Failed to load charges data: ${err.message}`);
-//       setTimeout(() => setError(''), 5000);
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const fetchAvailableSlots = async () => {
-//     try {
-//       console.log(`Fetching available slots from: ${API_URL}/vendor/availableslots/${vendorId}`);
-//       const response = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`);
-//       console.log('Slots API response:', response.data);
-      
-//       const { Cars = 0, Bikes = 0, Others = 0 } = response.data;
-      
-//       setAvailableSlots({ Cars, Bikes, Others });
-      
-//       // Create array of available categories
-//       const available = [];
-//       if (Cars > 0) available.push('Car');
-//       if (Bikes > 0) available.push('Bike');
-//       if (Others > 0) available.push('Others');
-      
-//       setAvailableCategories(available);
-      
-//       // If active tab is no longer available, switch to first available tab
-//       if (available.length > 0 && !available.includes(categories[activeTab])) {
-//         const firstAvailableIndex = categories.findIndex(cat => available.includes(cat));
-//         if (firstAvailableIndex !== -1) {
-//           setActiveTab(firstAvailableIndex);
-//         }
-//       }
-//     } catch (err) {
-//       console.error('Error fetching available slots:', err);
-//       setError(`Failed to load available slots: ${err.message}`);
-//       setTimeout(() => setError(''), 5000);
-//     }
-//   };
-
-//   const handleSave = async (category, label, type, amount) => {
-//     try {
-//       if (!type || !amount) {
-//         throw new Error('Please enter both type and amount');
-//       }
-
-//       // Check if the category has available slots
-//       const slotProperty = categoryToSlotProperty[category];
-//       if (!slotProperty || availableSlots[slotProperty] <= 0) {
-//         throw new Error(`Cannot set charges for ${category} as there are no available slots`);
-//       }
-
-//       // Get existing charge or generate a new ID
-//       const existingCharge = charges[`${category}-${label}`];
-//       const chargeid = existingCharge?.chargeid || getChargeIdForNewEntry(category, label);
-
-//       const chargeData = {
-//         type,
-//         amount,
-//         category,
-//         chargeid
-//       };
-
-//       console.log('Sending charge data:', chargeData);
-
-//       // Format payload to match API expectations
-//       const payload = {
-//         vendorid: vendorId,
-//         charges: [chargeData]
-//       };
-
-//       const response = await axios.post(`${API_URL}/vendor/addparkingcharges`, payload);
-//       console.log('Save API response:', response.data);
-
-//       // Refresh charges after saving
-//       await fetchCharges();
-//       setEditStates(prev => ({
-//         ...prev,
-//         [`${category}-${label}`]: false
-//       }));
-//       setSuccess('Charge saved successfully!');
-//       setTimeout(() => setSuccess(''), 3000);
-//     } catch (err) {
-//       console.error('Save error:', err);
-//       setError(err.response?.data?.message || err.message || 'Failed to save charges');
-//       setTimeout(() => setError(''), 5000);
-//     }
-//   };
-
-//   const ChargeCard = ({ category, label }) => {
-//     const [formData, setFormData] = useState({
-//       type: charges[`${category}-${label}`]?.type || '',
-//       amount: charges[`${category}-${label}`]?.amount || ''
-//     });
-
-//     useEffect(() => {
-//       // Update form data when charges change
-//       setFormData({
-//         type: charges[`${category}-${label}`]?.type || '',
-//         amount: charges[`${category}-${label}`]?.amount || ''
-//       });
-//     }, [charges, category, label]);
-    
-//     const isEditing = editStates[`${category}-${label}`];
-//     const hasValue = `${category}-${label}` in charges;
-//     const charge = charges[`${category}-${label}`];
-
-//     // Check if category has available slots
-//     const slotProperty = categoryToSlotProperty[category];
-//     const hasAvailableSlots = slotProperty && availableSlots[slotProperty] > 0;
-
-//     if (!hasAvailableSlots && !hasValue) {
-//       return (
-//         <Grow in={true} timeout={300}>
-//           <StyledCard>
-//             <CardContent>
-//               <Typography variant="h6" gutterBottom>
-//                 {label}
-//               </Typography>
-//               <Alert severity="info" sx={{ mt: 1 }}>
-//                 No {category} slots available. Cannot set charges.
-//               </Alert>
-//             </CardContent>
-//           </StyledCard>
-//         </Grow>
-//       );
-//     }
-
-//     const handleTypeChange = (e) => {
-//       setFormData({ ...formData, type: e.target.value });
-//     };
-
-//     const handleAmountChange = (e) => {
-//       setFormData({ ...formData, amount: e.target.value });
-//     };
-
-//     return (
-//       <Grow in={true} timeout={300}>
-//         <StyledCard>
-//           <CardContent>
-//             <Typography variant="h6" gutterBottom>
-//               {label}
-//             </Typography>
-//             <Fade in={true} timeout={500}>
-//               <Box>
-//                 {isEditing ? (
-//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-//                     <FormControl fullWidth>
-//                       <InputLabel>Duration</InputLabel>
-//                       <Select
-//                         value={formData.type}
-//                         onChange={handleTypeChange}
-//                         label="Duration"
-//                         startAdornment={<ClockIcon sx={{ mr: 1 }} />}
-//                       >
-//                         {typesByLabel[label].map((type) => (
-//                           <MenuItem key={type} value={type}>{type}</MenuItem>
-//                         ))}
-//                       </Select>
-//                     </FormControl>
-//                     <TextField
-//                       fullWidth
-//                       label="Amount"
-//                       type="number"
-//                       value={formData.amount}
-//                       onChange={handleAmountChange}
-//                       InputProps={{
-//                         startAdornment: '₹',
-//                       }}
-//                     />
-//                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-//                       <Button
-//                         variant="outlined"
-//                         startIcon={<CloseIcon />}
-//                         onClick={() => {
-//                           setEditStates(prev => ({
-//                             ...prev,
-//                             [`${category}-${label}`]: false
-//                           }));
-//                           setFormData({
-//                             type: charges[`${category}-${label}`]?.type || '',
-//                             amount: charges[`${category}-${label}`]?.amount || ''
-//                           });
-//                         }}
-//                       >
-//                         Cancel
-//                       </Button>
-//                       <Button
-//                         variant="contained"
-//                         startIcon={<SaveIcon />}
-//                         onClick={() => handleSave(category, label, formData.type, formData.amount)}
-//                       >
-//                         Save
-//                       </Button>
-//                     </Box>
-//                   </Box>
-//                 ) : hasValue ? (
-//                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-//                     <RateDisplay>
-//                       <Typography variant="h4" color="primary.main" gutterBottom>
-//                         ₹{charge.amount}
-//                       </Typography>
-//                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-//                         <ClockIcon sx={{ mr: 1 }} />
-//                         <Typography variant="body1" color="text.secondary">
-//                           {charge.type}
-//                         </Typography>
-//                       </Box>
-//                     </RateDisplay>
-//                     <Button
-//                       fullWidth
-//                       variant="outlined"
-//                       startIcon={<EditIcon />}
-//                       onClick={() => setEditStates(prev => ({
-//                         ...prev,
-//                         [`${category}-${label}`]: true
-//                       }))}
-//                       disabled={!hasAvailableSlots}
-//                     >
-//                       Edit Rate
-//                     </Button>
-//                     {!hasAvailableSlots && (
-//                       <Alert severity="warning" sx={{ mt: 1 }}>
-//                         No {category} slots available. Cannot edit charges.
-//                       </Alert>
-//                     )}
-//                   </Box>
-//                 ) : (
-//                   <Button
-//                     fullWidth
-//                     variant="contained"
-//                     startIcon={<AddIcon />}
-//                     onClick={() => setEditStates(prev => ({
-//                       ...prev,
-//                       [`${category}-${label}`]: true
-//                     }))}
-//                     disabled={!hasAvailableSlots}
-//                   >
-//                     Set Rate
-//                   </Button>
-//                 )}
-//               </Box>
-//             </Fade>
-//           </CardContent>
-//         </StyledCard>
-//       </Grow>
-//     );
-//   };
-
-//   if (loading) {
-//     return (
-//       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-//         <CircularProgress />
-//       </Box>
-//     );
-//   }
-
-//   return (
-//     <Box sx={{ p: { xs: 2, sm: 4 } }}>
-//       <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
-//         Parking Charges Management
-//       </Typography>
-      
-//       {/* Slots information */}
-//       <Box sx={{ mb: 4 }}>
-//         <Typography variant="subtitle1" gutterBottom>
-//           Available Slots
-//         </Typography>
-//         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-//           <Chip 
-//             icon={<CarIcon />} 
-//             label={`Cars: ${availableSlots.Cars}`} 
-//             color={availableSlots.Cars > 0 ? "success" : "default"} 
-//             variant="outlined" 
-//           />
-//           <Chip 
-//             icon={<BikeIcon />} 
-//             label={`Bikes: ${availableSlots.Bikes}`} 
-//             color={availableSlots.Bikes > 0 ? "success" : "default"} 
-//             variant="outlined" 
-//           />
-//           <Chip 
-//             icon={<OthersIcon />} 
-//             label={`Others: ${availableSlots.Others}`} 
-//             color={availableSlots.Others > 0 ? "success" : "default"} 
-//             variant="outlined" 
-//           />
-//         </Box>
-//       </Box>
-      
-//       {/* Error and success alerts */}
-//       <Box sx={{ mb: 3 }}>
-//         <Fade in={!!error}>
-//           <Box>
-//             {error && (
-//               <Alert severity="error" sx={{ mb: 2 }}>
-//                 {error}
-//               </Alert>
-//             )}
-//           </Box>
-//         </Fade>
-//         <Fade in={!!success}>
-//           <Box>
-//             {success && (
-//               <Alert severity="success" sx={{ mb: 2 }}>
-//                 {success}
-//               </Alert>
-//             )}
-//           </Box>
-//         </Fade>
-//       </Box>
-      
-//       {isMobile ? (
-//         <Box sx={{ width: '100%' }}>
-//           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-//             <Tabs
-//               value={activeTab}
-//               onChange={(_, newValue) => setActiveTab(newValue)}
-//               variant="fullWidth"
-//               aria-label="parking categories"
-//             >
-//               {categories.map((category, index) => (
-//                 <Tab 
-//                   key={category} 
-//                   label={category} 
-//                   icon={getCategoryIcon(category)}
-//                   iconPosition="start"
-//                   disabled={!availableCategories.includes(category)}
-//                 />
-//               ))}
-//             </Tabs>
-//           </Box>
-//           {categories.map((category, index) => (
-//             <TabPanel key={category} value={activeTab} index={index}>
-//               <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' } }}>
-//                 {labels.map(label => (
-//                   <ChargeCard key={label} category={category} label={label} />
-//                 ))}
-//               </Box>
-//             </TabPanel>
-//           ))}
-//         </Box>
-//       ) : (
-//         <KanbanContainer>
-//           {categories.map((category) => (
-//             <KanbanColumn key={category} elevation={2} sx={{ flex: 1 }}>
-//               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 1 }}>
-//                 {getCategoryIcon(category)}
-//                 <Typography variant="h6">
-//                   {category}
-//                 </Typography>
-//                 <Chip 
-//                   size="small"
-//                   label={`${availableSlots[categoryToSlotProperty[category]]} slots`}
-//                   color={availableSlots[categoryToSlotProperty[category]] > 0 ? "success" : "error"}
-//                   sx={{ ml: 1 }}
-//                 />
-//               </Box>
-//               {labels.map(label => (
-//                 <ChargeCard key={label} category={category} label={label} />
-//               ))}
-//             </KanbanColumn>
-//           ))}
-//         </KanbanContainer>
-//       )}
-//     </Box>
-//   );
-// };
-
-// export default ParkingChargesKanban;
-
-
 'use client'
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -612,11 +26,20 @@ const labels = ['Minimum Charges', 'Additional Hour', 'Full Day', 'Monthly'];
 const typesByLabel = {
   'Minimum Charges': ['0 to 1 hour', '0 to 2 hours', '0 to 3 hours', '0 to 4 hours'],
   'Additional Hour': ['Additional 1 hour', 'Additional 2 hours', 'Additional 3 hours', 'Additional 4 hours'],
-  'Full Day': ['Full day', '24 hours'],
+  'Full Day': ['Full day'], // Only 'Full day' option regardless of mode
   'Monthly': ['Monthly'],
 };
 
-// Styled components with responsive design
+const getCategoryIcon = (category) => {
+  switch(category) {
+    case 'Car': return <CarIcon />;
+    case 'Bike': return <BikeIcon />;
+    case 'Others': return <OthersIcon />;
+    default: return null;
+  }
+};
+
+// Styled components
 const KanbanColumn = styled(Paper)(({ theme }) => ({
   height: '100%',
   backgroundColor: theme.palette.grey[100],
@@ -669,14 +92,6 @@ const RateDisplay = styled(Box)(({ theme }) => ({
   },
 }));
 
-const KanbanContainer = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(3),
-  [theme.breakpoints.down('md')]: {
-    flexDirection: 'column',
-  },
-}));
-
 const SectionToggle = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.paper,
   borderRadius: theme.shape.borderRadius,
@@ -689,48 +104,6 @@ const SectionToggle = styled(Box)(({ theme }) => ({
   boxShadow: theme.shadows[1],
 }));
 
-const TabPanel = ({ children, value, index, ...other }) => (
-  <div
-    role="tabpanel"
-    hidden={value !== index}
-    {...other}
-  >
-    <Fade in={value === index}>
-      <Box sx={{ pt: 3 }}>
-        {children}
-      </Box>
-    </Fade>
-  </div>
-);
-
-// Helper function to map category name to slot property
-const categoryToSlotProperty = {
-  'Car': 'Cars',
-  'Bike': 'Bikes',
-  'Others': 'Others'
-};
-
-// Helper function to get category icon
-const getCategoryIcon = (category) => {
-  switch(category) {
-    case 'Car': return <CarIcon />;
-    case 'Bike': return <BikeIcon />;
-    case 'Others': return <OthersIcon />;
-    default: return null;
-  }
-};
-
-// Helper function to get section icon
-const getSectionIcon = (section) => {
-  switch(section) {
-    case 'Temporary': return <ScheduleIcon />;
-    case 'Full Day': return <TimelapseIcon />;
-    case 'Monthly': return <CalendarIcon />;
-    default: return null;
-  }
-};
-
-// Helper function to get charge ID based on category and label
 const getChargeIdForNewEntry = (category, label) => {
   // Simple mapping to assign single letter IDs like the backend expects
   const idMap = {
@@ -755,112 +128,170 @@ const getChargeIdForNewEntry = (category, label) => {
 const ParkingChargesKanban = () => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [activeTab, setActiveTab] = useState(0);
   const [charges, setCharges] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [editStates, setEditStates] = useState({});
   const [loading, setLoading] = useState(true);
   const { data: session } = useSession();
-  const [availableSlots, setAvailableSlots] = useState({
-    Cars: 0,
-    Bikes: 0,
-    Others: 0
+  const [vendorExists, setVendorExists] = useState(false);
+  
+  // Enable/disable toggles with default values
+  const [enableToggles, setEnableToggles] = useState({
+    carEnabled: false,
+    bikeEnabled: false,
+    othersEnabled: false,
+    carTemporary: false,
+    bikeTemporary: false,
+    othersTemporary: false,
+    carFullDay: false,
+    bikeFullDay: false,
+    othersFullDay: false,
+    carMonthly: false,
+    bikeMonthly: false,
+    othersMonthly: false,
   });
   
-  // Category toggle states
-  const [categoryToggles, setCategoryToggles] = useState({
-    Car: false,
-    Bike: false,
-    Others: false
+  // Full day modes with default values
+  const [fullDayModes, setFullDayModes] = useState({
+    car: 'Full Day',
+    bike: 'Full Day',
+    others: 'Full Day'
   });
-  
-  // Section toggle states (Temporary, Full Day, Monthly)
-  const [sectionToggles, setSectionToggles] = useState({
-    'Car-Temporary': false,
-    'Car-Full Day': false,
-    'Car-Monthly': false,
-    'Bike-Temporary': false,
-    'Bike-Full Day': false,
-    'Bike-Monthly': false,
-    'Others-Temporary': false,
-    'Others-Full Day': false,
-    'Others-Monthly': false
-  });
-  
-  // Full day type toggle (24 hours vs Full day)
-  const [fullDayTypeToggles, setFullDayTypeToggles] = useState({
-    'Car-Full Day': false, // false = Full day, true = 24 hours
-    'Bike-Full Day': false,
-    'Others-Full Day': false
-  });
-  
-  const [availableCategories, setAvailableCategories] = useState([]);
 
   const vendorId = session?.user?.id;
 
   useEffect(() => {
     if (vendorId) {
-      console.log('VendorID is available, fetching data:', vendorId);
-      fetchCharges();
-      fetchAvailableSlots();
-    } else {
-      console.log('No vendorId available yet');
+      checkVendorExists();
     }
   }, [vendorId]);
 
-  // Set initial toggle states based on fetched data
-  useEffect(() => {
-    if (!loading && Object.keys(charges).length > 0) {
-      const newCategoryToggles = { ...categoryToggles };
-      const newSectionToggles = { ...sectionToggles };
-      const newFullDayTypeToggles = { ...fullDayTypeToggles };
+  const checkVendorExists = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`);
       
-      // For each charge, enable the relevant category and section
-      Object.keys(charges).forEach(key => {
-        const [category, label] = key.split('-');
-        
-        // Only enable if slots are available
-        const slotProperty = categoryToSlotProperty[category];
-        const hasAvailableSlots = slotProperty && availableSlots[slotProperty] > 0;
-        
-        if (hasAvailableSlots) {
-          // Enable category
-          newCategoryToggles[category] = true;
+      if (response.data && response.data.vendor) {
+        setVendorExists(true);
+        const { vendor } = response.data;
+        const chargesMap = {};
+
+        vendor.charges.forEach(charge => {
+          let label;
+          const typeLC = charge.type.toLowerCase();
           
-          // Enable section based on label
-          if (label === 'Minimum Charges' || label === 'Additional Hour') {
-            newSectionToggles[`${category}-Temporary`] = true;
-          } else if (label === 'Full Day') {
-            newSectionToggles[`${category}-Full Day`] = true;
-            
-            // Set full day type toggle based on charge type
-            if (charges[key].type.includes('24')) {
-              newFullDayTypeToggles[`${category}-Full Day`] = true; // 24 hours
-            }
-          } else if (label === 'Monthly') {
-            newSectionToggles[`${category}-Monthly`] = true;
+          if (typeLC.includes('additional')) {
+            label = 'Additional Hour';
+          } else if (typeLC.includes('full day') || typeLC.includes('24 hour')) {
+            label = 'Full Day';
+          } else if (typeLC.includes('monthly')) {
+            label = 'Monthly';
+          } else {
+            label = 'Minimum Charges';
           }
-        }
-      });
-      
-      setCategoryToggles(newCategoryToggles);
-      setSectionToggles(newSectionToggles);
-      setFullDayTypeToggles(newFullDayTypeToggles);
+
+          const key = `${charge.category}-${label}`;
+          chargesMap[key] = {
+            ...charge,
+            label
+          };
+        });
+        
+        setCharges(chargesMap);
+
+        // Set enable/disable toggles from backend data
+        setEnableToggles({
+          carEnabled: vendor.carenable === "true",
+          bikeEnabled: vendor.bikeenable === "true",
+          othersEnabled: vendor.othersenable === "true",
+          carTemporary: vendor.cartemp === "true",
+          bikeTemporary: vendor.biketemp === "true",
+          othersTemporary: vendor.otherstemp === "true",
+          carFullDay: vendor.carfullday === "true",
+          bikeFullDay: vendor.bikefullday === "true",
+          othersFullDay: vendor.othersfullday === "true",
+          carMonthly: vendor.carmonthly === "true",
+          bikeMonthly: vendor.bikemonthly === "true",
+          othersMonthly: vendor.othersmonthly === "true",
+        });
+        
+        // Get full day modes
+        fetchFullDayModes();
+      } else {
+        // Vendor doesn't exist in the Parking collection yet
+        setVendorExists(false);
+      }
+    } catch (err) {
+      if (err.response && err.response.status === 404) {
+        setVendorExists(false);
+        console.log("Vendor not found in parking collection, need to initialize first");
+      } else {
+        console.error('Error checking vendor:', err);
+        setError(`Failed to load data: ${err.message}`);
+        setTimeout(() => setError(''), 5000);
+      }
+    } finally {
+      setLoading(false);
     }
-  }, [loading, charges, availableSlots]);
+  };
+
+  const initializeVendor = async () => {
+    try {
+      setLoading(true);
+      
+      // First, create a default parking entry
+      const defaultPayload = {
+        vendorid: vendorId,
+        charges: [] // Empty charges
+      };
+      
+      // Initialize with default settings
+      await axios.post(`${API_URL}/vendor/addparkingcharges`, defaultPayload);
+      
+      // Set default toggle states
+      const defaultToggles = {
+        carEnabled: false,
+        bikeEnabled: false,
+        othersEnabled: false,
+        carTemporary: false,
+        bikeTemporary: false,
+        othersTemporary: false,
+        carFullDay: false,
+        bikeFullDay: false,
+        othersFullDay: false,
+        carMonthly: false,
+        bikeMonthly: false,
+        othersMonthly: false,
+      };
+      
+      // Update the enable states
+      await axios.put(
+        `${API_URL}/vendor/updateenable/${vendorId}`,
+        defaultToggles
+      );
+      
+      setVendorExists(true);
+      setEnableToggles(defaultToggles);
+      
+      setSuccess("Vendor initialized successfully!");
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error initializing vendor:', err);
+      setError(`Failed to initialize vendor: ${err.message}`);
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchCharges = async () => {
     try {
-      setLoading(true);
-      console.log(`Fetching charges from: ${API_URL}/vendor/getchargesdata/${vendorId}`);
-      
       const response = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`);
-      console.log('Charges API response:', response.data);
-
+      
       if (!response.data || !response.data.vendor) {
-        throw new Error('Invalid response format');
+        setCharges({});
+        return;
       }
       
       const { vendor } = response.data;
@@ -868,8 +299,6 @@ const ParkingChargesKanban = () => {
 
       vendor.charges.forEach(charge => {
         let label;
-        
-        // Case-insensitive type matching
         const typeLC = charge.type.toLowerCase();
         
         if (typeLC.includes('additional')) {
@@ -882,7 +311,6 @@ const ParkingChargesKanban = () => {
           label = 'Minimum Charges';
         }
 
-        // Create a key using category and label
         const key = `${charge.category}-${label}`;
         chargesMap[key] = {
           ...charge,
@@ -890,45 +318,97 @@ const ParkingChargesKanban = () => {
         };
       });
       
-      console.log('Mapped charges:', chargesMap);
       setCharges(chargesMap);
     } catch (err) {
       console.error('Error fetching charges:', err);
-      setError(`Failed to load charges data: ${err.message}`);
-      setTimeout(() => setError(''), 5000);
-    } finally {
-      setLoading(false);
+      if (err.response && err.response.status !== 404) {
+        setError(`Failed to load charges data: ${err.message}`);
+        setTimeout(() => setError(''), 5000);
+      }
     }
   };
 
-  const fetchAvailableSlots = async () => {
+  const fetchFullDayModes = async () => {
     try {
-      console.log(`Fetching available slots from: ${API_URL}/vendor/availableslots/${vendorId}`);
-      const response = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`);
-      console.log('Slots API response:', response.data);
-      
-      const { Cars = 0, Bikes = 0, Others = 0 } = response.data;
-      
-      setAvailableSlots({ Cars, Bikes, Others });
-      
-      // Create array of available categories
-      const available = [];
-      if (Cars > 0) available.push('Car');
-      if (Bikes > 0) available.push('Bike');
-      if (Others > 0) available.push('Others');
-      
-      setAvailableCategories(available);
-      
-      // If active tab is no longer available, switch to first available tab
-      if (available.length > 0 && !available.includes(categories[activeTab])) {
-        const firstAvailableIndex = categories.findIndex(cat => available.includes(cat));
-        if (firstAvailableIndex !== -1) {
-          setActiveTab(firstAvailableIndex);
-        }
+      const response = await axios.get(`${API_URL}/vendor/getfullday/${vendorId}`);
+      if (response.data && response.data.data) {
+        setFullDayModes({
+          car: response.data.data.fulldaycar || 'Full Day',
+          bike: response.data.data.fulldaybike || 'Full Day',
+          others: response.data.data.fulldayothers || 'Full Day'
+        });
       }
     } catch (err) {
-      console.error('Error fetching available slots:', err);
-      setError(`Failed to load available slots: ${err.message}`);
+      console.error('Error fetching full day modes:', err);
+      if (err.response && err.response.status !== 404) {
+        setError(`Failed to load full day modes: ${err.message}`);
+        setTimeout(() => setError(''), 5000);
+      }
+    }
+  };
+
+  const updateEnabledVehicles = async (category, field, value) => {
+    try {
+      if (!vendorExists) {
+        await initializeVendor();
+      }
+      
+      const payload = {
+        ...enableToggles,
+        [field]: value,
+      };
+
+      await axios.put(
+        `${API_URL}/vendor/updateenable/${vendorId}`,
+        payload
+      );
+
+      setSuccess(`${category} ${field} updated successfully!`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error updating enabled vehicles:', err);
+      setError(`Failed to update ${category} ${field}: ${err.message}`);
+      setTimeout(() => setError(''), 5000);
+      
+      // Revert the toggle state
+      setEnableToggles(prev => ({
+        ...prev,
+        [field]: !prev[field]
+      }));
+    }
+  };
+
+  const updateFullDayMode = async (vehicleType, mode) => {
+    try {
+      if (!vendorExists) {
+        await initializeVendor();
+      }
+      
+      // Fix: Updated the endpoint URL to match the backend route
+      // The backend has "upadatefullday" instead of "updatefullday"
+      const endpoint = `upadatefullday${vehicleType}`;
+      
+      // Create the proper payload based on vehicle type
+      const payload = {};
+      payload[`fullday${vehicleType}`] = mode;
+      
+      // Make the API call with the corrected endpoint and proper payload
+      await axios.put(
+        `${API_URL}/vendor/${endpoint}/${vendorId}`,
+        payload
+      );
+      
+      // Update local state
+      setFullDayModes(prev => ({
+        ...prev,
+        [vehicleType]: mode
+      }));
+      
+      setSuccess(`${vehicleType} full day mode updated successfully!`);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error(`Error updating ${vehicleType} full day mode:`, err);
+      setError(`Failed to update ${vehicleType} full day mode: ${err.message}`);
       setTimeout(() => setError(''), 5000);
     }
   };
@@ -939,40 +419,31 @@ const ParkingChargesKanban = () => {
         throw new Error('Please enter both type and amount');
       }
 
-      // Check if the category has available slots
-      const slotProperty = categoryToSlotProperty[category];
-      if (!slotProperty || availableSlots[slotProperty] <= 0) {
-        throw new Error(`Cannot set charges for ${category} as there are no available slots`);
+      if (!vendorExists) {
+        await initializeVendor();
       }
 
-      // Get existing charge or generate a new ID
       const existingCharge = charges[`${category}-${label}`];
       const chargeid = existingCharge?.chargeid || getChargeIdForNewEntry(category, label);
 
-      const chargeData = {
-        type,
-        amount,
-        category,
-        chargeid
-      };
-
-      console.log('Sending charge data:', chargeData);
-
-      // Format payload to match API expectations
       const payload = {
         vendorid: vendorId,
-        charges: [chargeData]
+        charges: [{
+          type,
+          amount,
+          category,
+          chargeid
+        }]
       };
 
-      const response = await axios.post(`${API_URL}/vendor/addparkingcharges`, payload);
-      console.log('Save API response:', response.data);
-
-      // Refresh charges after saving
+      await axios.post(`${API_URL}/vendor/addparkingcharges`, payload);
       await fetchCharges();
+      
       setEditStates(prev => ({
         ...prev,
         [`${category}-${label}`]: false
       }));
+      
       setSuccess('Charge saved successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -982,47 +453,6 @@ const ParkingChargesKanban = () => {
     }
   };
 
-  const handleCategoryToggle = (category) => {
-    // Only allow toggling if slots are available
-    const slotProperty = categoryToSlotProperty[category];
-    const hasAvailableSlots = slotProperty && availableSlots[slotProperty] > 0;
-    
-    if (!hasAvailableSlots) {
-      setError(`Cannot enable ${category} as there are no available slots`);
-      setTimeout(() => setError(''), 5000);
-      return;
-    }
-
-    setCategoryToggles(prev => ({
-      ...prev,
-      [category]: !prev[category]
-    }));
-  };
-
-  const handleSectionToggle = (category, section) => {
-    // Only allow toggling if slots are available
-    const slotProperty = categoryToSlotProperty[category];
-    const hasAvailableSlots = slotProperty && availableSlots[slotProperty] > 0;
-    
-    if (!hasAvailableSlots) {
-      setError(`Cannot enable ${section} section for ${category} as there are no available slots`);
-      setTimeout(() => setError(''), 5000);
-      return;
-    }
-
-    setSectionToggles(prev => ({
-      ...prev,
-      [`${category}-${section}`]: !prev[`${category}-${section}`]
-    }));
-  };
-
-  const handleFullDayTypeToggle = (category) => {
-    setFullDayTypeToggles(prev => ({
-      ...prev,
-      [`${category}-Full Day`]: !prev[`${category}-Full Day`]
-    }));
-  };
-
   const ChargeCard = ({ category, label }) => {
     const [formData, setFormData] = useState({
       type: charges[`${category}-${label}`]?.type || '',
@@ -1030,7 +460,6 @@ const ParkingChargesKanban = () => {
     });
 
     useEffect(() => {
-      // Update form data when charges change
       setFormData({
         type: charges[`${category}-${label}`]?.type || '',
         amount: charges[`${category}-${label}`]?.amount || ''
@@ -1041,33 +470,8 @@ const ParkingChargesKanban = () => {
     const hasValue = `${category}-${label}` in charges;
     const charge = charges[`${category}-${label}`];
 
-    // Check if category has available slots
-    const slotProperty = categoryToSlotProperty[category];
-    const hasAvailableSlots = slotProperty && availableSlots[slotProperty] > 0;
-
-    if (!hasAvailableSlots && !hasValue) {
-      return (
-        <Grow in={true} timeout={300}>
-          <StyledCard>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                {label}
-              </Typography>
-              <Alert severity="info" sx={{ mt: 1 }}>
-                No {category} slots available. Cannot set charges.
-              </Alert>
-            </CardContent>
-          </StyledCard>
-        </Grow>
-      );
-    }
-
-    // For Full Day charges, determine which type options to show based on toggle
-    let typeOptions = typesByLabel[label];
-    if (label === 'Full Day') {
-      const is24HoursMode = fullDayTypeToggles[`${category}-Full Day`];
-      typeOptions = is24HoursMode ? ['24 hours'] : ['Full day'];
-    }
+    // Get type options based on label
+    const typeOptions = typesByLabel[label];
 
     const handleTypeChange = (e) => {
       setFormData({ ...formData, type: e.target.value });
@@ -1111,7 +515,7 @@ const ParkingChargesKanban = () => {
                         startAdornment: '₹',
                       }}
                     />
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                       <Button
                         variant="outlined"
                         startIcon={<CloseIcon />}
@@ -1121,8 +525,8 @@ const ParkingChargesKanban = () => {
                             [`${category}-${label}`]: false
                           }));
                           setFormData({
-                            type: charges[`${category}-${label}`]?.type || '',
-                            amount: charges[`${category}-${label}`]?.amount || ''
+                            type: charge?.type || '',
+                            amount: charge?.amount || ''
                           });
                         }}
                       >
@@ -1158,15 +562,9 @@ const ParkingChargesKanban = () => {
                         ...prev,
                         [`${category}-${label}`]: true
                       }))}
-                      disabled={!hasAvailableSlots}
                     >
                       Edit Rate
                     </Button>
-                    {!hasAvailableSlots && (
-                      <Alert severity="warning" sx={{ mt: 1 }}>
-                        No {category} slots available. Cannot edit charges.
-                      </Alert>
-                    )}
                   </Box>
                 ) : (
                   <Button
@@ -1177,7 +575,6 @@ const ParkingChargesKanban = () => {
                       ...prev,
                       [`${category}-${label}`]: true
                     }))}
-                    disabled={!hasAvailableSlots}
                   >
                     Set Rate
                   </Button>
@@ -1191,43 +588,56 @@ const ParkingChargesKanban = () => {
   };
 
   const CategorySection = ({ category }) => {
-    // Check if category has available slots
-    const slotProperty = categoryToSlotProperty[category];
-    const hasAvailableSlots = slotProperty && availableSlots[slotProperty] > 0;
-    const isCategoryEnabled = categoryToggles[category] && hasAvailableSlots;
+    const vehicleType = category.toLowerCase();
+    const currentMode = fullDayModes[vehicleType];
+    const categoryEnabled = enableToggles[`${vehicleType}Enabled`];
+
+    const handleCategoryToggle = async () => {
+      const field = `${vehicleType}Enabled`;
+      const newValue = !enableToggles[field];
+      
+      setEnableToggles(prev => ({
+        ...prev,
+        [field]: newValue
+      }));
+      
+      await updateEnabledVehicles(category, field, newValue);
+    };
+
+    const handleSectionToggle = async (section) => {
+      const field = `${vehicleType}${section}`;
+      const newValue = !enableToggles[field];
+      
+      setEnableToggles(prev => ({
+        ...prev,
+        [field]: newValue
+      }));
+      
+      await updateEnabledVehicles(category, field, newValue);
+    };
 
     return (
       <Box sx={{ mb: 4 }}>
-        {/* Category toggle */}
         <SectionToggle>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {getCategoryIcon(category)}
             <Typography variant="h6" sx={{ ml: 1 }}>
               {category}
             </Typography>
-            <Chip 
-              size="small"
-              label={`${availableSlots[categoryToSlotProperty[category]]} slots`}
-              color={availableSlots[categoryToSlotProperty[category]] > 0 ? "success" : "error"}
-              sx={{ ml: 1 }}
-            />
           </Box>
           <FormControlLabel
             control={
               <Switch 
-                checked={isCategoryEnabled}
-                onChange={() => handleCategoryToggle(category)}
-                disabled={!hasAvailableSlots}
+                checked={categoryEnabled}
+                onChange={handleCategoryToggle}
               />
             }
-            label={isCategoryEnabled ? "On" : "Off"}
+            label={categoryEnabled ? "On" : "Off"}
           />
         </SectionToggle>
         
-        {/* If category is enabled, show section toggles */}
-        {isCategoryEnabled && (
+        {categoryEnabled && (
           <Box sx={{ pl: 3, pt: 1 }}>
-            {/* Temporary Section Toggle */}
             <SectionToggle>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <ScheduleIcon />
@@ -1238,16 +648,15 @@ const ParkingChargesKanban = () => {
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={sectionToggles[`${category}-Temporary`]}
-                    onChange={() => handleSectionToggle(category, 'Temporary')}
+                    checked={enableToggles[`${vehicleType}Temporary`]}
+                    onChange={() => handleSectionToggle('Temporary')}
                   />
                 }
-                label={sectionToggles[`${category}-Temporary`] ? "On" : "Off"}
+                label={enableToggles[`${vehicleType}Temporary`] ? "On" : "Off"}
               />
             </SectionToggle>
             
-            {/* If Temporary is enabled, show minimum charges and additional hour */}
-            {sectionToggles[`${category}-Temporary`] && (
+            {enableToggles[`${vehicleType}Temporary`] && (
               <Box sx={{ pl: 3, mb: 2 }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
@@ -1260,7 +669,6 @@ const ParkingChargesKanban = () => {
               </Box>
             )}
             
-            {/* Full Day Section Toggle */}
             <SectionToggle>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TimelapseIcon />
@@ -1271,36 +679,40 @@ const ParkingChargesKanban = () => {
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={sectionToggles[`${category}-Full Day`]}
-                    onChange={() => handleSectionToggle(category, 'Full Day')}
+                    checked={enableToggles[`${vehicleType}FullDay`]}
+                    onChange={() => handleSectionToggle('FullDay')}
                   />
                 }
-                label={sectionToggles[`${category}-Full Day`] ? "On" : "Off"}
+                label={enableToggles[`${vehicleType}FullDay`] ? "On" : "Off"}
               />
             </SectionToggle>
             
-            {/* If Full Day is enabled, show Full Day options */}
-            {sectionToggles[`${category}-Full Day`] && (
+            {enableToggles[`${vehicleType}FullDay`] && (
               <Box sx={{ pl: 3, mb: 2 }}>
-                <SectionToggle>
-                  <Typography variant="body1">
-                    {fullDayTypeToggles[`${category}-Full Day`] ? "24 Hours" : "Full Day"}
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    Full Day Mode:
                   </Typography>
-                  <FormControlLabel
-                    control={
-                      <Switch 
-                        checked={fullDayTypeToggles[`${category}-Full Day`]}
-                        onChange={() => handleFullDayTypeToggle(category)}
-                      />
-                    }
-                    label={fullDayTypeToggles[`${category}-Full Day`] ? "24 Hours" : "Full Day"}
-                  />
-                </SectionToggle>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button
+                      variant={currentMode === '24 Hours' ? 'contained' : 'outlined'}
+                      onClick={() => updateFullDayMode(vehicleType, '24 Hours')}
+                    >
+                      24 Hours
+                    </Button>
+                    <Button
+                      variant={currentMode === 'Full Day' ? 'contained' : 'outlined'}
+                      onClick={() => updateFullDayMode(vehicleType, 'Full Day')}
+                    >
+                      Full Day
+                    </Button>
+                  </Box>
+                </Box>
+                {/* Only show one ChargeCard for Full Day regardless of selected mode */}
                 <ChargeCard category={category} label="Full Day" />
               </Box>
             )}
             
-            {/* Monthly Section Toggle */}
             <SectionToggle>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <CalendarIcon />
@@ -1311,22 +723,39 @@ const ParkingChargesKanban = () => {
               <FormControlLabel
                 control={
                   <Switch 
-                    checked={sectionToggles[`${category}-Monthly`]}
-                    onChange={() => handleSectionToggle(category, 'Monthly')}
+                    checked={enableToggles[`${vehicleType}Monthly`]}
+                    onChange={() => handleSectionToggle('Monthly')}
                   />
                 }
-                label={sectionToggles[`${category}-Monthly`] ? "On" : "Off"}
+                label={enableToggles[`${vehicleType}Monthly`] ? "On" : "Off"}
               />
             </SectionToggle>
             
-            {/* If Monthly is enabled, show Monthly options */}
-            {sectionToggles[`${category}-Monthly`] && (
+            {enableToggles[`${vehicleType}Monthly`] && (
               <Box sx={{ pl: 3, mb: 2 }}>
                 <ChargeCard category={category} label="Monthly" />
               </Box>
             )}
           </Box>
         )}
+      </Box>
+    );
+  };
+
+  const renderInitializationPrompt = () => {
+    return (
+      <Box sx={{ textAlign: 'center', p: 4, my: 4 }}>
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Parking charges data needs to be initialized before you can configure rates
+        </Alert>
+        <Button 
+          variant="contained" 
+          size="large"
+          onClick={initializeVendor}
+          disabled={loading}
+        >
+          {loading ? <CircularProgress size={24} /> : 'Initialize Parking Charges'}
+        </Button>
       </Box>
     );
   };
@@ -1345,61 +774,28 @@ const ParkingChargesKanban = () => {
         Parking Charges Management
       </Typography>
       
-      {/* Slots information */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Available Slots
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-          <Chip 
-            icon={<CarIcon />} 
-            label={`Cars: ${availableSlots.Cars}`} 
-            color={availableSlots.Cars > 0 ? "success" : "default"} 
-            variant="outlined" 
-          />
-          <Chip 
-            icon={<BikeIcon />} 
-            label={`Bikes: ${availableSlots.Bikes}`} 
-            color={availableSlots.Bikes > 0 ? "success" : "default"} 
-            variant="outlined" 
-          />
-          <Chip 
-            icon={<OthersIcon />} 
-            label={`Others: ${availableSlots.Others}`} 
-            color={availableSlots.Others > 0 ? "success" : "default"} 
-            variant="outlined" 
-          />
-        </Box>
-      </Box>
-      
-      {/* Error and success alerts */}
       <Box sx={{ mb: 3 }}>
-        <Fade in={!!error}>
-          <Box>
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-          </Box>
-        </Fade>
-        <Fade in={!!success}>
-          <Box>
-            {success && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                {success}
-              </Alert>
-            )}
-          </Box>
-        </Fade>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
       </Box>
       
-      {/* Display categories with toggle switches */}
-      <Box sx={{ width: '100%' }}>
-        {categories.map((category) => (
-          <CategorySection key={category} category={category} />
-        ))}
-      </Box>
+      {!vendorExists ? (
+        renderInitializationPrompt()
+      ) : (
+        <Box sx={{ width: '100%' }}>
+          {categories.map((category) => (
+            <CategorySection key={category} category={category} />
+          ))}
+        </Box>
+      )}
     </Box>
   );
 };
