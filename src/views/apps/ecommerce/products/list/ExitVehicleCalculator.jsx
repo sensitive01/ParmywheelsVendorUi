@@ -92,9 +92,13 @@
 //   const [bookingData, setBookingData] = useState(bookingDetails || null)
 //   const [otp, setOtp] = useState('')
 //   const [backendOtp, setBackendOtp] = useState('')
+//   const [fullDayModes, setFullDayModes] = useState({
+//     car: 'Full Day',
+//     bike: 'Full Day',
+//     others: 'Full Day'
+//   })
 //   const is24Hours = bookingData?.bookType === '24 Hours' || bookType === '24 Hours'
 
-//   // New function to fetch booking details directly from provided API
 //   const fetchBookingDirectly = async (id) => {
 //     try {
 //       setFetchingBookingDetails(true)
@@ -114,7 +118,6 @@
       
 //       console.log('Received booking details from direct API:', data.booking)
       
-//       // Set booking data and store backend OTP
 //       setBookingData(data.booking)
 //       if (data.booking.otp) {
 //         console.log('Received OTP from API:', data.booking.otp)
@@ -131,15 +134,37 @@
 //     }
 //   }
 
+//   const fetchFullDayModes = async () => {
+//     try {
+//       console.log(`Fetching full day modes for vendor: ${vendorId}`)
+//       const response = await fetch(`${API_URL}/vendor/getfullday/${vendorId}`)
+      
+//       if (!response.ok) {
+//         throw new Error('Failed to fetch full day modes')
+//       }
+      
+//       const data = await response.json()
+//       console.log('Received full day modes:', data)
+      
+//       if (data && data.data) {
+//         setFullDayModes({
+//           car: data.data.fulldaycar || 'Full Day',
+//           bike: data.data.fulldaybike || 'Full Day',
+//           others: data.data.fulldayothers || 'Full Day'
+//         })
+//       }
+//     } catch (err) {
+//       console.error('Error fetching full day modes:', err)
+//     }
+//   }
+
 //   useEffect(() => {
 //     const getBookingDetails = async () => {
 //       if (bookingDetails) {
 //         setBookingData(bookingDetails)
-//         // Check if bookingDetails contains OTP
 //         if (bookingDetails.otp) {
 //           setBackendOtp(bookingDetails.otp)
 //         } else {
-//           // If no OTP in provided details, try to fetch it
 //           await fetchBookingDirectly(bookingId)
 //         }
 //         return
@@ -148,15 +173,12 @@
 //       if (!bookingId) return
       
 //       try {
-//         // First try to fetch from the direct API endpoint for OTP
 //         const directBooking = await fetchBookingDirectly(bookingId)
         
 //         if (directBooking) {
-//           // If we got data from direct API, we're done
 //           return
 //         }
         
-//         // If direct API didn't work, fall back to original endpoint
 //         setFetchingBookingDetails(true)
 //         console.log(`Falling back to original API for ID: ${bookingId}`)
         
@@ -175,7 +197,6 @@
 //         console.log('Received booking details from fallback:', data.booking)
 //         setBookingData(data.booking)
         
-//         // If we got booking but no OTP, try direct API again
 //         if (!data.booking.otp) {
 //           await fetchBookingDirectly(bookingId)
 //         } else {
@@ -195,6 +216,12 @@
 //   }, [bookingId, bookingDetails])
 
 //   useEffect(() => {
+//     if (vendorId) {
+//       fetchFullDayModes()
+//     }
+//   }, [vendorId])
+
+//   useEffect(() => {
 //     const calculateDuration = () => {
 //       try {
 //         const parkingDate = bookingData?.parkedDate
@@ -207,10 +234,10 @@
 //         }
         
 //         const [day, month, year] = parkingDate.split('-').map(Number)
-
+    
 //         let [time, period] = parkingTime.split(' ')
 //         let [hours, minutes] = time.split(':').map(Number)
-
+    
 //         if (period === 'PM' && hours < 12) {
 //           hours += 12
 //         } else if (period === 'AM' && hours === 12) {
@@ -224,37 +251,98 @@
 //         console.log('Current date time:', currentDateTime);
         
 //         const diffMs = currentDateTime - parkingDateTime
-
+    
 //         if (is24Hours) {
-//           const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-//           const calculatedDays = Math.max(1, diffDays)
-//           console.log('Calculated days (24 Hours booking):', calculatedDays);
-//           setHours(calculatedDays)
-//           return calculatedDays
+//           const effectiveVehicleType = bookingData?.vehicleType?.toLowerCase() || vehicleType.toLowerCase()
+//           const fullDayMode = fullDayModes[effectiveVehicleType] || 'Full Day'
+          
+//           console.log(`Using full day mode "${fullDayMode}" for ${effectiveVehicleType}`)
+          
+//           if (fullDayMode === '24 Hours') {
+//             // 24 Hours mode: Calculate complete 24-hour periods from parking time
+//             const diffHours = diffMs / (1000 * 60 * 60)
+//             const days = Math.ceil(diffHours / 24)
+//             const calculatedDays = Math.max(1, days)
+//             console.log('Calculated days (24 Hours mode):', calculatedDays);
+            
+//             // Store calculation method for later display
+//             const calculationMethod = {
+//               methodName: '24 Hours',
+//               description: 'Complete 24-hour periods from parking time',
+//               parkingDateTime: parkingDateTime,
+//               currentDateTime: currentDateTime,
+//               diffHours: diffHours,
+//               days: calculatedDays
+//             }
+            
+//             setHours(calculatedDays)
+//             return { duration: calculatedDays, method: calculationMethod }
+//           } else {
+//             // Modified Full Day mode: Calculate calendar days but don't include current day unless complete
+//             const parkingDay = new Date(year, month - 1, day)
+//             const currentDay = new Date(
+//               currentDateTime.getFullYear(), 
+//               currentDateTime.getMonth(), 
+//               currentDateTime.getDate()
+//             )
+            
+//             // Calculate the difference in days (not inclusive of the current day)
+//             const timeDiff = currentDay.getTime() - parkingDay.getTime();
+//             const diffDays = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+            
+//             // Only add the current day if it's complete (already passed midnight)
+//             // Always charge minimum 1 day
+//             const calculatedDays = Math.max(1, diffDays);
+            
+//             console.log('Calculated calendar days (Full Day mode):', calculatedDays);
+            
+//             // Store calculation method for later display
+//             const calculationMethod = {
+//               methodName: 'Full Day', 
+//               description: 'Calendar days (excluding current day unless complete)',
+//               parkingDay: parkingDay,
+//               currentDay: currentDay,
+//               diffDays: calculatedDays,
+//               explanation: 'Charges apply for each complete calendar day, excluding the current day if not yet complete'
+//             }
+            
+//             setHours(calculatedDays)
+//             return { duration: calculatedDays, method: calculationMethod }
+//           }
 //         } else {
+//           // Hourly booking - unchanged
 //           const diffHours = Math.ceil(diffMs / (1000 * 60 * 60))
 //           const calculatedHours = Math.max(1, diffHours)
 //           console.log('Calculated hours (Hourly booking):', calculatedHours);
+          
+//           // Store calculation method for later display
+//           const calculationMethod = {
+//             methodName: 'Hourly',
+//             description: 'Hours since parking time',
+//             parkingDateTime: parkingDateTime,
+//             currentDateTime: currentDateTime,
+//             diffHours: calculatedHours
+//           }
+          
 //           setHours(calculatedHours)
-//           return calculatedHours
+//           return { duration: calculatedHours, method: calculationMethod }
 //         }
 //       } catch (err) {
 //         console.error('Error calculating duration:', err)
 //         setError('Failed to calculate parking duration. Using default value.')
 //         setHours(1)
-//         return 1
+//         return { duration: 1, method: null }
 //       }
 //     }
 
-//     if (bookingData?.parkedDate && bookingData?.parkedTime) {
-//       const calculatedDuration = calculateDuration()
+//     if (bookingData?.parkedDate && bookingData?.parkedTime && fullDayModes) {
+//       const result = calculateDuration()
       
 //       if (chargesData) {
-//         calculateAmount(calculatedDuration, chargesData)
+//         calculateAmount(result.duration, chargesData, result.method)
 //       }
 //     }
-//   }, [bookingData, chargesData, is24Hours])
-
+//   }, [bookingData, chargesData, is24Hours, fullDayModes, vehicleType])
 
 //   useEffect(() => {
 //     const fetchCharges = async () => {
@@ -293,20 +381,20 @@
 //     fetchCharges()
 //   }, [vendorId])
 
-//   const calculateAmount = (hoursValue, charges = chargesData) => {
+//   const calculateAmount = (hoursValue, charges = chargesData, calculationMethod = null) => {
 //     if (!charges || !charges.charges || !charges.charges.length) {
 //       console.warn('No charges data available');
 //       return;
 //     }
 
 //     try {
-
 //       const effectiveVehicleType = bookingData?.vehicleType || vehicleType
       
 //       console.log('Calculating amount for:', { 
 //         hoursValue, 
 //         vehicleType: effectiveVehicleType, 
-//         is24Hours
+//         is24Hours,
+//         calculationMethod
 //       });
       
 //       const relevantCharges = charges.charges.filter(charge => 
@@ -323,7 +411,6 @@
 //       let details = {}
 
 //       if (is24Hours) {
-
 //         const fullDayCharge = relevantCharges.find(charge => 
 //           charge.type.toLowerCase().includes('full day') || 
 //           charge.type.toLowerCase().includes('24 hour')
@@ -336,16 +423,20 @@
 //         const days = hoursValue
 //         calculatedAmount = Number(fullDayCharge.amount) * days
         
+//         const vehicleTypeKey = effectiveVehicleType.toLowerCase()
+//         const fullDayMode = fullDayModes[vehicleTypeKey] || 'Full Day'
+        
 //         details = {
 //           rateType: "Full day",
 //           baseRate: Number(fullDayCharge.amount),
 //           days: days,
-//           calculation: `${fullDayCharge.amount} × ${days} day(s) = ${calculatedAmount}`
+//           fullDayMode: fullDayMode,
+//           calculation: `${fullDayCharge.amount} × ${days} day(s) = ${calculatedAmount}`,
+//           calculationMethod: calculationMethod
 //         }
         
-//         console.log('24-hour calculation details:', details);
+//         console.log('Full day calculation details:', details);
 //       } else {
-
 //         const baseCharge = relevantCharges.find(charge => 
 //           charge.type.toLowerCase().includes('0 to 1') || 
 //           charge.type.toLowerCase().includes('first hour') ||
@@ -376,7 +467,8 @@
 //           totalHours: hoursValue,
 //           calculation: hoursValue > 1 ? 
 //             `${baseCharge.amount} (first hour) + ${additionalRate} × ${hoursValue - 1} (additional hours) = ${calculatedAmount}` :
-//             `${baseCharge.amount} (first hour) = ${calculatedAmount}`
+//             `${baseCharge.amount} (first hour) = ${calculatedAmount}`,
+//           calculationMethod: calculationMethod
 //         }
         
 //         console.log('Hourly calculation details:', details);
@@ -411,13 +503,24 @@
 //     let [time, period] = timeStr.split(' ');
 //     let [hours, minutes] = time.split(':').map(Number);
     
-
 //     if (period === 'PM' && hours < 12) {
 //       hours += 12;
 //     } else if (period === 'AM' && hours === 12) {
 //       hours = 0;
 //     }
     
+//     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+//   }
+
+//   const formatDateObject = (date) => {
+//     if (!date) return 'N/A';
+//     return `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`;
+//   }
+
+//   const formatTimeObject = (date) => {
+//     if (!date) return 'N/A';
+//     const hours = date.getHours();
+//     const minutes = date.getMinutes();
 //     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 //   }
 
@@ -428,12 +531,13 @@
 //     }
 
 //     if (!otp) {
-//       setError('OTP is required');
+//       setError('Last 3 digits of OTP are required');
 //       return;
 //     }
     
-//     if (otp !== backendOtp) {
-//       setError('OTP does not match the booking OTP');
+//     // Check if entered OTP matches the last 3 digits of backend OTP
+//     if (otp.length !== 3 || !backendOtp || !backendOtp.endsWith(otp)) {
+//       setError('OTP does not match the last 3 digits of booking OTP');
 //       return;
 //     }
   
@@ -447,7 +551,7 @@
 //         hour: hours,
 //         is24Hours,
 //         vendorId,
-//         otp
+//         otp: backendOtp // Send full OTP to backend for validation
 //       });
       
 //       const response = await fetch(`${API_URL}/vendor/exitvehicle/${bookingId}`, {
@@ -461,7 +565,7 @@
 //           hour: hours,
 //           is24Hours,
 //           vendorId,
-//           otp
+//           otp: backendOtp // Send full OTP to backend
 //         })
 //       })
       
@@ -482,7 +586,7 @@
 //   }
 
 //   const isLoading = fetchingCharges || fetchingBookingDetails || loading
-//   const otpValidated = otp === backendOtp && !!otp;
+//   const otpValidated = backendOtp && otp.length === 3 && backendOtp.endsWith(otp);
 
 //   return (
 //     <Box>
@@ -518,16 +622,21 @@
 //                 <Typography variant="subtitle1" color="text.secondary" gutterBottom>
 //                   Booking Type: {bookingData?.bookType || bookType}
 //                 </Typography>
+//                 {is24Hours && (
+//                   <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+//                     Full Day Mode: {fullDayModes[bookingData?.vehicleType?.toLowerCase() || vehicleType.toLowerCase()] || 'Full Day'}
+//                   </Typography>
+//                 )}
 //                 <Divider sx={{ my: 1 }} />
 //                 <Typography variant="subtitle1" color="text.secondary">
-//   Parked Since: {formatDate(bookingData?.parkedDate)} at {formatTime(bookingData?.parkedTime)}{' '}
-//   {bookingData?.parkedDate && bookingData?.parkedTime && (
-//     <ParkedTimer 
-//       parkedDate={bookingData.parkedDate} 
-//       parkedTime={bookingData.parkedTime} 
-//     />
-//   )}
-// </Typography>
+//                   Parked Since: {formatDate(bookingData?.parkedDate)} at {formatTime(bookingData?.parkedTime)}{' '}
+//                   {bookingData?.parkedDate && bookingData?.parkedTime && (
+//                     <ParkedTimer 
+//                       parkedDate={bookingData.parkedDate} 
+//                       parkedTime={bookingData.parkedTime} 
+//                     />
+//                   )}
+//                 </Typography>
 //               </CardContent>
 //             </Card>
             
@@ -550,17 +659,23 @@
 //               <Grid item xs={12}>
 //                 <TextField
 //                   fullWidth
-//                   label="Enter OTP"
+//                   label="Enter Last 3 Digits of OTP"
 //                   type="text"
 //                   value={otp}
-//                   onChange={(e) => setOtp(e.target.value)}
-//                   error={!otp || (otp && backendOtp && otp !== backendOtp)}
-//                   helperText={!otp ? "OTP is required" : (otp !== backendOtp && backendOtp ? "OTP does not match" : "")}
+//                   onChange={(e) => {
+//                     const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+//                     setOtp(value);
+//                   }}
+//                   error={!otp || (otp && backendOtp && !backendOtp.endsWith(otp))}
+//                   helperText={
+//                     !otp ? "Last 3 digits of OTP are required" : 
+//                     (otp && backendOtp && !backendOtp.endsWith(otp) ? "OTP does not match the last 3 digits" : "")
+//                   }
 //                   disabled={isLoading}
 //                   required
 //                   inputProps={{
-//                     maxLength: 6,
-//                     pattern: "\\d{6}"
+//                     maxLength: 3,
+//                     pattern: "\\d{3}"
 //                   }}
 //                 />
 //               </Grid>
@@ -585,6 +700,53 @@
 //                         <Typography variant="body2">
 //                           <strong>Number of Days:</strong> {calculationDetails.days}
 //                         </Typography>
+//                         {calculationDetails.fullDayMode && (
+//                           <Typography variant="body2">
+//                             <strong>Full Day Mode:</strong> {calculationDetails.fullDayMode}
+//                           </Typography>
+//                         )}
+                        
+//                         {calculationDetails.calculationMethod && (
+//                           <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
+//                             <Typography variant="body2" fontWeight="medium">
+//                               Calculation Mode: {calculationDetails.calculationMethod.methodName}
+//                             </Typography>
+//                             <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 0.5 }}>
+//                               {calculationDetails.calculationMethod.description}
+//                             </Typography>
+                            
+//                             {calculationDetails.calculationMethod.methodName === 'Full Day' && (
+//                               <>
+//                                 <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 1 }}>
+//                                   Parking day: {formatDateObject(calculationDetails.calculationMethod.parkingDay)}
+//                                 </Typography>
+//                                 <Typography variant="body2" fontSize="0.875rem">
+//                                   Current day: {formatDateObject(calculationDetails.calculationMethod.currentDay)}
+//                                 </Typography>
+//                                 <Typography variant="body2" fontSize="0.875rem">
+//                                   Calendar days (inclusive): {calculationDetails.calculationMethod.diffDays}
+//                                 </Typography>
+//                               </>
+//                             )}
+                            
+//                             {calculationDetails.calculationMethod.methodName === '24 Hours' && (
+//                               <>
+//                                 <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 1 }}>
+//                                   Parking time: {formatDateObject(calculationDetails.calculationMethod.parkingDateTime)} {formatTimeObject(calculationDetails.calculationMethod.parkingDateTime)}
+//                                 </Typography>
+//                                 <Typography variant="body2" fontSize="0.875rem">
+//                                   Current time: {formatDateObject(calculationDetails.calculationMethod.currentDateTime)} {formatTimeObject(calculationDetails.calculationMethod.currentDateTime)}
+//                                 </Typography>
+//                                 <Typography variant="body2" fontSize="0.875rem">
+//                                   Elapsed hours: {calculationDetails.calculationMethod.diffHours.toFixed(2)}
+//                                 </Typography>
+//                                 <Typography variant="body2" fontSize="0.875rem">
+//                                   24-hour periods: {calculationDetails.calculationMethod.days}
+//                                 </Typography>
+//                               </>
+//                             )}
+//                           </Box>
+//                         )}
 //                       </>
 //                     ) : (
 //                       <>
@@ -597,6 +759,26 @@
 //                         <Typography variant="body2">
 //                           <strong>Total Hours:</strong> {calculationDetails.totalHours}
 //                         </Typography>
+                        
+//                         {calculationDetails.calculationMethod && (
+//                           <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
+//                             <Typography variant="body2" fontWeight="medium">
+//                               Calculation Mode: {calculationDetails.calculationMethod.methodName}
+//                             </Typography>
+//                             <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 0.5 }}>
+//                               {calculationDetails.calculationMethod.description}
+//                             </Typography>
+//                             <Typography variant="body2" fontSize="0.875rem" sx={{ mt: 1 }}>
+//                               Parking time: {formatDateObject(calculationDetails.calculationMethod.parkingDateTime)} {formatTimeObject(calculationDetails.calculationMethod.parkingDateTime)}
+//                             </Typography>
+//                             <Typography variant="body2" fontSize="0.875rem">
+//                               Current time: {formatDateObject(calculationDetails.calculationMethod.currentDateTime)} {formatTimeObject(calculationDetails.calculationMethod.currentDateTime)}
+//                             </Typography>
+//                             <Typography variant="body2" fontSize="0.875rem">
+//                               Elapsed hours: {calculationDetails.calculationMethod.diffHours}
+//                             </Typography>
+//                           </Box>
+//                         )}
 //                       </>
 //                     )}
 //                     <Divider sx={{ my: 1 }} />
@@ -631,7 +813,7 @@
 //           onClick={handleSubmit} 
 //           variant="contained" 
 //           color="primary"
-//           disabled={isLoading || !vendorId || !otp || otp !== backendOtp}
+//           disabled={isLoading || !vendorId || !otpValidated}
 //           startIcon={loading ? <CircularProgress size={20} /> : null}
 //         >
 //           {loading ? 'Processing...' : 'Confirm Exit'}
@@ -743,6 +925,7 @@ const ExitVehicleCalculator = ({
     bike: 'Full Day',
     others: 'Full Day'
   })
+  const [isVendorBooking, setIsVendorBooking] = useState(false)
   const is24Hours = bookingData?.bookType === '24 Hours' || bookType === '24 Hours'
 
   const fetchBookingDirectly = async (id) => {
@@ -765,7 +948,11 @@ const ExitVehicleCalculator = ({
       console.log('Received booking details from direct API:', data.booking)
       
       setBookingData(data.booking)
-      if (data.booking.otp) {
+      
+      // Check if this is a vendor booking (no userid present)
+      setIsVendorBooking(!data.booking.userid)
+      
+      if (data.booking.otp && !isVendorBooking) {
         console.log('Received OTP from API:', data.booking.otp)
         setBackendOtp(data.booking.otp)
       }
@@ -808,7 +995,8 @@ const ExitVehicleCalculator = ({
     const getBookingDetails = async () => {
       if (bookingDetails) {
         setBookingData(bookingDetails)
-        if (bookingDetails.otp) {
+        setIsVendorBooking(!bookingDetails.userid)
+        if (bookingDetails.otp && bookingDetails.userid) {
           setBackendOtp(bookingDetails.otp)
         } else {
           await fetchBookingDirectly(bookingId)
@@ -842,8 +1030,9 @@ const ExitVehicleCalculator = ({
         
         console.log('Received booking details from fallback:', data.booking)
         setBookingData(data.booking)
+        setIsVendorBooking(!data.booking.userid)
         
-        if (!data.booking.otp) {
+        if (!data.booking.otp || isVendorBooking) {
           await fetchBookingDirectly(bookingId)
         } else {
           setBackendOtp(data.booking.otp)
@@ -1158,13 +1347,11 @@ const ExitVehicleCalculator = ({
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   }
 
-  // Format a date object to a readable date string
   const formatDateObject = (date) => {
     if (!date) return 'N/A';
     return `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`;
   }
 
-  // Format a date object to a readable time string
   const formatTimeObject = (date) => {
     if (!date) return 'N/A';
     const hours = date.getHours();
@@ -1178,14 +1365,18 @@ const ExitVehicleCalculator = ({
       return
     }
 
-    if (!otp) {
-      setError('OTP is required');
-      return;
-    }
-    
-    if (otp !== backendOtp) {
-      setError('OTP does not match the booking OTP');
-      return;
+    // Only validate OTP for user bookings (not vendor bookings)
+    if (!isVendorBooking) {
+      if (!otp) {
+        setError('Last 3 digits of OTP are required');
+        return;
+      }
+      
+      // Check if entered OTP matches the last 3 digits of backend OTP
+      if (otp.length !== 3 || !backendOtp || !backendOtp.endsWith(otp)) {
+        setError('OTP does not match the last 3 digits of booking OTP');
+        return;
+      }
     }
   
     setLoading(true)
@@ -1198,7 +1389,7 @@ const ExitVehicleCalculator = ({
         hour: hours,
         is24Hours,
         vendorId,
-        otp
+        otp: isVendorBooking ? null : backendOtp // Only send OTP for user bookings
       });
       
       const response = await fetch(`${API_URL}/vendor/exitvehicle/${bookingId}`, {
@@ -1212,7 +1403,7 @@ const ExitVehicleCalculator = ({
           hour: hours,
           is24Hours,
           vendorId,
-          otp
+          otp: isVendorBooking ? null : backendOtp // Only send OTP for user bookings
         })
       })
       
@@ -1233,7 +1424,7 @@ const ExitVehicleCalculator = ({
   }
 
   const isLoading = fetchingCharges || fetchingBookingDetails || loading
-  const otpValidated = otp === backendOtp && !!otp;
+  const otpValidated = isVendorBooking || (backendOtp && otp.length === 3 && backendOtp.endsWith(otp));
 
   return (
     <Box>
@@ -1241,6 +1432,11 @@ const ExitVehicleCalculator = ({
         Calculate Exit Charges
         <Typography variant="subtitle2" color="text.secondary">
           Booking ID: {bookingId}
+          {isVendorBooking && (
+            <Typography component="span" color="primary" sx={{ ml: 1 }}>
+              (Vendor Booking)
+            </Typography>
+          )}
         </Typography>
       </DialogTitle>
       
@@ -1255,7 +1451,7 @@ const ExitVehicleCalculator = ({
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
             <Typography variant="body2" sx={{ ml: 2 }}>
-              {fetchingBookingDetails ? 'Loading booking details and OTP...' : 
+              {fetchingBookingDetails ? 'Loading booking details...' : 
                fetchingCharges ? 'Loading charges data...' : 'Processing...'}
             </Typography>
           </Box>
@@ -1303,23 +1499,31 @@ const ExitVehicleCalculator = ({
                 />
               </Grid>
               
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Enter OTP"
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  error={!otp || (otp && backendOtp && otp !== backendOtp)}
-                  helperText={!otp ? "OTP is required" : (otp !== backendOtp && backendOtp ? "OTP does not match" : "")}
-                  disabled={isLoading}
-                  required
-                  inputProps={{
-                    maxLength: 6,
-                    pattern: "\\d{6}"
-                  }}
-                />
-              </Grid>
+              {!isVendorBooking && (
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Enter Last 3 Digits of OTP"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+                      setOtp(value);
+                    }}
+                    error={!otp || (otp && backendOtp && !backendOtp.endsWith(otp))}
+                    helperText={
+                      !otp ? "Last 3 digits of OTP are required" : 
+                      (otp && backendOtp && !backendOtp.endsWith(otp) ? "OTP does not match the last 3 digits" : "")
+                    }
+                    disabled={isLoading}
+                    required
+                    inputProps={{
+                      maxLength: 3,
+                      pattern: "\\d{3}"
+                    }}
+                  />
+                </Grid>
+              )}
             </Grid>
             
             {calculationDetails && (
@@ -1347,7 +1551,6 @@ const ExitVehicleCalculator = ({
                           </Typography>
                         )}
                         
-                        {/* New detailed calculation explanation */}
                         {calculationDetails.calculationMethod && (
                           <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
                             <Typography variant="body2" fontWeight="medium">
@@ -1402,7 +1605,6 @@ const ExitVehicleCalculator = ({
                           <strong>Total Hours:</strong> {calculationDetails.totalHours}
                         </Typography>
                         
-                        {/* New detailed calculation explanation for hourly */}
                         {calculationDetails.calculationMethod && (
                           <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
                             <Typography variant="body2" fontWeight="medium">
@@ -1456,7 +1658,7 @@ const ExitVehicleCalculator = ({
           onClick={handleSubmit} 
           variant="contained" 
           color="primary"
-          disabled={isLoading || !vendorId || !otp || otp !== backendOtp}
+          disabled={isLoading || !vendorId || !otpValidated}
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
           {loading ? 'Processing...' : 'Confirm Exit'}

@@ -206,121 +206,114 @@ export default function ParkingBooking() {
   const [minTentativeDateTime, setMinTentativeDateTime] = useState('')
   const timerRef = useRef(null)
 
+  const formatToDDMMYYYY = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatTimeTo12Hour = (time24h) => {
+    if (!time24h) return '';
+    const [hours, minutes] = time24h.split(':');
+    const h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return `${hour12.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  };
+
   const updateCurrentDateTime = () => {
-    const now = new Date()
-    const dateString = now.toISOString().split('T')[0]
-    const hours = now.getHours().toString().padStart(2, '0')
-    const minutes = now.getMinutes().toString().padStart(2, '0')
-    const timeString = `${hours}:${minutes}`
+    const now = new Date();
+    const dateString = now.toISOString().split('T')[0];
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const timeString = `${hours}:${minutes}`;
     
-    setParkingDate(dateString)
-    setParkingTime(timeString)
-    setMinDate(dateString)
-    setMinTime(timeString)
+    setParkingDate(dateString);
+    setParkingTime(timeString);
+    setMinDate(dateString);
+    setMinTime(timeString);
     
-    return { dateString, timeString }
-  }
+    return { dateString, timeString };
+  };
 
   useEffect(() => {
-    // Initialize with current time
-    updateCurrentDateTime()
+    updateCurrentDateTime();
     
-    // Set up interval to update time every second
     timerRef.current = setInterval(() => {
-      if (['Instant', 'Scheduled', 'Subscription'].includes(sts)) {
-        const { dateString, timeString } = updateCurrentDateTime()
-        updateMinTentativeDateTime(dateString, timeString)
+      if (['Instant', 'Schedule', 'Subscription'].includes(sts)) {
+        const { dateString, timeString } = updateCurrentDateTime();
+        updateMinTentativeDateTime(dateString, timeString);
       }
-    }, 1000) // Update every second
+    }, 1000);
   
     return () => {
       if (timerRef.current) {
-        clearInterval(timerRef.current)
+        clearInterval(timerRef.current);
       }
-    }
-  }, [sts])
-  
+    };
+  }, [sts]);
 
   useEffect(() => {
-    updateMinTentativeDateTime()
-  }, [parkingDate, parkingTime])
+    updateMinTentativeDateTime();
+  }, [parkingDate, parkingTime]);
 
   const updateMinTentativeDateTime = (date = parkingDate, time = parkingTime) => {
-    if (!date || !time) return
+    if (!date || !time) return;
     
-    const dateTimeString = `${date}T${time}`
-    setMinTentativeDateTime(dateTimeString)
+    const dateTimeString = `${date}T${time}`;
+    setMinTentativeDateTime(dateTimeString);
 
-    // Only enforce tentative checkout validation for Instant booking
     if (sts === 'Instant' && tentativeCheckout && tentativeCheckout < dateTimeString) {
-      setTentativeCheckout(dateTimeString)
+      setTentativeCheckout(dateTimeString);
     }
-  }
-
-  const formatDate = (isoDate) => {
-    if (!isoDate) return ''
-    
-    const date = new Date(isoDate)
-    const day = date.getDate().toString().padStart(2, '0')
-    const month = (date.getMonth() + 1).toString().padStart(2, '0')
-    const year = date.getFullYear()
-    
-    return `${day}-${month}-${year}`
-  }
-
-  const formatTime = (time24h) => {
-    if (!time24h) return ''
-    
-    const [hours, minutes] = time24h.split(':')
-    const h = parseInt(hours, 10)
-    const ampm = h >= 12 ? 'PM' : 'AM'
-    const hour12 = h % 12 || 12
-    
-    return `${hour12.toString().padStart(2, '0')}:${minutes} ${ampm}`
-  }
+  };
 
   const validate = () => {
-    const newErrors = {}
+    const newErrors = {};
 
     switch (activeStep) {
       case 0:
-        if (!vehicleType) newErrors.vehicleType = 'Please select a vehicle type'
-        break
+        if (!vehicleType) newErrors.vehicleType = 'Please select a vehicle type';
+        break;
       case 1:
-        if (!vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required'
-        // No date/time validation for any booking type
-        break
+        if (!vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required';
+        break;
       case 2:
         if (mobileNumber && !/^\d{10}$/.test(mobileNumber)) {
-          newErrors.mobileNumber = 'Enter a valid 10-digit number'
+          newErrors.mobileNumber = 'Enter a valid 10-digit number';
         }
-        break
+        break;
     }
 
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleNext = () => {
     if (validate()) {
       if (activeStep === steps.length - 1) {
-        handleSubmit()
+        handleSubmit();
       } else {
-        setActiveStep((prev) => prev + 1)
+        setActiveStep((prev) => prev + 1);
       }
     }
-  }
+  };
 
   const handleBack = () => {
-    setActiveStep((prev) => prev - 1)
-  }
+    setActiveStep((prev) => prev - 1);
+  };
 
   const handleSubmit = async () => {
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const formattedDate = formatDate(parkingDate)
-      const formattedTime = formatTime(parkingTime)
+      const formattedDate = formatToDDMMYYYY(parkingDate);
+      const formattedTime = formatTimeTo12Hour(parkingTime);
+      const formattedBookingDate = formatToDDMMYYYY(new Date().toISOString());
+      const formattedBookingTime = formatTimeTo12Hour(new Date().toTimeString().substring(0, 5));
       
       const payload = {
         vendorId,
@@ -329,123 +322,122 @@ export default function ParkingBooking() {
         vehicleType,
         carType: vehicleType === 'Car' ? carType : '',
         vehicleNumber,
-        bookingDate: parkingDate,
-        bookingTime: parkingTime,
-        parkedDate: parkingDate,
-        parkedTime: parkingTime,
+        bookingDate: formattedBookingDate,
+        bookingTime: formattedBookingTime,
+        parkedDate: formattedDate,
+        parkedTime: formattedTime,
         parkingDate: formattedDate,
         parkingTime: formattedTime,
-        tenditivecheckout: tentativeCheckout,
+        tenditivecheckout: tentativeCheckout ? formatToDDMMYYYY(tentativeCheckout.split('T')[0]) + ' ' + formatTimeTo12Hour(tentativeCheckout.split('T')[1]) : '',
         subsctiptiontype: sts === 'Subscription' ? subscriptionType : '',
         status: 'PENDING',
         sts,
         bookType: sts === 'Subscription' ? '' : bookType
-      }
+      };
 
       const response = await axios.post(`${API_URL}/vendor/createbooking`, payload);
       
       showNotification('New Booking Created', {
         body: `${vehicleType} booking for ${vehicleNumber} created successfully`,
         tag: 'new-booking'
-      })
+      });
       
       createBookingNotification({
         vehicleType,
         vehicleNumber,
         personName,
         status: 'PENDING'
-      })
+      });
 
       setAlert({
         show: true,
         message: 'Booking created successfully!',
         type: 'success'
-      })
+      });
 
       setTimeout(() => {
-        setActiveStep(0)
-        setVehicleType('Car')
-        setVehicleNumber('')
-        setSts('Instant')
-        setPersonName('')
-        setMobileNumber('')
-        setBookType('Hourly')
-        setIs24Hours(false)
-        setTentativeCheckout('')
-        setSubscriptionType('Monthly') 
-        updateCurrentDateTime()
-      }, 2000)
+        setActiveStep(0);
+        setVehicleType('Car');
+        setVehicleNumber('');
+        setSts('Instant');
+        setPersonName('');
+        setMobileNumber('');
+        setBookType('Hourly');
+        setIs24Hours(false);
+        setTentativeCheckout('');
+        setSubscriptionType('Monthly');
+        updateCurrentDateTime();
+      }, 2000);
     } catch (error) {
       setAlert({
         show: true,
         message: 'Failed to create booking. Please try again.',
         type: 'error'
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleBookTypeChange = (event) => {
-    const checked = event.target.checked
-    setIs24Hours(checked)
-    setBookType(checked ? '24 Hours' : 'Hourly')
-  }
+    const checked = event.target.checked;
+    setIs24Hours(checked);
+    setBookType(checked ? '24 Hours' : 'Hourly');
+  };
 
   const handleVehicleNumberChange = (e) => {
     setVehicleNumber(e.target.value.toUpperCase());
-  }
+  };
 
   const handleStsChange = (e) => {
-    const value = e.target.value
-    setSts(value)
+    const value = e.target.value;
+    setSts(value);
     if (value === 'Instant') {
-      updateCurrentDateTime()
+      updateCurrentDateTime();
     }
     if (value === 'Subscription') {
-      setSubscriptionType('Monthly')
+      setSubscriptionType('Monthly');
     }
-  }
+  };
   
   const handleParkingDateChange = (e) => {
-    const selectedDate = e.target.value
-    setParkingDate(selectedDate)
+    const selectedDate = e.target.value;
+    setParkingDate(selectedDate);
     
-    // Only enforce time validation for Instant booking
     if (sts === 'Instant') {
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toISOString().split('T')[0];
       if (selectedDate === today) {
-        const now = new Date()
-        const hours = now.getHours().toString().padStart(2, '0')
-        const minutes = now.getMinutes().toString().padStart(2, '0')
-        setMinTime(`${hours}:${minutes}`)
+        const now = new Date();
+        const hours = now.getHours().toString().padStart(2, '0');
+        const minutes = now.getMinutes().toString().padStart(2, '0');
+        setMinTime(`${hours}:${minutes}`);
         if (parkingTime < `${hours}:${minutes}`) {
-          setParkingTime(`${hours}:${minutes}`)
+          setParkingTime(`${hours}:${minutes}`);
         }
       } else {
-        setMinTime('00:00')
+        setMinTime('00:00');
       }
     }
-  }
+  };
   
   const handleParkingTimeChange = (e) => {
-    const selectedTime = e.target.value
+    const selectedTime = e.target.value;
     
-    // Only restrict time selection for Instant booking
     if (sts === 'Instant') {
-      const today = new Date().toISOString().split('T')[0]
+      const today = new Date().toISOString().split('T')[0];
       if (parkingDate === today && selectedTime < minTime) {
         setAlert({
           show: true,
           message: 'You cannot select a past time for instant booking',
           type: 'error'
-        })
-        return
+        });
+        return;
       }
     }
     
-    setParkingTime(selectedTime)
-  }
+    setParkingTime(selectedTime);
+  };
+
 
   const renderVehicleTypeStep = () => (
     <Box>
@@ -488,7 +480,7 @@ export default function ParkingBooking() {
           <RadioGroup row value={sts} onChange={handleStsChange}>
             {[
               { value: 'Instant', label: 'Instant', icon: AccessTime },
-              { value: 'Scheduled', label: 'Scheduled', icon: CalendarMonth },
+              { value: 'Schedule', label: 'Schedule', icon: CalendarMonth },
               { value: 'Subscription', label: 'Subscription', icon: AutorenewRounded }
             ].map((option) => (
               <FormControlLabel
@@ -738,5 +730,5 @@ export default function ParkingBooking() {
         </CardContent>
       </Card>
     </>
-  )
+  );
 }
