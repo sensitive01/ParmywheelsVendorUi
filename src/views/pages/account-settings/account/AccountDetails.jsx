@@ -597,6 +597,29 @@ const VendorRegistration = () => {
   const handleAddParkingEntry = () => setParkingEntries([...parkingEntries, { type: '', count: '' }])
   const handleRemoveParkingEntry = index => setParkingEntries(parkingEntries.filter((_, i) => i !== index))
 
+  // Check if current contact is valid to enable "Add Another Contact" button
+  const canAddContact = () => {
+    // All existing contacts must be valid
+    return contacts.every(contact => contact.name.trim() && contact.mobile.trim().length === 10)
+  }
+
+  // Check if current parking entry is valid to enable "Add Another Option" button
+  const canAddParkingEntry = () => {
+    // All existing entries must be valid
+    return parkingEntries.every(entry => entry.type && entry.count)
+  }
+
+  // Get available parking types (excluding already selected ones)
+  const getAvailableParkingTypes = (currentIndex) => {
+    const allTypes = ['Cars', 'Bikes', 'Others']
+    const selectedTypes = parkingEntries
+      .filter((_, index) => index !== currentIndex) // Exclude current entry
+      .map(entry => entry.type)
+      .filter(Boolean)
+    
+    return allTypes.filter(type => !selectedTypes.includes(type))
+  }
+
   const handleSubmit = async () => {
     const vendorId = session?.user?.id
 
@@ -732,6 +755,7 @@ const VendorRegistration = () => {
               label='Vendor Name'
               value={vendorName}
               onChange={e => setVendorName(e.target.value)}
+              required
             />
           </Grid>
         </Grid>
@@ -749,23 +773,35 @@ const VendorRegistration = () => {
                       const updatedContacts = [...contacts]
                       updatedContacts[index].name = e.target.value
                       setContacts(updatedContacts)
-                    }} 
+                    }}
+                    required
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <TextField 
-                      fullWidth 
-                      label={`Contact Number ${index + 1}`} 
-                      value={contact.mobile} 
-                      onChange={e => {
-                        const updatedContacts = [...contacts]
-                        updatedContacts[index].mobile = e.target.value
-                        setContacts(updatedContacts)
+                    <TextField
+                      fullWidth
+                      label={`Contact Number ${index + 1}`}
+                      value={contact.mobile}
+                      onChange={(e) => {
+                        const input = e.target.value;
+                        // Allow only numeric input and max 10 digits
+                        if (/^\d{0,10}$/.test(input)) {
+                          const updatedContacts = [...contacts];
+                          updatedContacts[index].mobile = input;
+                          setContacts(updatedContacts);
+                        }
                       }}
+                      placeholder="Enter 10-digit mobile number"
                       InputProps={{
-                        startAdornment: <InputAdornment position='start'>IN (+91)</InputAdornment>
+                        startAdornment: (
+                          <InputAdornment position='start'>IN (+91)</InputAdornment>
+                        ),
+                        inputMode: 'numeric'
                       }}
+                      error={contact.mobile.length > 0 && contact.mobile.length !== 10}
+                      helperText={contact.mobile.length > 0 && contact.mobile.length !== 10 ? 'Mobile number must be 10 digits' : ''}
+                      required
                     />
                     {contacts.length > 1 && (
                       <IconButton onClick={() => handleRemoveContact(contact.id)} color='error'>
@@ -778,11 +814,17 @@ const VendorRegistration = () => {
             </Grid>
           ))}
           <Grid item xs={12}>
-            <Button variant='contained' onClick={handleAddContact} startIcon={<AddIcon />}>
+            <Button 
+              variant='contained' 
+              onClick={handleAddContact} 
+              startIcon={<AddIcon />}
+              disabled={!canAddContact()}
+            >
               Add Another Contact
             </Button>
           </Grid>
         </Grid>
+        
         <Grid container spacing={3} style={{ marginTop: '10px' }}>
           <Grid item xs={12}>
             <TextField
@@ -791,6 +833,7 @@ const VendorRegistration = () => {
               value={address}
               onChange={e => setAddress(e.target.value)}
               placeholder='Enter complete address'
+              required
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -866,10 +909,12 @@ const VendorRegistration = () => {
                             setParkingEntries(updatedEntries)
                           }}
                           label="Parking Type"
+                          required
                         >
-                          <MenuItem value="Cars">Cars</MenuItem>
-                          <MenuItem value="Bikes">Bikes</MenuItem>
-                          <MenuItem value="Others">Others</MenuItem>
+                          <MenuItem value="" disabled>Select type</MenuItem>
+                          {getAvailableParkingTypes(index).map(type => (
+                            <MenuItem key={type} value={type}>{type}</MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
                     </Grid>
@@ -884,6 +929,7 @@ const VendorRegistration = () => {
                             setParkingEntries(updatedEntries)
                           }}
                           fullWidth
+                          required
                         />
                         {parkingEntries.length > 1 && (
                           <CustomIconButton onClick={() => handleRemoveParkingEntry(index)} color='error' className="min-is-fit">
@@ -898,7 +944,12 @@ const VendorRegistration = () => {
             </Grid>
             <br />
             <Grid item xs={12} style={{ marginBottom: '20px' }}>
-              <Button variant="contained" onClick={handleAddParkingEntry} startIcon={<AddIcon />}>
+              <Button 
+                variant="contained" 
+                onClick={handleAddParkingEntry} 
+                startIcon={<AddIcon />}
+                disabled={!canAddParkingEntry() || parkingEntries.length >= 3} // Limit to 3 parking types
+              >
                 Add Another Option
               </Button>
             </Grid>

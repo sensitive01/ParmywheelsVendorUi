@@ -315,6 +315,9 @@ export default function ParkingBooking() {
       const formattedBookingDate = formatToDDMMYYYY(new Date().toISOString());
       const formattedBookingTime = formatTimeTo12Hour(new Date().toTimeString().substring(0, 5));
       
+      // Set status to PARKED only for Instant bookings, otherwise PENDING
+      const status = sts === 'Instant' ? 'PARKED' : 'PENDING';
+      
       const payload = {
         vendorId,
         personName,
@@ -330,7 +333,7 @@ export default function ParkingBooking() {
         parkingTime: formattedTime,
         tenditivecheckout: tentativeCheckout ? formatToDDMMYYYY(tentativeCheckout.split('T')[0]) + ' ' + formatTimeTo12Hour(tentativeCheckout.split('T')[1]) : '',
         subsctiptiontype: sts === 'Subscription' ? subscriptionType : '',
-        status: 'PENDING',
+        status, // Using the status determined above
         sts,
         bookType: sts === 'Subscription' ? '' : bookType
       };
@@ -346,7 +349,7 @@ export default function ParkingBooking() {
         vehicleType,
         vehicleNumber,
         personName,
-        status: 'PENDING'
+        status
       });
 
       setAlert({
@@ -437,7 +440,6 @@ export default function ParkingBooking() {
     
     setParkingTime(selectedTime);
   };
-
 
   const renderVehicleTypeStep = () => (
     <Box>
@@ -570,7 +572,6 @@ export default function ParkingBooking() {
             helperText={errors.parkingDate}
             InputLabelProps={{ shrink: true }}
             inputProps={{ 
-              // Only enforce min date for Instant booking
               min: sts === 'Instant' ? minDate : undefined 
             }}
           />
@@ -587,7 +588,6 @@ export default function ParkingBooking() {
             helperText={errors.parkingTime}
             InputLabelProps={{ shrink: true }}
             inputProps={{ 
-              // Only enforce min time for Instant booking
               min: (sts === 'Instant' && parkingDate === minDate) ? minTime : undefined 
             }}
           />
@@ -603,7 +603,6 @@ export default function ParkingBooking() {
             helperText={errors.tentativeCheckout}
             InputLabelProps={{ shrink: true }}
             inputProps={{
-              // Only enforce min datetime for Instant booking
               min: sts === 'Instant' ? minTentativeDateTime : undefined
             }}
           />
@@ -627,20 +626,27 @@ export default function ParkingBooking() {
             placeholder="Enter your full name"
           />
         </Grid>
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Mobile Number"
-            value={mobileNumber}
-            onChange={(e) => setMobileNumber(e.target.value)}
-            error={!!errors.mobileNumber}
-            helperText={errors.mobileNumber}
-            placeholder="Enter your mobile number"
-            InputProps={{
-              startAdornment: <InputAdornment position="start">+91</InputAdornment>
-            }}
-          />
-        </Grid>
+      <Grid item xs={12} md={6}>
+  <TextField
+    fullWidth
+    label="Mobile Number"
+    value={mobileNumber}
+    onChange={(e) => {
+      const input = e.target.value;
+      if (/^\d{0,10}$/.test(input)) {
+        setMobileNumber(input);
+      }
+    }}
+    error={!!errors.mobileNumber}
+    helperText={errors.mobileNumber}
+    placeholder="Enter your mobile number"
+    InputProps={{
+      startAdornment: <InputAdornment position="start">+91</InputAdornment>,
+      inputMode: 'numeric'
+    }}
+  />
+</Grid>
+
       </Grid>
     </Box>
   )

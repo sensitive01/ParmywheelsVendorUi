@@ -290,6 +290,9 @@ const HorizontalMenu = ({ dictionary }) => {
             </MenuItem>
             {/* <MenuItem href={`/${locale}/pages/widget-examples/actions`}>{dictionary['navigation'].actions}</MenuItem> */}
           </SubMenu>
+           <MenuItem href={`/${locale}/pages/privacy-terms`} icon={<i className='ri-shield-user-line' />}>
+            {dictionary['navigation'].privacyterms}
+          </MenuItem>
           {/* <SubMenu label={dictionary['navigation'].frontPages} icon={<i className='ri-file-copy-line' />}>
             <MenuItem href='/front-pages/landing-page' target='_blank'>
               {dictionary['navigation'].landing}

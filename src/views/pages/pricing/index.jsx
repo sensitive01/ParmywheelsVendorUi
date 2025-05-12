@@ -452,6 +452,9 @@
 // // }
 // // export default PricingPage
 
+
+
+
 'use client'
 import { useState, useEffect } from 'react'
 
@@ -476,21 +479,25 @@ import Alert from '@mui/material/Alert'
 import Snackbar from '@mui/material/Snackbar'
 import InputAdornment from '@mui/material/InputAdornment'
 import Stack from '@mui/material/Stack'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
 
 import CustomIconButton from '@core/components/mui/IconButton'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-const amenitiesList = [
-  'CCTV',
-  'Wi-Fi',
-  'Covered Parking',
-  'Self Car Wash',
-  'Charging',
-  'Restroom',
-  'Security',
-  'Gated Parking',
-  'Open Parking'
+const amenitiesWithIcons = [
+  { name: 'CCTV', icon: 'ri-camera-line' },
+  { name: 'Wi-Fi', icon: 'ri-wifi-line' },
+  { name: 'Covered Parking', icon: 'ri-caravan-line' },
+  { name: 'Self Car Wash', icon: 'ri-car-washing-line' },
+  { name: 'Charging', icon: 'ri-flashlight-line' },
+  { name: 'Restroom', icon: 'ri-user-2-line' },
+  { name: 'Security', icon: 'ri-shield-check-line' },
+  { name: 'Gated Parking', icon: 'ri-parking-line' },
+  { name: 'Open Parking', icon: 'ri-tree-line' }
 ]
 
 const ProductVariants = () => {
@@ -508,6 +515,9 @@ const ProductVariants = () => {
     message: '',
     severity: 'success'
   })
+  const [customAmenityDialogOpen, setCustomAmenityDialogOpen] = useState(false)
+  const [customAmenityInput, setCustomAmenityInput] = useState('')
+  const [amenitiesList, setAmenitiesList] = useState(amenitiesWithIcons)
   
   const { data: session } = useSession()
   const vendorId = session?.user?.id
@@ -556,6 +566,17 @@ const ProductVariants = () => {
         const amenitiesData = data?.AmenitiesData || data?.updatedAmenitiesData
         setSavedData(amenitiesData)
         setShowForm(false)
+        
+        // Add any custom amenities from saved data to the list
+        if (amenitiesData.amenities) {
+          const customAmenities = amenitiesData.amenities.filter(
+            amenity => !amenitiesWithIcons.some(a => a.name === amenity)
+          ).map(amenity => ({ name: amenity, icon: 'ri-checkbox-blank-circle-line' }))
+          
+          if (customAmenities.length > 0) {
+            setAmenitiesList([...amenitiesWithIcons, ...customAmenities])
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching amenities data:', error)
@@ -575,7 +596,6 @@ const ProductVariants = () => {
 
   const handleParkingEntryChange = (index, field, value) => {
     const updatedEntries = [...parkingEntries]
-
     updatedEntries[index][field] = value
     setParkingEntries(updatedEntries)
   }
@@ -586,8 +606,12 @@ const ProductVariants = () => {
 
   const deleteParkingEntry = index => {
     const updatedEntries = parkingEntries.filter((_, i) => i !== index)
-
     setParkingEntries(updatedEntries)
+  }
+
+  const canAddAnotherService = () => {
+    // Check if all current entries have both text and amount filled
+    return parkingEntries.every(entry => entry.text.trim() && entry.amount)
   }
 
   const handleEdit = () => {
@@ -783,6 +807,36 @@ const ProductVariants = () => {
     }
   }
 
+  const handleOpenCustomAmenityDialog = () => {
+    setCustomAmenityDialogOpen(true)
+  }
+
+  const handleCloseCustomAmenityDialog = () => {
+    setCustomAmenityDialogOpen(false)
+    setCustomAmenityInput('')
+  }
+
+  const handleAddCustomAmenity = () => {
+    if (customAmenityInput.trim()) {
+      const newAmenity = { 
+        name: customAmenityInput.trim(), 
+        icon: 'ri-checkbox-blank-circle-line' 
+      }
+      
+      // Add to the amenities list if not already present
+      if (!amenitiesList.some(a => a.name === newAmenity.name)) {
+        setAmenitiesList([...amenitiesList, newAmenity])
+      }
+      
+      // Add to selected amenities if not already selected
+      if (!amenities.includes(newAmenity.name)) {
+        setAmenities([...amenities, newAmenity.name])
+      }
+      
+      handleCloseCustomAmenityDialog()
+    }
+  }
+
   const renderDataView = () => {
     if (isLoading) {
       return (
@@ -813,7 +867,7 @@ const ProductVariants = () => {
           action={
             <Button
               variant="contained"
-              color="secondary"
+             color='success' 
               startIcon={<EditIcon />}
               onClick={handleEdit}
               sx={{ m: 1 }}
@@ -830,15 +884,19 @@ const ProductVariants = () => {
                 <CardContent>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                     {savedData.amenities?.length > 0 ? (
-                      savedData.amenities.map((amenity) => (
-                        <Chip
-                          key={amenity}
-                          label={amenity}
-                          color="primary"
-                          variant="outlined"
-                          style={{ padding: '15px', fontSize: '1rem' }}
-                        />
-                      ))
+                      savedData.amenities.map((amenity) => {
+                        const amenityData = amenitiesList.find(a => a.name === amenity) || { name: amenity, icon: 'ri-checkbox-blank-circle-line' }
+                        return (
+                          <Chip
+                            key={amenity}
+                            label={amenity}
+                            color="primary"
+                            variant="outlined"
+                            style={{ padding: '15px', fontSize: '1rem' }}
+                            icon={<i className={amenityData.icon} style={{ marginLeft: '8px' }} />}
+                          />
+                        )
+                      })
                     ) : (
                       <p>No amenities added yet</p>
                     )}
@@ -899,20 +957,37 @@ const ProductVariants = () => {
                 onChange={handleAmenitiesChange}
                 renderValue={selected => (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    {selected.map(value => (
-                      <Chip key={value} label={value} color='primary' />
-                    ))}
+                    {selected.map(value => {
+                      const amenityData = amenitiesList.find(a => a.name === value) || { name: value, icon: 'ri-checkbox-blank-circle-line' }
+                      return (
+                        <Chip 
+                          key={value} 
+                          label={value} 
+                          color='primary'
+                          icon={<i className={amenityData.icon} />}
+                        />
+                      )
+                    })}
                   </div>
                 )}
               >
                 {amenitiesList.map(amenity => (
-                  <MenuItem key={amenity} value={amenity}>
-                    <Checkbox checked={amenities.indexOf(amenity) > -1} />
-                    <ListItemText primary={amenity} />
+                  <MenuItem key={amenity.name} value={amenity.name}>
+                    <Checkbox checked={amenities.indexOf(amenity.name) > -1} />
+                    <i className={amenity.icon} style={{ marginRight: '8px' }} />
+                    <ListItemText primary={amenity.name} />
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
+            <Button
+              variant='outlined'
+              onClick={handleOpenCustomAmenityDialog}
+              sx={{ mt: 2 }}
+              startIcon={<i className='ri-add-line' />}
+            >
+              Add Custom Amenity
+            </Button>
           </Grid>
           {parkingEntries.map((entry, index) => (
             <Grid key={index} item xs={12} className='repeater-item'>
@@ -954,6 +1029,7 @@ const ProductVariants = () => {
               variant='contained'
               onClick={addParkingEntry}
               startIcon={<i className='ri-add-line' />}
+              disabled={!canAddAnotherService()}
             >
               Add Another Service
             </Button>
@@ -964,7 +1040,7 @@ const ProductVariants = () => {
                 variant='contained' 
                 color='success' 
                 onClick={handleSubmit}
-                disabled={updateLoading}
+                disabled={updateLoading || !canAddAnotherService()}
               >
                 {updateLoading ? (
                   <>
@@ -982,6 +1058,29 @@ const ProductVariants = () => {
           </Grid>
         </Grid>
       </CardContent>
+
+      {/* Custom Amenity Dialog */}
+      <Dialog open={customAmenityDialogOpen} onClose={handleCloseCustomAmenityDialog}>
+        <DialogTitle>Add Custom Amenity</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Amenity Name"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={customAmenityInput}
+            onChange={(e) => setCustomAmenityInput(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCustomAmenityDialog}>Cancel</Button>
+          <Button onClick={handleAddCustomAmenity} color="primary">
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={snackbar.open}

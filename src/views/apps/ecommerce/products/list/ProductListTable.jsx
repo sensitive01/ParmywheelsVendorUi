@@ -151,83 +151,205 @@
 //   const router = useRouter()
 //   const vendorId = session?.user?.id
 
-//   const fetchData = async () => {
-//     if (!vendorId) return;
-
+//   // Function to parse date string to DateTime object
+//   const parseDateTime = (dateStr, timeStr) => {
+//     if (!dateStr || !timeStr) return null;
+    
 //     try {
-//       setLoading(true)
-//       setError(null)
-//       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+//       // Check if date is in YYYY-MM-DD format
+//       let dateParts;
+//       if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+//         const [year, month, day] = dateStr.split('-');
+//         dateParts = { day, month, year };
+//       }
+//       // Otherwise assume DD-MM-YYYY format
+//       else if (dateStr.includes('-')) {
+//         const [day, month, year] = dateStr.split('-');
+//         dateParts = { day, month, year };
+//       } else {
+//         return null;
+//       }
+      
+//       // Parse time
+//       const [timePart, ampm] = timeStr.split(' ');
+//       let [hours, minutes] = timePart.split(':').map(Number);
+      
+//       if (ampm && ampm.toUpperCase() === 'PM' && hours !== 12) {
+//         hours += 12;
+//       } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
+//         hours = 0;
+//       }
+      
+//       return new Date(`${dateParts.year}-${dateParts.month}-${dateParts.day}T${hours}:${minutes}:00`);
+//     } catch (e) {
+//       console.error("Error parsing date/time:", e);
+//       return null;
+//     }
+//   };
+
+//   // Function to update booking status to Cancelled
+//   const updateBookingStatus = async (bookingId, status) => {
+//     try {
+//       const response = await fetch(`${API_URL}/vendor/updatebookingstatus/${bookingId}`, {
+//         method: 'PUT',
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify({ status })
+//       });
       
 //       if (!response.ok) {
-//         throw new Error('Failed to fetch bookings')
+//         throw new Error('Failed to update booking status');
 //       }
+      
+//       return true;
+//     } catch (error) {
+//       console.error('Error updating booking status:', error);
+//       return false;
+//     }
+//   };
 
-//       const result = await response.json()
+//   // Function to check and update pending bookings
+//   const checkAndUpdatePendingBookings = async (bookings) => {
+//     const now = new Date();
+    
+//     for (const booking of bookings) {
+//       try {
+//         // Skip if booking is not pending
+//         if (booking.status.toLowerCase() !== 'pending') {
+//           continue;
+//         }
+        
+//         // Parse scheduled date and time
+//         const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
+//         if (!scheduledDateTime) continue;
+        
+//         // Check if scheduled time has passed by more than 10 minutes
+//         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        
+//         if (now > tenMinutesAfter) {
+//           const success = await updateBookingStatus(booking._id, 'Cancelled');
+//           if (success) {
+//             console.log(`Booking ${booking._id} has been cancelled.`);
+//           }
+//         }
+//       } catch (e) {
+//         console.error(`Error processing booking ${booking._id}:`, e);
+//       }
+//     }
+//   };
 
+//   // Function to check and update approved bookings
+//   const checkAndUpdateApprovedBookings = async (bookings) => {
+//     const now = new Date();
+    
+//     for (const booking of bookings) {
+//       try {
+//         // Skip if booking is not approved
+//         if (booking.status.toLowerCase() !== 'approved') {
+//           continue;
+//         }
+        
+//         // Parse scheduled date and time
+//         const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
+//         if (!scheduledDateTime) continue;
+        
+//         // Check if scheduled time has passed by more than 10 minutes
+//         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        
+//         if (now > tenMinutesAfter) {
+//           const success = await updateBookingStatus(booking._id, 'Cancelled');
+//           if (success) {
+//             console.log(`Booking ${booking._id} has been cancelled (10 minutes past the scheduled time).`);
+//           }
+//         }
+//       } catch (e) {
+//         console.error(`Error processing booking ${booking._id}:`, e);
+//       }
+//     }
+//   };
+
+//   // Function to refresh booking list
+//   const refreshBookingList = async () => {
+//     try {
+//       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`);
+//       const result = await response.json();
+      
 //       if (result && result.bookings) {
 //         const filteredBookings = result.bookings.filter(booking => 
 //           ["pending", "approved", "cancelled", "parked", "completed"]
 //             .includes(booking.status.toLowerCase())
-//         )
+//         );
         
 //         // Sort bookings by creation date (latest first)
-//         // First, try to get the creation timestamp if it exists
 //         const sortedBookings = filteredBookings.sort((a, b) => {
 //           // First try to use createdAt field if it exists
 //           if (a.createdAt && b.createdAt) {
-//             return new Date(b.createdAt) - new Date(a.createdAt)
+//             return new Date(b.createdAt) - new Date(a.createdAt);
 //           }
           
 //           // Fall back to booking date and time if createdAt doesn't exist
 //           try {
-//             // Parse booking date for a
-//             const parseBookingDateTime = (booking) => {
-//               if (!booking.bookingDate || !booking.bookingTime) return new Date(0)
-              
-//               const [day, month, year] = booking.bookingDate.split('-')
-//               const [timePart, ampm] = booking.bookingTime.split(' ')
-//               let [hours, minutes] = timePart.split(':').map(Number)
-              
-//               if (ampm && ampm.toUpperCase() === 'PM' && hours !== 12) {
-//                 hours += 12
-//               } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
-//                 hours = 0
-//               }
-              
-//               return new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`)
-//             }
+//             const dateA = parseDateTime(a.bookingDate, a.bookingTime);
+//             const dateB = parseDateTime(b.bookingDate, b.bookingTime);
             
-//             const dateA = parseBookingDateTime(a)
-//             const dateB = parseBookingDateTime(b)
-            
-//             return dateB - dateA
+//             return (dateB || 0) - (dateA || 0);
 //           } catch (e) {
 //             // If all else fails, sort by ID if available (assuming newer IDs are larger)
 //             if (a._id && b._id) {
-//               return b._id.localeCompare(a._id)
+//               return b._id.localeCompare(a._id);
 //             }
-//             return 0
+//             return 0;
 //           }
-//         })
+//         });
         
-//         setData(sortedBookings)
-//         setFilteredData(sortedBookings)
-//       } else {
-//         setData([])
-//         setFilteredData([])
+//         setData(sortedBookings);
+//         setFilteredData(sortedBookings);
+//         return sortedBookings;
 //       }
+//       return [];
 //     } catch (error) {
-//       console.error("Error fetching bookings:", error)
-//       setError(error.message)
-//     } finally {
-//       setLoading(false)
+//       console.error('Error refreshing booking list:', error);
+//       return [];
 //     }
-//   }
+//   };
+
+//   const fetchData = async () => {
+//     if (!vendorId) return;
+
+//     try {
+//       setLoading(true);
+//       setError(null);
+      
+//       // First fetch the current bookings
+//       const currentBookings = await refreshBookingList();
+      
+//       // Then check and update pending bookings
+//       await checkAndUpdatePendingBookings(currentBookings);
+      
+//       // Then check and update approved bookings
+//       await checkAndUpdateApprovedBookings(currentBookings);
+      
+//       // Finally refresh the list to get updated statuses
+//       await refreshBookingList();
+//     } catch (error) {
+//       console.error("Error fetching bookings:", error);
+//       setError(error.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
 
 //   useEffect(() => {
-//     fetchData()
-//   }, [vendorId])
+//     fetchData();
+
+//     // Set up interval to check bookings every minute
+//     const intervalId = setInterval(() => {
+//       fetchData();
+//     }, 60000); // Check every minute
+
+//     return () => clearInterval(intervalId);
+//   }, [vendorId]);
 
 //   const columns = useMemo(
 //     () => [
@@ -666,6 +788,10 @@
 // }
 
 // export default OrderListTable
+
+// after completion no need to show payable time
+
+
 'use client'
 
 // React Imports
@@ -1104,8 +1230,13 @@ const OrderListTable = ({ orderData }) => {
         cell: ({ row }) => {
           // Check booking status
           const status = row.original.status?.toLowerCase()
+          
+          // Return empty for completed status
+          if (status === 'completed') {
+            return null
+          }
+          
           const isParked = status === 'parked'
-          const isCompleted = status === 'completed'
           
           // Show real-time timer for PARKED status
           if (isParked) {
@@ -1120,74 +1251,8 @@ const OrderListTable = ({ orderData }) => {
             )
           }
           
-          // Show total time for COMPLETED status using exit vehicle data
-          if (isCompleted && row.original.exitvehicledate && row.original.exitvehicletime) {
-            // Calculate and format the total parking duration
-            const calculateTotalTime = () => {
-              try {
-                // Parse the parking start time
-                const [startDay, startMonth, startYear] = row.original.parkedDate.split('-')
-                const [startTimePart, startAmpm] = row.original.parkedTime.split(' ')
-                let [startHours, startMinutes] = startTimePart.split(':').map(Number)
-                
-                // Convert to 24-hour format if needed
-                if (startAmpm && startAmpm.toUpperCase() === 'PM' && startHours !== 12) {
-                  startHours += 12
-                } else if (startAmpm && startAmpm.toUpperCase() === 'AM' && startHours === 12) {
-                  startHours = 0
-                }
-                
-                // Create start date object
-                const startTime = new Date(`${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}:00`)
-                
-                // Parse the exit vehicle time
-                const [endDay, endMonth, endYear] = row.original.exitvehicledate.split('-')
-                const [endTimePart, endAmpm] = row.original.exitvehicletime.split(' ')
-                let [endHours, endMinutes] = endTimePart.split(':').map(Number)
-                
-                // Convert to 24-hour format if needed
-                if (endAmpm && endAmpm.toUpperCase() === 'PM' && endHours !== 12) {
-                  endHours += 12
-                } else if (endAmpm && endAmpm.toUpperCase() === 'AM' && endHours === 12) {
-                  endHours = 0
-                }
-                
-                // Create end date object
-                const endTime = new Date(`${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`)
-                
-                // Calculate difference in milliseconds
-                const diffMs = endTime - startTime
-                
-                // Convert to days, hours, minutes
-                const diffSecs = Math.floor(diffMs / 1000)
-                const days = Math.floor(diffSecs / (3600 * 24))
-                const hours = Math.floor((diffSecs % (3600 * 24)) / 3600)
-                const minutes = Math.floor((diffSecs % 3600) / 60)
-                
-                // Format the output
-                if (days > 0) {
-                  return `${days}d ${hours}h ${minutes}m`
-                } else {
-                  return `${hours}h ${minutes}m`
-                }
-              } catch (e) {
-                console.error("Error calculating total time:", e)
-                return 'N/A'
-              }
-            }
-            
-            return (
-              <div className="flex items-center gap-2">
-                <i className="ri-time-line" style={{ fontSize: '16px', color: '#72e128' }}></i>
-                <Typography sx={{ fontWeight: 500, color: '#72e128' }}>
-                  {calculateTotalTime()}
-                </Typography>
-              </div>
-            )
-          }
-          
           // Default case for other statuses
-          return <Typography>--:--:--</Typography>
+          return null
         }
       }),
       columnHelper.accessor('customerName', {
@@ -1287,35 +1352,7 @@ const OrderListTable = ({ orderData }) => {
                       }
                     }
                   }
-                },
-                // {
-                //   text: 'Delete',
-                //   icon: 'ri-delete-bin-7-line',
-                //   menuItemProps: {
-                //     onClick: async () => {
-                //       try {
-                //         const selectedId = row.original._id
-                //         if (!selectedId) return
-
-                //         const isConfirmed = window.confirm("Are you sure you want to delete this booking?")
-                //         if (!isConfirmed) return
-
-                //         const response = await fetch(`${API_URL}/vendor/deletebooking/${selectedId}`, {
-                //           method: 'DELETE'
-                //         })
-
-                //         if (!response.ok) {
-                //           throw new Error('Failed to delete booking')
-                //         }
-
-                //         setData(prev => prev.filter(booking => booking._id !== selectedId))
-                //         setFilteredData(prev => prev.filter(booking => booking._id !== selectedId))
-                //       } catch (error) {
-                //         console.error('Error deleting booking:', error)
-                //       }
-                //     }
-                //   }
-                // }
+                }
               ]}
             />
           </div>
