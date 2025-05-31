@@ -97,6 +97,7 @@
 //     bike: 'Full Day',
 //     others: 'Full Day'
 //   })
+//   const [isVendorBooking, setIsVendorBooking] = useState(false)
 //   const is24Hours = bookingData?.bookType === '24 Hours' || bookType === '24 Hours'
 
 //   const fetchBookingDirectly = async (id) => {
@@ -119,7 +120,11 @@
 //       console.log('Received booking details from direct API:', data.booking)
       
 //       setBookingData(data.booking)
-//       if (data.booking.otp) {
+      
+//       // Check if this is a vendor booking (no userid present)
+//       setIsVendorBooking(!data.booking.userid)
+      
+//       if (data.booking.otp && !isVendorBooking) {
 //         console.log('Received OTP from API:', data.booking.otp)
 //         setBackendOtp(data.booking.otp)
 //       }
@@ -162,7 +167,8 @@
 //     const getBookingDetails = async () => {
 //       if (bookingDetails) {
 //         setBookingData(bookingDetails)
-//         if (bookingDetails.otp) {
+//         setIsVendorBooking(!bookingDetails.userid)
+//         if (bookingDetails.otp && bookingDetails.userid) {
 //           setBackendOtp(bookingDetails.otp)
 //         } else {
 //           await fetchBookingDirectly(bookingId)
@@ -196,8 +202,9 @@
         
 //         console.log('Received booking details from fallback:', data.booking)
 //         setBookingData(data.booking)
+//         setIsVendorBooking(!data.booking.userid)
         
-//         if (!data.booking.otp) {
+//         if (!data.booking.otp || isVendorBooking) {
 //           await fetchBookingDirectly(bookingId)
 //         } else {
 //           setBackendOtp(data.booking.otp)
@@ -530,15 +537,18 @@
 //       return
 //     }
 
-//     if (!otp) {
-//       setError('Last 3 digits of OTP are required');
-//       return;
-//     }
-    
-//     // Check if entered OTP matches the last 3 digits of backend OTP
-//     if (otp.length !== 3 || !backendOtp || !backendOtp.endsWith(otp)) {
-//       setError('OTP does not match the last 3 digits of booking OTP');
-//       return;
+//     // Only validate OTP for user bookings (not vendor bookings)
+//     if (!isVendorBooking) {
+//       if (!otp) {
+//         setError('Last 3 digits of OTP are required');
+//         return;
+//       }
+      
+//       // Check if entered OTP matches the last 3 digits of backend OTP
+//       if (otp.length !== 3 || !backendOtp || !backendOtp.endsWith(otp)) {
+//         setError('OTP does not match the last 3 digits of booking OTP');
+//         return;
+//       }
 //     }
   
 //     setLoading(true)
@@ -551,7 +561,7 @@
 //         hour: hours,
 //         is24Hours,
 //         vendorId,
-//         otp: backendOtp // Send full OTP to backend for validation
+//         otp: isVendorBooking ? null : backendOtp // Only send OTP for user bookings
 //       });
       
 //       const response = await fetch(`${API_URL}/vendor/exitvehicle/${bookingId}`, {
@@ -565,7 +575,7 @@
 //           hour: hours,
 //           is24Hours,
 //           vendorId,
-//           otp: backendOtp // Send full OTP to backend
+//           otp: isVendorBooking ? null : backendOtp // Only send OTP for user bookings
 //         })
 //       })
       
@@ -586,7 +596,7 @@
 //   }
 
 //   const isLoading = fetchingCharges || fetchingBookingDetails || loading
-//   const otpValidated = backendOtp && otp.length === 3 && backendOtp.endsWith(otp);
+//   const otpValidated = isVendorBooking || (backendOtp && otp.length === 3 && backendOtp.endsWith(otp));
 
 //   return (
 //     <Box>
@@ -594,6 +604,11 @@
 //         Calculate Exit Charges
 //         <Typography variant="subtitle2" color="text.secondary">
 //           Booking ID: {bookingId}
+//           {isVendorBooking && (
+//             <Typography component="span" color="primary" sx={{ ml: 1 }}>
+//               (Vendor Booking)
+//             </Typography>
+//           )}
 //         </Typography>
 //       </DialogTitle>
       
@@ -608,7 +623,7 @@
 //           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
 //             <CircularProgress />
 //             <Typography variant="body2" sx={{ ml: 2 }}>
-//               {fetchingBookingDetails ? 'Loading booking details and OTP...' : 
+//               {fetchingBookingDetails ? 'Loading booking details...' : 
 //                fetchingCharges ? 'Loading charges data...' : 'Processing...'}
 //             </Typography>
 //           </Box>
@@ -656,29 +671,31 @@
 //                 />
 //               </Grid>
               
-//               <Grid item xs={12}>
-//                 <TextField
-//                   fullWidth
-//                   label="Enter Last 3 Digits of OTP"
-//                   type="text"
-//                   value={otp}
-//                   onChange={(e) => {
-//                     const value = e.target.value.replace(/\D/g, '').slice(0, 3);
-//                     setOtp(value);
-//                   }}
-//                   error={!otp || (otp && backendOtp && !backendOtp.endsWith(otp))}
-//                   helperText={
-//                     !otp ? "Last 3 digits of OTP are required" : 
-//                     (otp && backendOtp && !backendOtp.endsWith(otp) ? "OTP does not match the last 3 digits" : "")
-//                   }
-//                   disabled={isLoading}
-//                   required
-//                   inputProps={{
-//                     maxLength: 3,
-//                     pattern: "\\d{3}"
-//                   }}
-//                 />
-//               </Grid>
+//               {!isVendorBooking && (
+//                 <Grid item xs={12}>
+//                   <TextField
+//                     fullWidth
+//                     label="Enter Last 3 Digits of OTP"
+//                     type="text"
+//                     value={otp}
+//                     onChange={(e) => {
+//                       const value = e.target.value.replace(/\D/g, '').slice(0, 3);
+//                       setOtp(value);
+//                     }}
+//                     error={!otp || (otp && backendOtp && !backendOtp.endsWith(otp))}
+//                     helperText={
+//                       !otp ? "Last 3 digits of OTP are required" : 
+//                       (otp && backendOtp && !backendOtp.endsWith(otp) ? "OTP does not match the last 3 digits" : "")
+//                     }
+//                     disabled={isLoading}
+//                     required
+//                     inputProps={{
+//                       maxLength: 3,
+//                       pattern: "\\d{3}"
+//                     }}
+//                   />
+//                 </Grid>
+//               )}
 //             </Grid>
             
 //             {calculationDetails && (
@@ -927,6 +944,7 @@ const ExitVehicleCalculator = ({
   })
   const [isVendorBooking, setIsVendorBooking] = useState(false)
   const is24Hours = bookingData?.bookType === '24 Hours' || bookType === '24 Hours'
+  const isSubscription = bookingData?.sts === 'Subscription'
 
   const fetchBookingDirectly = async (id) => {
     try {
@@ -1059,6 +1077,12 @@ const ExitVehicleCalculator = ({
   useEffect(() => {
     const calculateDuration = () => {
       try {
+        // For subscription, we don't need to calculate duration based on time
+        if (isSubscription) {
+          setHours(1) // Just set to 1 as we'll use the monthly rate
+          return { duration: 1, method: null }
+        }
+
         const parkingDate = bookingData?.parkedDate
         const parkingTime = bookingData?.parkedTime
         
@@ -1177,7 +1201,7 @@ const ExitVehicleCalculator = ({
         calculateAmount(result.duration, chargesData, result.method)
       }
     }
-  }, [bookingData, chargesData, is24Hours, fullDayModes, vehicleType])
+  }, [bookingData, chargesData, is24Hours, fullDayModes, vehicleType, isSubscription])
 
   useEffect(() => {
     const fetchCharges = async () => {
@@ -1229,7 +1253,8 @@ const ExitVehicleCalculator = ({
         hoursValue, 
         vehicleType: effectiveVehicleType, 
         is24Hours,
-        calculationMethod
+        calculationMethod,
+        isSubscription
       });
       
       const relevantCharges = charges.charges.filter(charge => 
@@ -1245,7 +1270,27 @@ const ExitVehicleCalculator = ({
       let calculatedAmount = 0
       let details = {}
 
-      if (is24Hours) {
+      if (isSubscription) {
+        // For subscription, we only use the monthly rate
+        const monthlyCharge = relevantCharges.find(charge => 
+          charge.type.toLowerCase().includes('monthly')
+        )
+        
+        if (!monthlyCharge) {
+          throw new Error(`Monthly charge not found for ${effectiveVehicleType}`)
+        }
+        
+        calculatedAmount = Number(monthlyCharge.amount)
+        
+        details = {
+          rateType: "Monthly Subscription",
+          baseRate: Number(monthlyCharge.amount),
+          calculation: `${monthlyCharge.amount} (monthly rate) = ${calculatedAmount}`,
+          isSubscription: true
+        }
+        
+        console.log('Subscription calculation details:', details);
+      } else if (is24Hours) {
         const fullDayCharge = relevantCharges.find(charge => 
           charge.type.toLowerCase().includes('full day') || 
           charge.type.toLowerCase().includes('24 hour')
@@ -1267,7 +1312,8 @@ const ExitVehicleCalculator = ({
           days: days,
           fullDayMode: fullDayMode,
           calculation: `${fullDayCharge.amount} × ${days} day(s) = ${calculatedAmount}`,
-          calculationMethod: calculationMethod
+          calculationMethod: calculationMethod,
+          isSubscription: false
         }
         
         console.log('Full day calculation details:', details);
@@ -1303,7 +1349,8 @@ const ExitVehicleCalculator = ({
           calculation: hoursValue > 1 ? 
             `${baseCharge.amount} (first hour) + ${additionalRate} × ${hoursValue - 1} (additional hours) = ${calculatedAmount}` :
             `${baseCharge.amount} (first hour) = ${calculatedAmount}`,
-          calculationMethod: calculationMethod
+          calculationMethod: calculationMethod,
+          isSubscription: false
         }
         
         console.log('Hourly calculation details:', details);
@@ -1388,6 +1435,7 @@ const ExitVehicleCalculator = ({
         amount,
         hour: hours,
         is24Hours,
+        isSubscription,
         vendorId,
         otp: isVendorBooking ? null : backendOtp // Only send OTP for user bookings
       });
@@ -1402,6 +1450,7 @@ const ExitVehicleCalculator = ({
           amount,
           hour: hours,
           is24Hours,
+          isSubscription,
           vendorId,
           otp: isVendorBooking ? null : backendOtp // Only send OTP for user bookings
         })
@@ -1437,6 +1486,11 @@ const ExitVehicleCalculator = ({
               (Vendor Booking)
             </Typography>
           )}
+          {isSubscription && (
+            <Typography component="span" color="primary" sx={{ ml: 1 }}>
+              (Subscription)
+            </Typography>
+          )}
         </Typography>
       </DialogTitle>
       
@@ -1463,9 +1517,14 @@ const ExitVehicleCalculator = ({
                   Vehicle Type: {bookingData?.vehicleType || vehicleType}
                 </Typography>
                 <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                  Booking Type: {bookingData?.bookType || bookType}
+                  Booking Type: {isSubscription ? 'Subscription' : (bookingData?.bookType || bookType)}
                 </Typography>
-                {is24Hours && (
+                {isSubscription && (
+                  <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                    Subscription Type: {bookingData?.subsctiptiontype || 'Monthly'}
+                  </Typography>
+                )}
+                {!isSubscription && is24Hours && (
                   <Typography variant="subtitle1" color="text.secondary" gutterBottom>
                     Full Day Mode: {fullDayModes[bookingData?.vehicleType?.toLowerCase() || vehicleType.toLowerCase()] || 'Full Day'}
                   </Typography>
@@ -1473,7 +1532,7 @@ const ExitVehicleCalculator = ({
                 <Divider sx={{ my: 1 }} />
                 <Typography variant="subtitle1" color="text.secondary">
                   Parked Since: {formatDate(bookingData?.parkedDate)} at {formatTime(bookingData?.parkedTime)}{' '}
-                  {bookingData?.parkedDate && bookingData?.parkedTime && (
+                  {bookingData?.parkedDate && bookingData?.parkedTime && !isSubscription && (
                     <ParkedTimer 
                       parkedDate={bookingData.parkedDate} 
                       parkedTime={bookingData.parkedTime} 
@@ -1484,20 +1543,22 @@ const ExitVehicleCalculator = ({
             </Card>
             
             <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label={is24Hours ? "Number of Days" : "Number of Hours"}
-                  type="number"
-                  value={hours}
-                  InputProps={{ 
-                    readOnly: true,
-                    inputProps: { min: 1 }
-                  }}
-                  disabled={isLoading}
-                  required
-                />
-              </Grid>
+              {!isSubscription && (
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label={is24Hours ? "Number of Days" : "Number of Hours"}
+                    type="number"
+                    value={hours}
+                    InputProps={{ 
+                      readOnly: true,
+                      inputProps: { min: 1 }
+                    }}
+                    disabled={isLoading}
+                    required
+                  />
+                </Grid>
+              )}
               
               {!isVendorBooking && (
                 <Grid item xs={12}>
@@ -1537,7 +1598,18 @@ const ExitVehicleCalculator = ({
                     <Typography variant="body2">
                       <strong>Rate Type:</strong> {calculationDetails.rateType}
                     </Typography>
-                    {is24Hours ? (
+                    
+                    {isSubscription ? (
+                      <>
+                        <Typography variant="body2">
+                          <strong>Monthly Rate:</strong> ₹{calculationDetails.baseRate}
+                        </Typography>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2">
+                          <strong>Calculation:</strong> {calculationDetails.calculation}
+                        </Typography>
+                      </>
+                    ) : is24Hours ? (
                       <>
                         <Typography variant="body2">
                           <strong>Full Day Rate:</strong> ₹{calculationDetails.baseRate}
@@ -1592,6 +1664,10 @@ const ExitVehicleCalculator = ({
                             )}
                           </Box>
                         )}
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2">
+                          <strong>Calculation:</strong> {calculationDetails.calculation}
+                        </Typography>
                       </>
                     ) : (
                       <>
@@ -1624,12 +1700,12 @@ const ExitVehicleCalculator = ({
                             </Typography>
                           </Box>
                         )}
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="body2">
+                          <strong>Calculation:</strong> {calculationDetails.calculation}
+                        </Typography>
                       </>
                     )}
-                    <Divider sx={{ my: 1 }} />
-                    <Typography variant="body2">
-                      <strong>Calculation:</strong> {calculationDetails.calculation}
-                    </Typography>
                   </Stack>
                 </CardContent>
               </Card>

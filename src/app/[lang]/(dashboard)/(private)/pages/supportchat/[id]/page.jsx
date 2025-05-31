@@ -112,6 +112,10 @@ const VendorSupportChatView = () => {
   const sendMessage = async (e) => {
     e.preventDefault()
 
+    if (issueDetails.status === 'Completed') {
+      return; // Don't allow sending messages if chat is completed
+    }
+
     if (!message.trim() && !selectedImage) return
     if (!helpRequestId || !vendorId) {
       console.error('Missing helpRequestId or vendorId')
@@ -160,6 +164,8 @@ const VendorSupportChatView = () => {
   }
 
   const handleImageSelect = (e) => {
+    if (issueDetails.status === 'Completed') return; 
+    
     if (e.target.files && e.target.files[0]) {
       setSelectedImage(e.target.files[0])
     }
@@ -178,21 +184,20 @@ const VendorSupportChatView = () => {
     return messageUserId === vendorId
   }
 
+  const isChatCompleted = issueDetails.status === 'Completed';
+
   return (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar position="static">
-  <Toolbar>
-    {/* <IconButton edge="start" color="inherit" onClick={handleBack} sx={{ mr: 2 }}>
-      <ArrowBackIcon />
-    </IconButton> */}
-    <Typography variant="h3" component="div" sx={{ flexGrow: 1, color: 'white' }}>
-      Vendor Support Chat
-    </Typography>
-    <Typography variant="subtitle2" component="div" sx={{ color: 'white' }}>
-      Status: {issueDetails.status || 'Pending'}
-    </Typography>
-  </Toolbar>
-</AppBar>
+        <Toolbar>
+          <Typography variant="h3" component="div" sx={{ flexGrow: 1, color: 'white' }}>
+            Vendor Support Chat
+          </Typography>
+          <Typography variant="subtitle2" component="div" sx={{ color: 'white' }}>
+            Status: {issueDetails.status || 'Pending'}
+          </Typography>
+        </Toolbar>
+      </AppBar>
       {issueDetails.description && (
         <Paper elevation={1} sx={{ p: 2, m: 2, bgcolor: '#f5f5f5' }}>
           <Typography variant="subtitle1" fontWeight="bold">
@@ -207,6 +212,11 @@ const VendorSupportChatView = () => {
         <Typography variant="caption" color="textSecondary">
           Request ID: {helpRequestId || 'Not found'}
         </Typography>
+        {isChatCompleted && (
+          <Typography variant="caption" color="error" sx={{ display: 'block', mt: 1 }}>
+            This conversation has been marked as completed. No further messages can be sent.
+          </Typography>
+        )}
       </Paper>
       <Box 
         ref={chatContainerRef}
@@ -285,69 +295,81 @@ const VendorSupportChatView = () => {
         <div ref={messagesEndRef} />
       </Box>
 
-      {/* Input Area */}
-      <Box
-        component="form"
-        onSubmit={sendMessage}
-        sx={{
-          p: 2,
-          bgcolor: '#fff',
-          borderTop: '1px solid #e0e0e0',
-          display: 'flex',
-          alignItems: 'center'
-        }}
-      >
-        <input
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          ref={fileInputRef}
-          onChange={handleImageSelect}
-        />
-
-        <IconButton
-          color="primary"
-          onClick={() => fileInputRef.current.click()}
-          sx={{ mr: 1 }}
-        >
-          <ImageIcon />
-        </IconButton>
-
-        {selectedImage && (
-          <Box sx={{ display: 'flex', alignItems: 'center', mr: 1, px: 1, py: 0.5, bgcolor: '#f0f0f0', borderRadius: 1 }}>
-            <Typography variant="caption" sx={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {selectedImage.name}
-            </Typography>
-          </Box>
-        )}
-
-        <TextField
-          fullWidth
-          variant="outlined"
-          placeholder="Type your message..."
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          size="small"
-          sx={{ mx: 1 }}
-        />
-
-        <IconButton
-          color="primary"
-          type="submit"
-          disabled={sending || (!message.trim() && !selectedImage)}
-          sx={{ 
-            bgcolor: '#4CAF50', 
-            color: '#fff', 
-            '&:hover': { bgcolor: '#388E3C' },
-            '&.Mui-disabled': {
-              bgcolor: '#c8e6c9',
-              color: '#7cb342'
-            }
+      {!isChatCompleted ? (
+        <Box
+          component="form"
+          onSubmit={sendMessage}
+          sx={{
+            p: 2,
+            bgcolor: '#fff',
+            borderTop: '1px solid #e0e0e0',
+            display: 'flex',
+            alignItems: 'center'
           }}
         >
-          {sending ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
-        </IconButton>
-      </Box>
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            ref={fileInputRef}
+            onChange={handleImageSelect}
+          />
+
+          <IconButton
+            color="primary"
+            onClick={() => fileInputRef.current.click()}
+            sx={{ mr: 1 }}
+          >
+            <ImageIcon />
+          </IconButton>
+
+          {selectedImage && (
+            <Box sx={{ display: 'flex', alignItems: 'center', mr: 1, px: 1, py: 0.5, bgcolor: '#f0f0f0', borderRadius: 1 }}>
+              <Typography variant="caption" sx={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedImage.name}
+              </Typography>
+            </Box>
+          )}
+
+          <TextField
+            fullWidth
+            variant="outlined"
+            placeholder="Type your message..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            size="small"
+            sx={{ mx: 1 }}
+          />
+
+          <IconButton
+            color="primary"
+            type="submit"
+            disabled={sending || (!message.trim() && !selectedImage)}
+            sx={{ 
+              bgcolor: '#4CAF50', 
+              color: '#fff', 
+              '&:hover': { bgcolor: '#388E3C' },
+              '&.Mui-disabled': {
+                bgcolor: '#c8e6c9',
+                color: '#7cb342'
+              }
+            }}
+          >
+            {sending ? <CircularProgress size={24} color="inherit" /> : <SendIcon />}
+          </IconButton>
+        </Box>
+      ) : (
+        <Box sx={{ 
+          p: 2, 
+          bgcolor: '#f5f5f5', 
+          borderTop: '1px solid #e0e0e0',
+          textAlign: 'center'
+        }}>
+          <Typography variant="body2" color="text.secondary">
+            This conversation has been completed. No further messages can be sent.
+          </Typography>
+        </Box>
+      )}
     </Box>
   )
 }

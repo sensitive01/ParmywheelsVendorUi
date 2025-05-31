@@ -136,9 +136,9 @@ const HorizontalMenu = ({ dictionary }) => {
           >
             {dictionary['navigation'].email}
           </MenuItem> */}
-          <MenuItem href={`/${locale}/apps/chat`} icon={<i className='ri-wechat-line' />}>
+          {/* <MenuItem href={`/${locale}/apps/chat`} icon={<i className='ri-wechat-line' />}>
             {dictionary['navigation'].chat}
-          </MenuItem>
+          </MenuItem> */}
           <MenuItem href={`/${locale}/pages/subscriptionbooking`} icon={<i className='ri-wechat-line' />}>
             {dictionary['navigation'].SubscriptionBooking}
           </MenuItem>
@@ -183,9 +183,9 @@ const HorizontalMenu = ({ dictionary }) => {
           <MenuItem href={`/${locale}/pages/account-settings`} icon={<i className='ri-user-settings-line' />}>
             {dictionary['navigation'].accountSettings}
           </MenuItem>
-          <MenuItem href={`/${locale}/pages/faq`} icon={<i className='ri-question-line' />}>
+          {/* <MenuItem href={`/${locale}/pages/faq`} icon={<i className='ri-question-line' />}>
             {dictionary['navigation'].faq}
-          </MenuItem>
+          </MenuItem> */}
           <MenuItem href={`/${locale}/pages/onboardingprocess`} icon={<i className='ri-money-dollar-circle-line' />}>
             {dictionary['navigation'].onBoardingProcess}
           </MenuItem>
@@ -285,9 +285,9 @@ const HorizontalMenu = ({ dictionary }) => {
               {dictionary['navigation'].statistics}
             </MenuItem>
             {/* <MenuItem href={`/${locale}/pages/widget-examples/charts`}>{dictionary['navigation'].charts}</MenuItem> */}
-            <MenuItem href={`/${locale}/pages/widget-examples/gamification`}>
+            {/* <MenuItem href={`/${locale}/pages/widget-examples/gamification`}>
               {dictionary['navigation'].gamification}
-            </MenuItem>
+            </MenuItem> */}
             {/* <MenuItem href={`/${locale}/pages/widget-examples/actions`}>{dictionary['navigation'].actions}</MenuItem> */}
           </SubMenu>
            <MenuItem href={`/${locale}/pages/privacy-terms`} icon={<i className='ri-shield-user-line' />}>
