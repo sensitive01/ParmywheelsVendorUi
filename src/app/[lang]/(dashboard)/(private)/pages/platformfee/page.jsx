@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-
 import axios from "axios";
-import { Box, Card, CardContent, Typography, Snackbar, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from "@mui/material";
+import { Box, Card, CardContent, Typography, Snackbar, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Menu, MenuItem } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { DataGrid } from "@mui/x-data-grid";
 import { useSession } from "next-auth/react";
@@ -13,11 +12,11 @@ const VehicleBookingTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
 
   const getCurrentDate = () => {
     const today = new Date();
-
-
     return today.toISOString().split('T')[0];
   };
 
@@ -33,16 +32,12 @@ const VehicleBookingTransactions = () => {
   const formatDateForDisplay = (dateString) => {
     if (!dateString) return "";
     const [year, month, day] = dateString.split('-');
-
-
     return `${day}-${month}-${year}`;
   };
 
   const getTotalReceivable = () => {
     return transactions.reduce((total, transaction) => {
       const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
-
-
       return total + amount;
     }, 0);
   };
@@ -77,12 +72,8 @@ const VehicleBookingTransactions = () => {
         const data = response.data.data.bookings.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
-
-          // bookingDate: new Date(item.bookingDate).toLocaleDateString(),
           bookingId: item._id,
           bookingAmount: `₹${item.amount}`,
-
-          // vehicleType: item.vehicleType,
           platformFee: `₹${item.platformfee}`,
           receivable: `₹${item.receivableAmount}`,
         }));
@@ -110,21 +101,128 @@ const VehicleBookingTransactions = () => {
     if (session?.user?.id) {
       fetchTransactions(session.user.id, true);
     }
-
     setDateDialogOpen(false);
   };
 
   const handleClearFilters = () => {
     const currentDate = getCurrentDate();
-
     setStartDate(currentDate);
     setEndDate(currentDate);
 
     if (session?.user?.id) {
       fetchTransactions(session.user.id, true);
     }
-
     setDateDialogOpen(false);
+  };
+
+  const handleDownloadClick = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleDownloadClose = () => {
+    setAnchorEl(null);
+  };
+
+  const exportToExcel = () => {
+    if (transactions.length === 0) {
+      setSnackbar({
+        open: true,
+        message: "No data to export",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Create CSV content
+    const headers = ["S.No", "Booking ID", "Total Amount", "Platform Fee", "Receivable"];
+    const rows = transactions.map(t => [
+      t.serialNo,
+      t.bookingId,
+      t.bookingAmount,
+      t.platformFee,
+      t.receivable
+    ]);
+
+    let csvContent = "data:text/csv;charset=utf-8," 
+      + headers.join(",") + "\n" 
+      + rows.map(row => row.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `transactions_${startDate}_to_${endDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    handleDownloadClose();
+  };
+
+  const exportToPDF = () => {
+    if (transactions.length === 0) {
+      setSnackbar({
+        open: true,
+        message: "No data to export",
+        severity: "warning",
+      });
+      return;
+    }
+
+    // Create a simple HTML table for PDF
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Transactions Report</title>
+          <style>
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .title { text-align: center; margin-bottom: 20px; }
+            .date-range { margin-bottom: 20px; }
+            .total { margin-top: 20px; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <h1 class="title">Booking Transactions Report</h1>
+          <div class="date-range">Date Range: ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Booking ID</th>
+                <th>Total Amount</th>
+                <th>Platform Fee</th>
+                <th>Receivable</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transactions.map(t => `
+                <tr>
+                  <td>${t.serialNo}</td>
+                  <td>${t.bookingId}</td>
+                  <td>${t.bookingAmount}</td>
+                  <td>${t.platformFee}</td>
+                  <td>${t.receivable}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="total">Total Receivable: ₹${getTotalReceivable().toFixed(2)}</div>
+        </body>
+      </html>
+    `;
+
+    // Open print dialog which allows saving as PDF
+    const win = window.open('', '_blank');
+    win.document.write(htmlContent);
+    win.document.close();
+    win.focus();
+    setTimeout(() => {
+      win.print();
+      win.close();
+    }, 1000);
+
+    handleDownloadClose();
   };
 
   const columns = [
@@ -133,9 +231,6 @@ const VehicleBookingTransactions = () => {
     { field: "bookingAmount", headerName: "Total Amount", width: 150 },
     { field: "platformFee", headerName: "Platform Fee", width: 150 },
     { field: "receivable", headerName: "Receivable", width: 150 },
-
-    // { field: "bookingDate", headerName: "Booking Date", width: 150 },
-    // { field: "vehicleType", headerName: "Vehicle Type", width: 150 },
   ];
 
   return (
@@ -144,22 +239,34 @@ const VehicleBookingTransactions = () => {
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h5" component="h1" sx={{ mb: 3, textAlign: 'center' }}>
             Booking Transactions
-            {/* {session?.user?.id && (
-              <Typography component="span" color="text.secondary" fontSize="0.8em">
-                {` (Vendor: ${session.user.id.substr(0, 8)}...)`}
-              </Typography>
-            )} */}
           </Typography>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Button
-              variant="outlined"
-              startIcon={<CalendarMonthIcon />}
-              onClick={() => setDateDialogOpen(true)}
-              size="small"
-            >
-              Filter Dates
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={<CalendarMonthIcon />}
+                onClick={() => setDateDialogOpen(true)}
+                size="small"
+              >
+                Filter Dates
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={handleDownloadClick}
+                size="small"
+              >
+                Download
+              </Button>
+              <Menu
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleDownloadClose}
+              >
+                <MenuItem onClick={exportToExcel}>Export to Excel</MenuItem>
+                <MenuItem onClick={exportToPDF}>Export to PDF</MenuItem>
+              </Menu>
+            </Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Box sx={{
                 bgcolor: '#f5f5f5',

@@ -1,3 +1,5 @@
+'use client'
+
 // MUI Imports
 import Grid from '@mui/material/Grid2'
 
@@ -17,32 +19,94 @@ import PaymentHistory from '@views/dashboards/crm/PaymentHistory'
 import SalesInCountries from '@views/dashboards/crm/SalesInCountries'
 import UserTable from '@views/dashboards/crm/UserTable'
 
-// Server Action Imports
-import { getServerMode } from '@core/utils/serverHelpers'
+// Third-party Imports
+import { useSession } from 'next-auth/react'
+import { useEffect, useState } from 'react'
+import axios from 'axios'
+import { Typography } from '@mui/material'
 
-// Data Imports
-import { getUserData } from '@/app/server/actions'
+const DashboardCRM = () => {
+  // State for booking counts
+  const [statusCounts, setStatusCounts] = useState({
+    Pending: 0,
+    COMPLETED: 0,
+    Approved: 0,
+    Cancelled: 0,
+    Parked: 0,
+    Subscriptions: 0
+  })
 
-/**
- * ! If you need data using an API call, uncomment the below API code, update the `process.env.API_URL` variable in the
- * ! `.env` file found at root of your project and also update the API endpoints like `/apps/user-list` in below example.
- * ! Also, remove the above server action import and the action itself from the `src/app/server/actions.ts` file to clean up unused code
- * ! because we've used the server action for getting our static data.
- */
-/* const getUserData = async () => {
-  // Vars
-  const res = await fetch(`${process.env.API_URL}/apps/user-list`)
+  const [loading, setLoading] = useState(true)
+  const { data: session } = useSession()
+  const vendorId = session?.user?.id
 
-  if (!res.ok) {
-    throw new Error('Failed to fetch userData')
+  // Fetch booking data
+  useEffect(() => {
+    const fetchBookings = async () => {
+      if (!vendorId) {
+        setLoading(false)
+        return
+      }
+
+      try {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        })
+
+        const bookings = response.data.bookings
+
+        if (Array.isArray(bookings)) {
+          const counts = {
+            Pending: 0,
+            Approved: 0,
+            Cancelled: 0,
+            Parked: 0,
+            COMPLETED: 0,
+            Subscriptions: 0
+          }
+          
+          bookings.forEach(booking => {
+            const status = booking.status?.trim().toLowerCase()
+            const normalizedKey = 
+              status === 'completed' ? 'COMPLETED' :
+              status === 'pending' ? 'Pending' :
+              status === 'approved' ? 'Approved' :
+              status === 'cancelled' ? 'Cancelled' :
+              status === 'parked' ? 'Parked' :
+              null
+            
+            if (normalizedKey && counts[normalizedKey] !== undefined) {
+              counts[normalizedKey] += 1
+            }
+            
+            // Count subscriptions
+            if (booking.sts === 'Subscription') {
+              counts.Subscriptions += 1
+            }
+          })
+          
+          setStatusCounts(counts)
+        }
+      } catch (error) {
+        console.error('Error fetching bookings:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchBookings()
+  }, [vendorId])
+
+  if (loading) {
+    return (
+      <div className='flex items-center justify-center p-10'>
+        <Typography variant='body1'>Loading dashboard data...</Typography>
+      </div>
+    )
   }
-
-  return res.json()
-} */
-const DashboardCRM = async () => {
-  // Vars
-  const data = await getUserData()
-  const serverMode = await getServerMode()
 
   return (
     <Grid container spacing={6}>
@@ -51,24 +115,66 @@ const DashboardCRM = async () => {
       </Grid>
       <Grid size={{ xs: 12, md: 2, sm: 3 }}>
         <CardStatVertical
-          stats='155k'
-          title='Total Orders'
+          stats={String(statusCounts.Pending)}
+          title='Pending Bookings'
           trendNumber='22%'
-          chipText='Last 4 Month'
           avatarColor='primary'
-          avatarIcon='ri-shopping-cart-line'
+          avatarIcon='ri-time-line'
           avatarSkin='light'
           chipColor='secondary'
         />
       </Grid>
       <Grid size={{ xs: 12, sm: 3, md: 2 }}>
         <CardStatVertical
-          stats='$13.4k'
-          title='Total Sales'
+          stats={String(statusCounts.COMPLETED)}
+          title='Completed Bookings'
           trendNumber='38%'
-          chipText='Last Six Months'
           avatarColor='success'
-          avatarIcon='ri-handbag-line'
+          avatarIcon='ri-check-double-line'
+          avatarSkin='light'
+          chipColor='secondary'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+        <CardStatVertical
+          stats={String(statusCounts.Approved)}
+          title='Approved Bookings'
+          trendNumber='38%'
+          avatarColor='info'
+          avatarIcon='ri-thumb-up-line'
+          avatarSkin='light'
+          chipColor='secondary'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+        <CardStatVertical
+          stats={String(statusCounts.Cancelled)}
+          title='Cancelled Bookings'
+          trendNumber='38%'
+          avatarColor='error'
+          avatarIcon='ri-close-circle-line'
+          avatarSkin='light'
+          chipColor='secondary'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+        <CardStatVertical
+          stats={String(statusCounts.Parked)}
+          title='Parked Bookings'
+          trendNumber='38%'
+          avatarColor='warning'
+          avatarIcon='ri-parking-box-line'
+          avatarSkin='light'
+          chipColor='secondary'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+        <CardStatVertical
+          stats={String(statusCounts.Subscriptions)}
+          title='Subscriptions'
+          trendNumber='38%'
+          avatarColor='secondary'
+          avatarIcon='ri-calendar-line'
           avatarSkin='light'
           chipColor='secondary'
         />
@@ -82,7 +188,7 @@ const DashboardCRM = async () => {
       <Grid size={{ xs: 12, md: 4 }}>
         <OrganicSessions />
       </Grid>
-      <Grid size={{ xs: 12, md: 8 }}>
+      {/* <Grid size={{ xs: 12, md: 8 }}>
         <ProjectTimeline />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -101,14 +207,11 @@ const DashboardCRM = async () => {
         <ExternalLinks />
       </Grid>
       <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <PaymentHistory serverMode={serverMode} />
+        <PaymentHistory />
       </Grid>
       <Grid size={{ xs: 12, md: 4 }}>
         <SalesInCountries />
-      </Grid>
-      <Grid size={{ xs: 12, md: 8 }}>
-        <UserTable tableData={data} />
-      </Grid>
+      </Grid> */}
     </Grid>
   )
 }
