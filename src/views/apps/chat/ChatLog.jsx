@@ -34,8 +34,8 @@ const formatChatData = (chats, profileUser) => {
 
     if (index === chats.length - 1) formattedChatData.push(msgGroup)
   })
-  
-return formattedChatData
+
+  return formattedChatData
 }
 
 const ScrollWrapper = ({ children, isBelowLgScreen, scrollRef, className }) => {
@@ -79,7 +79,7 @@ const ChatLog = ({ chatStore, isBelowLgScreen, isBelowMdScreen, isBelowSmScreen 
   const fetchMessages = async () => {
     try {
       setLoading(true)
-      const response = await axios.get(`http://13.48.42.169:4000/vendor/gethelpvendor/${activeUser.id}`)
+      const response = await axios.get(`https://pmwapis.parkmywheels.com/vendor/gethelpvendor/${activeUser.id}`)
       const helpRequests = response.data.helpRequests || []
 
       const extractedMessages = helpRequests.flatMap(request =>
@@ -116,8 +116,8 @@ const ChatLog = ({ chatStore, isBelowLgScreen, isBelowMdScreen, isBelowSmScreen 
           formatChatData(messages, profileUser).map((msgGroup, index) => {
             const isSender = msgGroup.senderId === profileUser.id
 
-            
-return (
+
+            return (
               <div key={index} className={classnames('flex gap-4 p-5', { 'flex-row-reverse': isSender })}>
                 {!isSender ? (
                   contacts.find(contact => contact.id === msgGroup.senderId)?.avatar ? (

@@ -17,13 +17,13 @@ const VehicleBookingTransactions = () => {
   const getCurrentDate = () => {
     const today = new Date();
 
-    
-return today.toISOString().split('T')[0];
+
+    return today.toISOString().split('T')[0];
   };
 
   const [startDate, setStartDate] = useState(getCurrentDate());
   const [endDate, setEndDate] = useState(getCurrentDate());
-  
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: "",
@@ -34,16 +34,16 @@ return today.toISOString().split('T')[0];
     if (!dateString) return "";
     const [year, month, day] = dateString.split('-');
 
-    
-return `${day}-${month}-${year}`;
+
+    return `${day}-${month}-${year}`;
   };
 
   const getTotalReceivable = () => {
     return transactions.reduce((total, transaction) => {
       const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
 
-      
-return total + amount;
+
+      return total + amount;
     }, 0);
   };
 
@@ -65,7 +65,7 @@ return total + amount;
     setIsLoading(true);
 
     try {
-      let url = `http://13.48.42.169:4000/vendor/fetchbookingtransaction/${vendorId}`;
+      let url = `https://pmwapis.parkmywheels.com/vendor/fetchbookingtransaction/${vendorId}`;
 
       if (dateFilter && startDate && endDate) {
         url += `?startDate=${startDate}&endDate=${endDate}`;
@@ -143,17 +143,17 @@ return total + amount;
       <Card sx={{ width: "100%", maxWidth: 900, borderRadius: 3, boxShadow: 3 }}>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h5" component="h1" sx={{ mb: 3, textAlign: 'center' }}>
-            Booking Transactions 
+            Booking Transactions
             {/* {session?.user?.id && (
               <Typography component="span" color="text.secondary" fontSize="0.8em">
                 {` (Vendor: ${session.user.id.substr(0, 8)}...)`}
               </Typography>
             )} */}
           </Typography>
-          
+
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Button 
-              variant="outlined" 
+            <Button
+              variant="outlined"
               startIcon={<CalendarMonthIcon />}
               onClick={() => setDateDialogOpen(true)}
               size="small"
@@ -161,9 +161,9 @@ return total + amount;
               Filter Dates
             </Button>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ 
-                bgcolor: '#f5f5f5', 
-                padding: '6px 12px', 
+              <Box sx={{
+                bgcolor: '#f5f5f5',
+                padding: '6px 12px',
                 borderRadius: 1,
                 border: '1px solid #e0e0e0'
               }}>
@@ -171,9 +171,9 @@ return total + amount;
                   Total: ₹{getTotalReceivable().toFixed(2)}
                 </Typography>
               </Box>
-              <Box sx={{ 
-                bgcolor: '#f0f8ff', 
-                padding: '6px 12px', 
+              <Box sx={{
+                bgcolor: '#f0f8ff',
+                padding: '6px 12px',
                 borderRadius: 1,
                 border: '1px solid #e0e0e0'
               }}>
@@ -183,7 +183,7 @@ return total + amount;
               </Box>
             </Box>
           </Box>
-          
+
           {status === "loading" || isLoading ? (
             <Typography sx={{ textAlign: "center", color: "gray" }}>Loading transactions...</Typography>
           ) : status === "unauthenticated" ? (
@@ -191,8 +191,8 @@ return total + amount;
           ) : transactions.length === 0 ? (
             <Typography sx={{ textAlign: "center", color: "gray" }}>No transactions found.</Typography>
           ) : (
-            <DataGrid 
-              rows={transactions} 
+            <DataGrid
+              rows={transactions}
               columns={columns}
               pageSizeOptions={[5, 10, 20]}
               initialState={{
@@ -238,15 +238,15 @@ return total + amount;
             </DialogActions>
           </Dialog>
 
-          <Snackbar 
-            open={snackbar.open} 
-            autoHideDuration={6000} 
-            onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          <Snackbar
+            open={snackbar.open}
+            autoHideDuration={6000}
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
             anchorOrigin={{ vertical: "top", horizontal: "right" }}
           >
-            <Alert 
-              onClose={() => setSnackbar({ ...snackbar, open: false })} 
-              severity={snackbar.severity} 
+            <Alert
+              onClose={() => setSnackbar({ ...snackbar, open: false })}
+              severity={snackbar.severity}
               sx={{ width: "100%" }}
             >
               {snackbar.message}

@@ -1,23 +1,23 @@
 'use client'
 import React, { useState, useEffect } from 'react';
 
-import { 
-  Box, 
-  Tab, 
-  Tabs, 
-  Card, 
-  CardContent, 
-  Typography, 
+import {
+  Box,
+  Tab,
+  Tabs,
+  Card,
+  CardContent,
+  Typography,
   CircularProgress,
   IconButton,
   Tooltip,
   useTheme
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  AccountBalanceWallet, 
-  AccessTime, 
-  Person, 
+import {
+  AccountBalanceWallet,
+  AccessTime,
+  Person,
   Receipt,
   KeyboardArrowUp,
   KeyboardArrowDown
@@ -43,27 +43,27 @@ const Dashboard = () => {
 
   const fetchTransactions = async () => {
     try {
-      const response = await fetch('http://13.48.42.169:4000/vendor/getbookingdata/679cbab22cd53a01b512d354');
+      const response = await fetch('https://pmwapis.parkmywheels.com/vendor/getbookingdata/679cbab22cd53a01b512d354');
       const data = await response.json();
-  
+
       if (data && Array.isArray(data.bookings)) {
         setTransactions(data.bookings); // ✅ Set only the 'bookings' array
       } else {
         setTransactions([]); // ✅ Prevents mapping error
       }
-  
+
       setLoading(false);
     } catch (error) {
       console.error('Error fetching transactions:', error);
       setLoading(false);
     }
   };
-  
+
   const calculatePayout = (amount) => {
     const platformFee = (Number(amount) * PLATFORM_FEE_PERCENTAGE) / 100;
 
-    
-return Number(amount) - platformFee;
+
+    return Number(amount) - platformFee;
   };
 
   const handleChange = (event, newValue) => {
@@ -76,12 +76,12 @@ return Number(amount) - platformFee;
 
   const cardVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.5 }
     },
-    exit: { 
+    exit: {
       opacity: 0,
       y: -20,
       transition: { duration: 0.3 }
@@ -105,8 +105,8 @@ return Number(amount) - platformFee;
       exit="exit"
       layout
     >
-      <Card 
-        sx={{ 
+      <Card
+        sx={{
           m: 1,
           position: 'relative',
           transition: 'all 0.3s ease',
@@ -121,7 +121,7 @@ return Number(amount) - platformFee;
             <Typography variant="h6" color="primary">
               Booking ID: {transaction._id.slice(-6)}
             </Typography>
-            <IconButton 
+            <IconButton
               onClick={() => handleCardExpand(transaction._id)}
               sx={{ transform: expandedCard === transaction._id ? 'rotate(180deg)' : 'none' }}
             >
@@ -180,12 +180,12 @@ return Number(amount) - platformFee;
     </motion.div>
   );
 
-  
-return (
+
+  return (
     <Box sx={{ width: '100%', maxWidth: 1200, mx: 'auto', p: 3 }}>
-      <Tabs 
-        value={value} 
-        onChange={handleChange} 
+      <Tabs
+        value={value}
+        onChange={handleChange}
         centered
         sx={{
           '& .MuiTab-root': {
@@ -203,14 +203,14 @@ return (
       </Tabs>
       <TabPanel value={value} index={0}>
         <AnimatePresence>
-          <Box sx={{ 
-            display: 'grid', 
+          <Box sx={{
+            display: 'grid',
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
               md: 'repeat(3, 1fr)'
             },
-            gap: 2 
+            gap: 2
           }}>
             {transactions.map(transaction => renderCard(transaction))}
           </Box>
@@ -218,14 +218,14 @@ return (
       </TabPanel>
       <TabPanel value={value} index={1}>
         <AnimatePresence>
-          <Box sx={{ 
-            display: 'grid', 
+          <Box sx={{
+            display: 'grid',
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2, 1fr)',
               md: 'repeat(3, 1fr)'
             },
-            gap: 2 
+            gap: 2
           }}>
             {transactions.map(transaction => renderCard(transaction, true))}
           </Box>
