@@ -201,6 +201,9 @@ const HorizontalMenu = ({ dictionary }) => {
           <MenuItem href={`/${locale}/pages/currentplan`} icon={<i className='ri-money-dollar-circle-line' />}>
             {dictionary['navigation'].currentplan}
           </MenuItem>
+           <MenuItem href={`/${locale}/pages/vendorpayouts`} icon={<i className='ri-money-dollar-circle-line' />}>
+            {dictionary['navigation'].vendorpayouts}
+          </MenuItem>
           {/* <SubMenu label={dictionary['navigation'].miscellaneous} icon={<i className='ri-file-info-line' />}>
             <MenuItem href={`/${locale}/pages/misc/coming-soon`} target='_blank'>
               {dictionary['navigation'].comingSoon}
