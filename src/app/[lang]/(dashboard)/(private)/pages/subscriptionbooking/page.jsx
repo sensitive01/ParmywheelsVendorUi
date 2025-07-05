@@ -19,7 +19,8 @@ import CardHeader from '@mui/material/CardHeader'
 import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
-
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
 // Third-party Imports
 import classnames from 'classnames'
 import { rankItem } from '@tanstack/match-sorter-utils'
@@ -76,21 +77,21 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   useEffect(() => {
     setValue(initialValue)
   }, [initialValue])
-  
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       onChange(value)
     }, debounce)
-    
+
     return () => clearTimeout(timeout)
   }, [value])
-  
+
   return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
 }
 
 const parseBookingDate = (dateStr) => {
   if (!dateStr) return null
-  
+
   try {
     // If date is in YYYY-MM-DD format
     if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
@@ -101,7 +102,7 @@ const parseBookingDate = (dateStr) => {
       const [day, month, year] = dateStr.split('-').map(Number)
       return new Date(year, month - 1, day)
     }
-    
+
     return null
   } catch (e) {
     console.error("Error parsing date:", e, dateStr)
@@ -113,16 +114,16 @@ const parseBookingDate = (dateStr) => {
 const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts) => {
   // If the booking type is not subscription, return null
   if (sts?.toLowerCase() !== 'subscription') return null
-  
+
   // Parse the booking date
   const startDate = parseBookingDate(bookingDate)
   if (!startDate) return null
-  
+
   const currentDate = new Date()
-  
+
   // Default to monthly if subscriptionType is empty but booking is subscription type
   let durationInDays = 30 // Default to monthly (30 days)
-  
+
   if (subscriptionType) {
     switch (subscriptionType.toLowerCase()) {
       case 'weekly':
@@ -136,14 +137,14 @@ const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts) => {
         break
     }
   }
-  
+
   // Calculate subscription end date
   const endDate = new Date(startDate)
   endDate.setDate(startDate.getDate() + durationInDays)
-  
+
   // If subscription has ended
   if (currentDate > endDate) return { days: 0, expired: true }
-  
+
   // Calculate days remaining - using floor instead of ceil to fix the issue
   const daysLeft = Math.floor((endDate - currentDate) / (1000 * 60 * 60 * 24))
   return { days: daysLeft, expired: false }
@@ -152,12 +153,12 @@ const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts) => {
 // Format time from 24h to 12h format with AM/PM
 const formatTimeDisplay = (timeStr) => {
   if (!timeStr) return ''
-  
+
   // If already in 12-hour format (contains AM/PM), return as-is
   if (timeStr.includes('AM') || timeStr.includes('PM')) {
     return timeStr
   }
-  
+
   // Convert 24-hour format to 12-hour
   try {
     const [hours, minutes] = timeStr.split(':').map(Number)
@@ -171,7 +172,7 @@ const formatTimeDisplay = (timeStr) => {
 
 const formatDateDisplay = (dateStr) => {
   if (!dateStr) return 'N/A'
-  
+
   try {
     if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
       return new Date(dateStr).toLocaleDateString('en-US', {
@@ -179,7 +180,7 @@ const formatDateDisplay = (dateStr) => {
         month: 'short',
         year: 'numeric'
       })
-    } 
+    }
     else if (dateStr.includes('-')) {
       const [day, month, year] = dateStr.split('-')
       return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
@@ -188,7 +189,7 @@ const formatDateDisplay = (dateStr) => {
         year: 'numeric'
       })
     }
-    
+
     return dateStr
   } catch (e) {
     console.error("Date parsing error:", e, dateStr)
@@ -209,7 +210,16 @@ const OrderListTable = ({ orderData }) => {
   const { data: session } = useSession()
   const router = useRouter()
   const vendorId = session?.user?.id
+  const [anchorEl, setAnchorEl] = useState(null)
+  const open = Boolean(anchorEl)
 
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget)
+  }
+
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+  }
   const fetchData = async () => {
     if (!vendorId) return;
 
@@ -218,7 +228,7 @@ const OrderListTable = ({ orderData }) => {
       setError(null)
       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
       console.log("response", response)
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch bookings')
       }
@@ -227,7 +237,7 @@ const OrderListTable = ({ orderData }) => {
 
       if (result && result.bookings) {
         // Filter to only include subscription bookings
-        const subscriptionBookings = result.bookings.filter(booking => 
+        const subscriptionBookings = result.bookings.filter(booking =>
           booking.sts?.toLowerCase() === 'subscription' &&
           ["pending", "approved", "cancelled", "parked", "completed"]
             .includes(booking.status.toLowerCase())
@@ -339,40 +349,40 @@ const OrderListTable = ({ orderData }) => {
             row.original.subsctiptiontype,
             row.original.sts
           )
-          
+
           // If subscription information is missing
           if (!subscriptionStatus) {
             return <Typography variant="body2" sx={{ color: '#666' }}>N/A</Typography>
           }
-          
+
           // If subscription expired
           if (subscriptionStatus.expired) {
             return (
-              <Typography sx={{ 
+              <Typography sx={{
                 color: '#ff4d49',
                 fontWeight: 500,
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1 
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
               }}>
                 <i className="ri-time-line" style={{ fontSize: '16px', color: '#ff4d49' }}></i>
                 Expired
               </Typography>
             )
           }
-          
+
           // Set color based on days left
           const daysLeft = subscriptionStatus.days
-          const color = daysLeft === 0 ? '#ff4d49' : 
-                        daysLeft <= 3 ? '#fdb528' : '#72e128'
-          
+          const color = daysLeft === 0 ? '#ff4d49' :
+            daysLeft <= 3 ? '#fdb528' : '#72e128'
+
           return (
-            <Typography sx={{ 
+            <Typography sx={{
               color,
               fontWeight: 500,
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
             }}>
               <i className="ri-time-line" style={{ fontSize: '16px', color }}></i>
               {`${daysLeft} day${daysLeft !== 1 ? 's' : ''}`}
@@ -391,9 +401,9 @@ const OrderListTable = ({ orderData }) => {
               label={row.original.status || 'N/A'}
               variant="tonal"
               size="small"
-              sx={chipData.color.startsWith('#') ? { 
-                backgroundColor: chipData.color, 
-                color: 'white' 
+              sx={chipData.color.startsWith('#') ? {
+                backgroundColor: chipData.color,
+                color: 'white'
               } : {}}
               color={!chipData.color.startsWith('#') ? chipData.color : undefined}
             />
@@ -516,7 +526,106 @@ const OrderListTable = ({ orderData }) => {
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   })
+  const handleExport = (type) => {
+  const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
 
+  if (type === 'excel') {
+    // ... (keep existing excel export code)
+  } else if (type === 'pdf') {
+    // Create HTML content
+    const headers = [
+      'Vehicle Number',
+      'Booking Date',
+      'Booking Time',
+      'Customer Name',
+      'Mobile Number',
+      'Subscription Type',
+      'Days Left',
+      'Status',
+      'Vehicle Type'
+    ];
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Subscription Bookings</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1 { color: #666cff; text-align: center; margin-bottom: 20px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .expired { color: #ff4d49; }
+            .warning { color: #fdb528; }
+            .good { color: #72e128; }
+            @media print {
+              @page { size: landscape; margin: 10mm; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Subscription Bookings</h1>
+          <table>
+            <thead>
+              <tr>
+                ${headers.map(header => `<th>${header}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${exportData.map(row => {
+                const daysLeft = calculateSubscriptionDaysLeft(
+                  row.parkingDate || row.bookingDate,
+                  row.subsctiptiontype,
+                  row.sts
+                );
+                const daysLeftClass = daysLeft?.expired 
+                  ? 'expired' 
+                  : daysLeft?.days <= 3 
+                    ? 'warning' 
+                    : 'good';
+                
+                return `
+                  <tr>
+                    <td>${row.vehicleNumber || 'N/A'}</td>
+                    <td>${formatDateDisplay(row.bookingDate) || 'N/A'}</td>
+                    <td>${formatTimeDisplay(row.bookingTime) || 'N/A'}</td>
+                    <td>${row.personName || 'Unknown'}</td>
+                    <td>${row.mobileNumber || 'N/A'}</td>
+                    <td>${row.subsctiptiontype || 'Monthly'}</td>
+                    <td class="${daysLeftClass}">
+                      ${daysLeft?.expired ? 'Expired' : daysLeft ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}` : 'N/A'}
+                    </td>
+                    <td>${row.status || 'N/A'}</td>
+                    <td>${row.vehicleType || 'N/A'}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          <script>
+            // Automatically trigger print when the page loads
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                  window.close();
+                }, 100);
+              }, 200);
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    // Open a new window with the HTML content
+    const printWindow = window.open('', '_blank');
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  }
+
+  handleMenuClose();
+};
   return (
     <Card>
       <CardHeader title='Subscription Bookings' />
@@ -528,15 +637,43 @@ const OrderListTable = ({ orderData }) => {
           placeholder='Search Subscription Bookings'
           className='sm:is-auto'
         />
-        <Button
-          variant='contained'
-          component={Link}
-          href={getLocalizedUrl('/pages/subscription-booking', locale)}
-          startIcon={<i className='ri-add-line' />}
-          className='max-sm:is-full is-auto'
-        >
-          New Subscription
-        </Button>
+        <div className='flex items-center gap-4 max-sm:is-full'>
+          <Button
+            variant='outlined'
+            className='max-sm:is-full is-auto'
+            startIcon={<i className='ri-download-line' />}
+            onClick={handleMenuClick}
+          >
+            Download
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+          >
+            <MenuItem
+              onClick={() => handleExport('excel')}
+              sx={{ gap: 2 }}
+            >
+              <i className='ri-file-excel-2-line' /> Export to Excel
+            </MenuItem>
+            <MenuItem
+              onClick={() => handleExport('pdf')}
+              sx={{ gap: 2 }}
+            >
+              <i className='ri-file-pdf-line' /> Export to PDF
+            </MenuItem>
+          </Menu>
+          <Button
+            variant='contained'
+            component={Link}
+            href={getLocalizedUrl('/pages/subscription-booking', locale)}
+            startIcon={<i className='ri-add-line' />}
+            className='max-sm:is-full is-auto'
+          >
+            New Subscription
+          </Button>
+        </div>
       </CardContent>
       <div className='overflow-x-auto'>
         {loading ? (

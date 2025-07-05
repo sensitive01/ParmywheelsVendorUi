@@ -19,7 +19,7 @@ import CardHeader from '@mui/material/CardHeader'
 import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
-
+import { Menu, MenuItem } from '@mui/material'
 // Third-party Imports
 import classnames from 'classnames'
 import { rankItem } from '@tanstack/match-sorter-utils'
@@ -90,49 +90,49 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
 
 const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
   const [elapsedTime, setElapsedTime] = useState('00:00:00')
-  
+
   useEffect(() => {
     if (!parkedDate || !parkedTime) {
       setElapsedTime('00:00:00')
       return
     }
-    
+
     const [day, month, year] = parkedDate.split('-')
     const [timePart, ampm] = parkedTime.split(' ')
     let [hours, minutes] = timePart.split(':')
-    
+
     if (ampm && ampm.toUpperCase() === 'PM' && hours !== '12') {
       hours = parseInt(hours) + 12
     } else if (ampm && ampm.toUpperCase() === 'AM' && hours === '12') {
       hours = '00'
     }
-    
+
     const parkingStartTime = new Date(`${year}-${month}-${day}T${hours}:${minutes}:00`)
-    
+
     const timer = setInterval(() => {
       const now = new Date()
       const diffMs = now - parkingStartTime
-      
+
       if (diffMs < 0) {
         setElapsedTime('00:00:00')
         return
       }
-      
+
       const diffSecs = Math.floor(diffMs / 1000)
       const hours = Math.floor(diffSecs / 3600)
       const minutes = Math.floor((diffSecs % 3600) / 60)
       const seconds = diffSecs % 60
-      
+
       const formattedHours = hours.toString().padStart(2, '0')
       const formattedMinutes = minutes.toString().padStart(2, '0')
       const formattedSeconds = seconds.toString().padStart(2, '0')
-      
+
       setElapsedTime(`${formattedHours}:${formattedMinutes}:${formattedSeconds}`)
     }, 1000)
-    
+
     return () => clearInterval(timer)
   }, [parkedDate, parkedTime])
-  
+
   return (
     <Typography sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
       {elapsedTime}
@@ -152,11 +152,20 @@ const OrderListTable = ({ orderData }) => {
   const { data: session } = useSession()
   const router = useRouter()
   const vendorId = session?.user?.id
+ const [anchorEl, setAnchorEl] = useState(null)
+  const open = Boolean(anchorEl)
 
+  const handleMenuClick = (event) => {
+    setAnchorEl(event.currentTarget)
+  }
+
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+  }
   // Function to parse date string to DateTime object
   const parseDateTime = (dateStr, timeStr) => {
     if (!dateStr || !timeStr) return null;
-    
+
     try {
       // Check if date is in YYYY-MM-DD format
       let dateParts;
@@ -171,17 +180,17 @@ const OrderListTable = ({ orderData }) => {
       } else {
         return null;
       }
-      
+
       // Parse time
       const [timePart, ampm] = timeStr.split(' ');
       let [hours, minutes] = timePart.split(':').map(Number);
-      
+
       if (ampm && ampm.toUpperCase() === 'PM' && hours !== 12) {
         hours += 12;
       } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
         hours = 0;
       }
-      
+
       return new Date(`${dateParts.year}-${dateParts.month}-${dateParts.day}T${hours}:${minutes}:00`);
     } catch (e) {
       console.error("Error parsing date/time:", e);
@@ -199,11 +208,11 @@ const OrderListTable = ({ orderData }) => {
         },
         body: JSON.stringify({ status })
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to update booking status');
       }
-      
+
       return true;
     } catch (error) {
       console.error('Error updating booking status:', error);
@@ -214,7 +223,7 @@ const OrderListTable = ({ orderData }) => {
   // Function to check and update pending bookings
   const checkAndUpdatePendingBookings = async (bookings) => {
     const now = new Date();
-    
+
     for (const booking of bookings) {
       try {
         // Skip if booking is not pending
@@ -222,17 +231,17 @@ const OrderListTable = ({ orderData }) => {
           console.log(`Skipping booking ${booking._id} as it is not pending.`);
           continue;
         }
-        
+
         // Parse scheduled date and time
         const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
         if (!scheduledDateTime) continue;
-        
+
         console.log('Current Time:', now);
         console.log('Scheduled Time:', scheduledDateTime);
-        
+
         // Check if scheduled time has passed by more than 10 minutes
         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
-        
+
         if (now > tenMinutesAfter) {
           const success = await updateBookingStatus(booking._id, 'Cancelled');
           if (success) {
@@ -248,7 +257,7 @@ const OrderListTable = ({ orderData }) => {
   // Function to check and update approved bookings
   const checkAndUpdateApprovedBookings = async (bookings) => {
     const now = new Date();
-    
+
     for (const booking of bookings) {
       try {
         // Skip if booking is not approved
@@ -256,14 +265,14 @@ const OrderListTable = ({ orderData }) => {
           console.log(`Skipping booking ${booking._id} as it is not approved.`);
           continue;
         }
-        
+
         // Parse scheduled date and time
         const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
         if (!scheduledDateTime) continue;
-        
+
         // Check if scheduled time has passed by more than 10 minutes
         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
-        
+
         if (now > tenMinutesAfter) {
           const success = await updateBookingStatus(booking._id, 'Cancelled');
           if (success) {
@@ -281,7 +290,7 @@ const OrderListTable = ({ orderData }) => {
     try {
       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`);
       const result = await response.json();
-      
+
       if (result && result.bookings) {
         const sortedBookings = sortBookingsByDate(result.bookings);
         setData(sortedBookings);
@@ -301,7 +310,7 @@ const OrderListTable = ({ orderData }) => {
     return bookings.sort((a, b) => {
       const dateA = parseDateTime(a.bookingDate, a.bookingTime)?.getTime() || 0;
       const dateB = parseDateTime(b.bookingDate, b.bookingTime)?.getTime() || 0;
-      
+
       return dateB - dateA; // Descending order (newest first)
     });
   };
@@ -318,13 +327,13 @@ const OrderListTable = ({ orderData }) => {
         if (result && result.bookings) {
           // First check and update pending bookings
           await checkAndUpdatePendingBookings(result.bookings);
-          
+
           // Then check and update approved bookings
           await checkAndUpdateApprovedBookings(result.bookings);
-          
+
           // Finally refresh the list to get updated statuses
           const updatedBookings = await refreshBookingList();
-          
+
           setData(updatedBookings);
           setFilteredData(updatedBookings);
         } else {
@@ -384,7 +393,7 @@ const OrderListTable = ({ orderData }) => {
         cell: ({ row }) => {
           const formatDate = (dateStr) => {
             if (!dateStr) return 'N/A';
-            
+
             try {
               if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
                 return new Date(dateStr).toDateString();
@@ -401,12 +410,12 @@ const OrderListTable = ({ orderData }) => {
               return dateStr;
             }
           };
-      
+
           const formatTimeDisplay = (timeStr) => {
             if (!timeStr) return 'N/A';
             return timeStr;
           };
-      
+
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
@@ -421,7 +430,7 @@ const OrderListTable = ({ orderData }) => {
       //     const status = row.original.status?.toLowerCase();
       //     const isParked = status === 'parked';
       //     const isCompleted = status === 'completed';
-          
+
       //     if (isParked) {
       //       return (
       //         <div className="flex items-center gap-2">
@@ -433,39 +442,39 @@ const OrderListTable = ({ orderData }) => {
       //         </div>
       //       );
       //     }
-          
+
       //     if (isCompleted && row.original.exitvehicledate && row.original.exitvehicletime) {
       //       const calculateTotalTime = () => {
       //         try {
       //           const [startDay, startMonth, startYear] = row.original.parkedDate.split('-');
       //           const [startTimePart, startAmpm] = row.original.parkedTime.split(' ');
       //           let [startHours, startMinutes] = startTimePart.split(':').map(Number);
-                
+
       //           if (startAmpm && startAmpm.toUpperCase() === 'PM' && startHours !== 12) {
       //             startHours += 12;
       //           } else if (startAmpm && startAmpm.toUpperCase() === 'AM' && startHours === '12') {
       //             startHours = 0;
       //           }
-                
+
       //           const startTime = new Date(`${startYear}-${startMonth}-${startDay}T${startHours}:${startMinutes}:00`);
-                
+
       //           const [endDay, endMonth, endYear] = row.original.exitvehicledate.split('-');
       //           const [endTimePart, endAmpm] = row.original.exitvehicletime.split(' ');
       //           let [endHours, endMinutes] = endTimePart.split(':').map(Number);
-                
+
       //           if (endAmpm && endAmpm.toUpperCase() === 'PM' && endHours !== 12) {
       //             endHours += 12;
       //           } else if (endAmpm && endAmpm.toUpperCase() === 'AM' && endHours === '12') {
       //             endHours = 0;
       //           }
-                
+
       //           const endTime = new Date(`${endYear}-${endMonth}-${endDay}T${endHours}:${endMinutes}:00`);
       //           const diffMs = endTime - startTime;
       //           const diffSecs = Math.floor(diffMs / 1000);
       //           const days = Math.floor(diffSecs / (3600 * 24));
       //           const hours = Math.floor((diffSecs % (3600 * 24)) / 3600);
       //           const minutes = Math.floor((diffSecs % 3600) / 60);
-                
+
       //           if (days > 0) {
       //             return `${days}d ${hours}h ${minutes}m`;
       //           } else {
@@ -476,7 +485,7 @@ const OrderListTable = ({ orderData }) => {
       //           return 'N/A';
       //         }
       //       };
-            
+
       //       return (
       //         <div className="flex items-center gap-2">
       //           <i className="ri-time-line" style={{ fontSize: '16px', color: '#72e128' }}></i>
@@ -486,37 +495,37 @@ const OrderListTable = ({ orderData }) => {
       //         </div>
       //       );
       //     }
-          
+
       //     return <Typography>--:--:--</Typography>;
       //   }
       // }),
-     
-       columnHelper.accessor('payableTime', {
+
+      columnHelper.accessor('payableTime', {
         header: 'Payable Time',
         cell: ({ row }) => {
           // Check booking status
           const status = row.original.status?.toLowerCase()
-          
+
           // Return empty for completed status
           if (status === 'completed') {
             return null
           }
-          
+
           const isParked = status === 'parked'
-          
+
           // Show real-time timer for PARKED status
           if (isParked) {
             return (
               <div className="flex items-center gap-2">
                 <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                <PayableTimeTimer 
+                <PayableTimeTimer
                   parkedDate={row.original.parkedDate}
                   parkedTime={row.original.parkedTime}
                 />
               </div>
             )
           }
-          
+
           // Default case for other statuses
           return null
         }
@@ -674,6 +683,81 @@ const OrderListTable = ({ orderData }) => {
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   });
+  const handleExport = (type) => {
+    // Get the data you want to export (filtered or all)
+    const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
+
+    if (type === 'excel') {
+      // Convert data to CSV format
+      const headers = Object.keys(exportData[0] || {});
+      const csvContent = [
+        headers.join(','),
+        ...exportData.map(row =>
+          headers.map(fieldName =>
+            JSON.stringify(row[fieldName] || '')
+          ).join(',')
+        )
+      ].join('\n');
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `bookings_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } else if (type === 'pdf') {
+      // For PDF, we'll create a simple HTML table and print it
+      const printWindow = window.open('', '_blank');
+      const html = `
+      <html>
+        <head>
+          <title>Bookings Export</title>
+          <style>
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+          </style>
+        </head>
+        <body>
+          <h1>Bookings Export</h1>
+          <table>
+            <thead>
+              <tr>
+                ${Object.keys(exportData[0] || {}).map(key =>
+        `<th>${key}</th>`
+      ).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${exportData.map(row => `
+                <tr>
+                  ${Object.values(row).map(value =>
+        `<td>${value || ''}</td>`
+      ).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>
+            // Automatically trigger print and close after a delay
+            setTimeout(() => {
+              window.print();
+              setTimeout(() => window.close(), 500);
+            }, 200);
+          </script>
+        </body>
+      </html>
+    `;
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+    }
+  };
   return (
     <Card>
       <CardHeader title='Filters' />
@@ -686,15 +770,49 @@ const OrderListTable = ({ orderData }) => {
           placeholder='Search Order'
           className='sm:is-auto'
         />
-        <Button
-          variant='contained'
-          component={Link}
-          href={getLocalizedUrl('/pages/wizard-examples/property-listing', locale)}
-          startIcon={<i className='ri-add-line' />}
-          className='max-sm:is-full is-auto'
-        >
-          New Booking
-        </Button>
+        <div className='flex items-center gap-4 max-sm:is-full'>
+          <Button
+            variant='outlined'
+            className='max-sm:is-full is-auto'
+            startIcon={<i className='ri-download-line' />}
+            onClick={handleMenuClick}
+          >
+            Download
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+          >
+            <MenuItem
+              onClick={() => {
+                handleExport('excel')
+                handleMenuClose()
+              }}
+              sx={{ gap: 2 }}
+            >
+              <i className='ri-file-excel-2-line' /> Export to Excel
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                handleExport('pdf')
+                handleMenuClose()
+              }}
+              sx={{ gap: 2 }}
+            >
+              <i className='ri-file-pdf-line' /> Export to PDF
+            </MenuItem>
+          </Menu>
+          <Button
+            variant='contained'
+            component={Link}
+            href={getLocalizedUrl('/pages/wizard-examples/property-listing', locale)}
+            startIcon={<i className='ri-add-line' />}
+            className='max-sm:is-full is-auto'
+          >
+            New Booking
+          </Button>
+        </div>
       </CardContent>
       <div className='overflow-x-auto'>
         {loading ? (
