@@ -837,6 +837,7 @@ const handleExport = (type) => {
               }, 500);
             };
           </script>
+          
         </body>
       </html>
     `;
