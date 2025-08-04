@@ -79,7 +79,7 @@ const VendorPayOuts = () => {
         setIsLoading(true);
 
         try {
-            let url = `https://pmwapis.parkmywheels.com/vendor/getvendorpayouts/${vendorId}`;
+            let url = `https://api.parkmywheels.com/vendor/getvendorpayouts/${vendorId}`;
 
             if (dateFilter && startDate && endDate) {
                 url += `?startDate=${startDate}&endDate=${endDate}`;

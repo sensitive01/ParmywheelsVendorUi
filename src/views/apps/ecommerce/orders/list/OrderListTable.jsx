@@ -683,81 +683,186 @@ const OrderListTable = ({ orderData }) => {
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   });
+  // const handleExport = (type) => {
+  //   // Get the data you want to export (filtered or all)
+  //   const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
+
+  //   if (type === 'excel') {
+  //     // Convert data to CSV format
+  //     const headers = Object.keys(exportData[0] || {});
+  //     const csvContent = [
+  //       headers.join(','),
+  //       ...exportData.map(row =>
+  //         headers.map(fieldName =>
+  //           JSON.stringify(row[fieldName] || '')
+  //         ).join(',')
+  //       )
+  //     ].join('\n');
+
+  //     // Create download link
+  //     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  //     const url = URL.createObjectURL(blob);
+  //     const link = document.createElement('a');
+  //     link.href = url;
+  //     link.setAttribute('download', `bookings_${new Date().toISOString().slice(0, 10)}.csv`);
+  //     document.body.appendChild(link);
+  //     link.click();
+  //     document.body.removeChild(link);
+
+  //   } else if (type === 'pdf') {
+  //     // For PDF, we'll create a simple HTML table and print it
+  //     const printWindow = window.open('', '_blank');
+  //     const html = `
+  //     <html>
+  //       <head>
+  //         <title>Bookings Export</title>
+  //         <style>
+  //           table { border-collapse: collapse; width: 100%; }
+  //           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  //           th { background-color: #f2f2f2; }
+  //         </style>
+  //       </head>
+  //       <body>
+  //         <h1>Bookings Export</h1>
+  //         <table>
+  //           <thead>
+  //             <tr>
+  //               ${Object.keys(exportData[0] || {}).map(key =>
+  //       `<th>${key}</th>`
+  //     ).join('')}
+  //             </tr>
+  //           </thead>
+  //           <tbody>
+  //             ${exportData.map(row => `
+  //               <tr>
+  //                 ${Object.values(row).map(value =>
+  //       `<td>${value || ''}</td>`
+  //     ).join('')}
+  //               </tr>
+  //             `).join('')}
+  //           </tbody>
+  //         </table>
+  //         <script>
+  //           // Automatically trigger print and close after a delay
+  //           setTimeout(() => {
+  //             window.print();
+  //             setTimeout(() => window.close(), 500);
+  //           }, 200);
+  //         </script>
+  //       </body>
+  //     </html>
+  //   `;
+
+  //     printWindow.document.open();
+  //     printWindow.document.write(html);
+  //     printWindow.document.close();
+  //   }
+  // };
   const handleExport = (type) => {
-    // Get the data you want to export (filtered or all)
-    const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
+  // Get the data you want to export (filtered or all)
+  const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
 
-    if (type === 'excel') {
-      // Convert data to CSV format
-      const headers = Object.keys(exportData[0] || {});
-      const csvContent = [
-        headers.join(','),
-        ...exportData.map(row =>
-          headers.map(fieldName =>
-            JSON.stringify(row[fieldName] || '')
-          ).join(',')
-        )
-      ].join('\n');
+  // Define fields with human-readable headers
+  const fieldsConfig = [
+    { key: 'vehicleNumber', label: 'Vehicle Number' },
+    { key: 'bookType', label: 'Booking Type' },
+    { key: 'bookingDate', label: 'Booking Date' },
+    { key: 'bookingTime', label: 'Booking Time' },
+    { key: 'parkedDate', label: 'Parked Date' },
+    { key: 'parkedTime', label: 'Parked Time' },
+    { key: 'exitvehicledate', label: 'Exit Date' },
+    { key: 'exitvehicletime', label: 'Exit Time' },
+    { key: 'personName', label: 'Person Name' },
+    { key: 'mobileNumber', label: 'Mobile Number' },
+    { key: 'vehicleType', label: 'Vehicle Type' },
+    { key: 'sts', label: 'Service Type' },
+    { key: 'status', label: 'Status' },
+    { key: 'amount', label: 'Amount' },
+    { key: 'hour', label: 'Duration' }
+  ];
 
-      // Create download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `bookings_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  if (type === 'excel') {
+    // Convert data to CSV format
+    const csvContent = [
+      fieldsConfig.map(f => f.label).join(','),
+      ...exportData.map(row =>
+        fieldsConfig.map(field =>
+          JSON.stringify(row[field.key] ?? '')
+        ).join(',')
+      )
+    ].join('\n');
 
-    } else if (type === 'pdf') {
-      // For PDF, we'll create a simple HTML table and print it
-      const printWindow = window.open('', '_blank');
-      const html = `
-      <html>
-        <head>
-          <title>Bookings Export</title>
-          <style>
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-          </style>
-        </head>
-        <body>
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `bookings_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+  } else if (type === 'pdf') {
+    const printWindow = window.open('', '_blank');
+    
+    // Build HTML with better formatting
+    const html = `
+    <html>
+      <head>
+        <title>Bookings Export</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; }
+          h1 { color: #333; text-align: center; }
+          table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+          th { background-color: #f2f2f2; position: sticky; top: 0; }
+          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+          tr:nth-child(even) { background-color: #f9f9f9; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+          .date { color: #666; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
           <h1>Bookings Export</h1>
-          <table>
-            <thead>
+          <div class="date">Generated: ${new Date().toLocaleString()}</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              ${fieldsConfig.map(field => `<th>${field.label}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${exportData.map(row => `
               <tr>
-                ${Object.keys(exportData[0] || {}).map(key =>
-        `<th>${key}</th>`
-      ).join('')}
+                ${fieldsConfig.map(field => {
+                  const value = row[field.key];
+                  // Handle empty values and format if needed
+                  return `<td>${value !== undefined && value !== null ? value : '-'}</td>`;
+                }).join('')}
               </tr>
-            </thead>
-            <tbody>
-              ${exportData.map(row => `
-                <tr>
-                  ${Object.values(row).map(value =>
-        `<td>${value || ''}</td>`
-      ).join('')}
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <script>
-            // Automatically trigger print and close after a delay
+            `).join('')}
+          </tbody>
+        </table>
+        <script>
+          // Wait for content to load before printing
+          window.onload = function() {
             setTimeout(() => {
               window.print();
-              setTimeout(() => window.close(), 500);
-            }, 200);
-          </script>
-        </body>
-      </html>
+              // Don't close immediately to allow print dialog to appear
+            }, 300);
+          };
+        </script>
+      </body>
+    </html>
     `;
 
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
-    }
-  };
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+  }
+};
+  
   return (
     <Card>
       <CardHeader title='Filters' />

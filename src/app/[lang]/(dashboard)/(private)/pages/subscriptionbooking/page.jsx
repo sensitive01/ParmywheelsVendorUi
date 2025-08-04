@@ -526,23 +526,231 @@ const OrderListTable = ({ orderData }) => {
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   })
-  const handleExport = (type) => {
+
+// const handleExport = (type) => {
+//   const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
+
+//   if (type === 'excel') {
+//     // ... (keep existing excel export code)
+//   } else if (type === 'pdf') {
+//     // Create HTML content with all required fields
+//     const headers = [
+//       'Vehicle Number',
+   
+//       'Booking Date',
+//       'Booking Time',
+//       'Parked Date',
+//       'Parked Time',
+//       'Exit Date',
+//       'Exit Time',
+//       'Customer Name',
+//       'Mobile Number',
+//       'Vehicle Type',
+//       'Service Type',
+//       'Status',
+//       'Amount',
+//       'Duration',
+//       'Subscription Type',
+//       'Days Left'
+//     ];
+
+//     const htmlContent = `
+//       <html>
+//         <head>
+//           <title>Subscription Bookings</title>
+//           <style>
+//             body { font-family: Arial, sans-serif; margin: 20px; }
+//             h1 { color: #666cff; text-align: center; margin-bottom: 20px; }
+//             table { border-collapse: collapse; width: 100%; }
+//             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+//             th { background-color: #f2f2f2; }
+//             .expired { color: #ff4d49; }
+//             .warning { color: #fdb528; }
+//             .good { color: #72e128; }
+//             @media print {
+//               @page { 
+//                 size: landscape; 
+//                 margin: 10mm;
+//               }
+//               table { 
+//                 font-size: 8pt;
+//                 width: 100% !important;
+//               }
+//               th, td {
+//                 padding: 4px !important;
+//               }
+//             }
+//           </style>
+//         </head>
+//         <body>
+//           <h1>Subscription Bookings</h1>
+//           <table>
+//             <thead>
+//               <tr>
+//                 ${headers.map(header => `<th>${header}</th>`).join('')}
+//               </tr>
+//             </thead>
+//             <tbody>
+//               ${exportData.map(row => {
+//                 const daysLeft = calculateSubscriptionDaysLeft(
+//                   row.parkingDate || row.bookingDate,
+//                   row.subsctiptiontype,
+//                   row.sts
+//                 );
+//                 const daysLeftClass = daysLeft?.expired 
+//                   ? 'expired' 
+//                   : daysLeft?.days <= 3 
+//                     ? 'warning' 
+//                     : 'good';
+                
+//                 return `
+//                   <tr>
+//                     <td>${row.vehicleNumber || 'N/A'}</td>
+               
+//                     <td>${formatDateDisplay(row.bookingDate) || 'N/A'}</td>
+//                     <td>${formatTimeDisplay(row.bookingTime) || 'N/A'}</td>
+//                     <td>${formatDateDisplay(row.parkedDate) || 'N/A'}</td>
+//                     <td>${formatTimeDisplay(row.parkedTime) || 'N/A'}</td>
+//                     <td>${formatDateDisplay(row.exitvehicledate) || 'N/A'}</td>
+//                     <td>${formatTimeDisplay(row.exitvehicletime) || 'N/A'}</td>
+//                     <td>${row.personName || 'Unknown'}</td>
+//                     <td>${row.mobileNumber || 'N/A'}</td>
+//                     <td>${row.vehicleType || 'N/A'}</td>
+//                     <td>${row.sts || 'N/A'}</td>
+//                     <td>${row.status || 'N/A'}</td>
+//                     <td>${row.amount ? '₹' + row.amount : 'N/A'}</td>
+//                     <td>${row.hour || 'N/A'}</td>
+//                     <td>${row.subsctiptiontype || 'Monthly'}</td>
+//                     <td class="${daysLeftClass}">
+//                       ${daysLeft?.expired ? 'Expired' : daysLeft ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}` : 'N/A'}
+//                     </td>
+//                   </tr>
+//                 `;
+//               }).join('')}
+//             </tbody>
+//           </table>
+//           <script>
+//             // Automatically trigger print when the page loads
+//             window.onload = function() {
+//               setTimeout(function() {
+//                 window.print();
+//                 setTimeout(function() {
+//                   window.close();
+//                 }, 100);
+//               }, 500); // Increased timeout to ensure all content loads
+//             };
+//           </script>
+//         </body>
+//       </html>
+//     `;
+
+//     // Open a new window with the HTML content
+//     const printWindow = window.open('', '_blank');
+//     printWindow.document.open();
+//     printWindow.document.write(htmlContent);
+//     printWindow.document.close();
+//   }
+
+//   handleMenuClose();
+// };
+
+const handleExport = (type) => {
   const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
 
   if (type === 'excel') {
-    // ... (keep existing excel export code)
-  } else if (type === 'pdf') {
-    // Create HTML content
+    // Create CSV content for Excel
     const headers = [
       'Vehicle Number',
       'Booking Date',
       'Booking Time',
+      'Parked Date',
+      'Parked Time',
+      'Exit Date',
+      'Exit Time',
       'Customer Name',
       'Mobile Number',
-      'Subscription Type',
-      'Days Left',
+      'Vehicle Type',
+      'Service Type',
       'Status',
-      'Vehicle Type'
+      'Amount',
+      'Duration',
+      'Subscription Type',
+      'Days Left'
+    ];
+
+    // Convert data to CSV rows
+    const csvRows = [];
+    
+    // Add header row
+    csvRows.push(headers.join(','));
+    
+    // Add data rows
+    exportData.forEach(row => {
+      const daysLeft = calculateSubscriptionDaysLeft(
+        row.parkingDate || row.bookingDate,
+        row.subsctiptiontype,
+        row.sts
+      );
+      
+      const daysLeftText = daysLeft?.expired 
+        ? 'Expired' 
+        : daysLeft 
+          ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}`
+          : 'N/A';
+      
+      const values = [
+        `"${(row.vehicleNumber || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(formatDateDisplay(row.bookingDate) || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(formatTimeDisplay(row.bookingTime) || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(formatDateDisplay(row.parkedDate) || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(formatTimeDisplay(row.parkedTime) || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(formatDateDisplay(row.exitvehicledate) || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(formatTimeDisplay(row.exitvehicletime) || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(row.personName || 'Unknown').toString().replace(/"/g, '""')}"`,
+        `"${(row.mobileNumber || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(row.vehicleType || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(row.sts || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(row.status || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(row.amount ? '₹' + row.amount : 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(row.hour || 'N/A').toString().replace(/"/g, '""')}"`,
+        `"${(row.subsctiptiontype || 'Monthly').toString().replace(/"/g, '""')}"`,
+        `"${daysLeftText.toString().replace(/"/g, '""')}"`
+      ];
+      
+      csvRows.push(values.join(','));
+    });
+
+    // Create and download CSV file
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'Subscription_Bookings.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+  } else if (type === 'pdf') {
+    // Create HTML content for PDF
+    const headers = [
+      'Vehicle Number',
+      'Booking Date',
+      'Booking Time',
+      'Parked Date',
+      'Parked Time',
+      'Exit Date',
+      'Exit Time',
+      'Customer Name',
+      'Mobile Number',
+      'Vehicle Type',
+      'Service Type',
+      'Status',
+      'Amount',
+      'Duration',
+      'Subscription Type',
+      'Days Left'
     ];
 
     const htmlContent = `
@@ -559,7 +767,17 @@ const OrderListTable = ({ orderData }) => {
             .warning { color: #fdb528; }
             .good { color: #72e128; }
             @media print {
-              @page { size: landscape; margin: 10mm; }
+              @page { 
+                size: landscape; 
+                margin: 10mm;
+              }
+              table { 
+                font-size: 8pt;
+                width: 100% !important;
+              }
+              th, td {
+                padding: 4px !important;
+              }
             }
           </style>
         </head>
@@ -589,35 +807,41 @@ const OrderListTable = ({ orderData }) => {
                     <td>${row.vehicleNumber || 'N/A'}</td>
                     <td>${formatDateDisplay(row.bookingDate) || 'N/A'}</td>
                     <td>${formatTimeDisplay(row.bookingTime) || 'N/A'}</td>
+                    <td>${formatDateDisplay(row.parkedDate) || 'N/A'}</td>
+                    <td>${formatTimeDisplay(row.parkedTime) || 'N/A'}</td>
+                    <td>${formatDateDisplay(row.exitvehicledate) || 'N/A'}</td>
+                    <td>${formatTimeDisplay(row.exitvehicletime) || 'N/A'}</td>
                     <td>${row.personName || 'Unknown'}</td>
                     <td>${row.mobileNumber || 'N/A'}</td>
+                    <td>${row.vehicleType || 'N/A'}</td>
+                    <td>${row.sts || 'N/A'}</td>
+                    <td>${row.status || 'N/A'}</td>
+                    <td>${row.amount ? '₹' + row.amount : 'N/A'}</td>
+                    <td>${row.hour || 'N/A'}</td>
                     <td>${row.subsctiptiontype || 'Monthly'}</td>
                     <td class="${daysLeftClass}">
                       ${daysLeft?.expired ? 'Expired' : daysLeft ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}` : 'N/A'}
                     </td>
-                    <td>${row.status || 'N/A'}</td>
-                    <td>${row.vehicleType || 'N/A'}</td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
           </table>
           <script>
-            // Automatically trigger print when the page loads
             window.onload = function() {
               setTimeout(function() {
                 window.print();
                 setTimeout(function() {
                   window.close();
                 }, 100);
-              }, 200);
+              }, 500);
             };
           </script>
         </body>
       </html>
     `;
 
-    // Open a new window with the HTML content
+    // Open print dialog for PDF
     const printWindow = window.open('', '_blank');
     printWindow.document.open();
     printWindow.document.write(htmlContent);

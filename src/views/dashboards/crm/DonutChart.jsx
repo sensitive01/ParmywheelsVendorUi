@@ -33,7 +33,7 @@ const DonutChart = () => {
           const currentYear = new Date().getFullYear()
           const startDate = `${currentYear}-01-01`
           const endDate = `${currentYear}-12-31`
-          const url = `https://pmwapis.parkmywheels.com/vendor/fetchbookingtransaction/${session.user.id}?startDate=${startDate}&endDate=${endDate}`
+          const url = `https://api.parkmywheels.com/vendor/fetchbookingtransaction/${session.user.id}?startDate=${startDate}&endDate=${endDate}`
           
           const response = await axios.get(url)
           // Get the count of bookings from the response

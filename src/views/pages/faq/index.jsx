@@ -43,7 +43,7 @@ const Dashboard = () => {
 
   const fetchTransactions = async () => {
     try {
-      const response = await fetch('https://pmwapis.parkmywheels.com/vendor/getbookingdata/679cbab22cd53a01b512d354');
+      const response = await fetch('https://api.parkmywheels.com/vendor/getbookingdata/679cbab22cd53a01b512d354');
       const data = await response.json();
 
       if (data && Array.isArray(data.bookings)) {

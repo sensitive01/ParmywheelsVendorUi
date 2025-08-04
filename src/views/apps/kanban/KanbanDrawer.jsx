@@ -107,7 +107,7 @@ const KanbanDrawer = props => {
         ]
       };
 
-      const response = await fetch('https://pmwapis.parkmywheels.com/vendor/charges/addparkingcharges', {
+      const response = await fetch('https://api.parkmywheels.com/vendor/charges/addparkingcharges', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

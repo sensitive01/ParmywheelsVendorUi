@@ -60,7 +60,7 @@ const VehicleBookingTransactions = () => {
     setIsLoading(true);
 
     try {
-      let url = `https://pmwapis.parkmywheels.com/vendor/fetchbookingtransaction/${vendorId}`;
+      let url = `https://api.parkmywheels.com/vendor/fetchbookingtransaction/${vendorId}`;
 
       if (dateFilter && startDate && endDate) {
         url += `?startDate=${startDate}&endDate=${endDate}`;
