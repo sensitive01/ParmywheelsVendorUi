@@ -92,58 +92,67 @@ const Login = ({ mode }) => {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/getUserByMobile?mobile=${mobile}`);
       const data = await response.json();
 
-      
-return data.success ? data.user : null;
+
+      return data.success ? data.user : null;
     } catch (error) {
       console.error("Error fetching user details:", error);
-      
-return null;
+
+      return null;
     }
   };
 
   console.log(process.env.NEXT_PUBLIC_API_URL);
-  
-return (
+
+  return (
     <div className='flex bs-full justify-center'>
-      <div className={classnames('flex bs-full items-center justify-center flex-1 min-bs-[100dvh] relative p-6 max-md:hidden')}>
-        <div className='pli-6 max-lg:mbs-40 lg:mbe-24'>
-          <img src='/images/illustrations/auth/v2-login-light.png' alt='character-illustration' className='max-bs-[673px] max-is-full bs-auto' />
+      <div className={classnames(
+        'flex bs-full items-center justify-center flex-1 min-bs-[100dvh] relative p-6 max-md:hidden',
+        'w-full' // Add full width
+      )}>
+        <div className='absolute inset-0 w-full h-full'> {/* Full-covering container */}
+          <img
+            src='/images/illustrations/auth/final.gif'
+            alt='Login animation'
+            className='w-full h-full object-cover' // Cover entire space
+          />
         </div>
       </div>
       <div className='flex justify-center items-center bs-full bg-backgroundPaper !min-is-full p-6 md:!min-is-[unset] md:p-12 md:is-[480px]'>
-        <div className='absolute block-start-5 sm:block-start-[38px] inline-start-6 sm:inline-start-[38px]'>
-          <Logo />
-        </div>
         <div className='flex flex-col gap-5 is-full sm:is-auto md:is-full sm:max-is-[400px] md:max-is-[unset]'>
-          <div>
-            <Typography variant='h4'>{`Welcome to Vendor  ${themeConfig.templateName}!👋🏻`}</Typography>
-            <Typography>Please sign-in to your account and start the adventure</Typography>
+          <div className='flex flex-col items-center mb-4'>
+            <div className='mb-4 scale-550'>
+              <Logo />
+            </div>
+            <div>
+              <Typography variant='h4'>{`Welcome to  ${themeConfig.templateName}ParkMyWheels`}</Typography>
+              <Typography>and 1 Stop Parking Management solution for all your parking systems</Typography>
+            </div>
           </div>
           <Alert icon={false} className='bg-[var(--mui-palette-primary-lightOpacity)]'>
             <Typography variant='body2' color='primary.main'>
-              Mobile: <span className='font-medium'>admin@materialize.com</span> / Pass: <span className='font-medium'>admin</span>
+              Login to <span className='font-medium'>manage your</span> parking<span className='font-medium'></span>
             </Typography>
           </Alert>
           <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
-           <div>
-  <TextField
-    fullWidth
-    label="Mobile"
-    value={mobile}
-    onChange={(e) => {
-      const input = e.target.value;
-      // Allow only digits and max length 10
-      if (/^\d{0,10}$/.test(input)) {
-        setMobile(input);
-      }
-    }}
-    required
-    error={!!error}
-    helperText={error}
-    inputMode="numeric"
-    placeholder="Enter 10-digit mobile number"
-  />
-</div>
+            <div>
+              <TextField
+                fullWidth
+                label="Mobile"
+                value={mobile}
+                onChange={(e) => {
+                  const input = e.target.value;
+                  // Allow only digits and max length 10
+                  if (/^\d{0,10}$/.test(input)) {
+                    setMobile(input);
+                  }
+                }}
+                required
+                error={!!error}
+                helperText={error}
+                inputMode="numeric"
+                placeholder="Enter 10-digit mobile number"
+              />
+            </div>
 
             <div>
               <TextField

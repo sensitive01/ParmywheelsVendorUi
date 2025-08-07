@@ -230,9 +230,10 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
   const [isConfirmPasswordShown, setIsConfirmPasswordShown] = useState(false);
   const [image, setImage] = useState(null);
   const [termsError, setTermsError] = useState('');
+  const [formError, setFormError] = useState('');
   const [isTermsOpen, setIsTermsOpen] = useState(false);
-  // Add state to track if "Add Another Option" button should be enabled
   const [addButtonEnabled, setAddButtonEnabled] = useState(false);
+  const [formValid, setFormValid] = useState(false);
 
   const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm({
     defaultValues: {
@@ -246,6 +247,25 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
 
   const parkingEntries = accountDetails.parkingEntries || [{ type: '', count: '' }];
   const allTypes = ['Bikes', 'Cars', 'Others'];
+
+  // Check form validity
+  useEffect(() => {
+    const isPasswordValid = accountDetails.password.trim() !== '';
+    const isConfirmPasswordValid = accountDetails.confirmPassword.trim() !== '';
+    const isPasswordMatch = accountDetails.password === accountDetails.confirmPassword;
+    const isParkingEntriesValid = parkingEntries.every(entry => 
+      entry.type !== '' && entry.count !== '' && !isNaN(entry.count)
+    );
+    const isImageValid = accountDetails.image !== null;
+
+    setFormValid(
+      isPasswordValid &&
+      isConfirmPasswordValid &&
+      isPasswordMatch &&
+      isParkingEntriesValid &&
+      isImageValid
+    );
+  }, [accountDetails, parkingEntries]);
 
   // Check if last parking entry has both type and count filled
   useEffect(() => {
@@ -265,7 +285,6 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
       ...prevState,
       parkingEntries: [...prevState.parkingEntries, { type: '', count: '' }]
     }));
-    // Disable button after adding a new entry
     setAddButtonEnabled(false);
   };
 
@@ -294,7 +313,14 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
       setTermsError('You must accept the terms and conditions to register');
       return;
     }
+
+    if (!formValid) {
+      setFormError('Please fill all required fields correctly before registering');
+      return;
+    }
+
     setTermsError('');
+    setFormError('');
     handleNext();
   };
 
@@ -310,6 +336,13 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
 
       <Typography variant="h5" className="mb-4">Account Information</Typography>
       <Typography variant="body2" className="mb-2">Enter Vendor Account Details</Typography>
+      
+      {formError && (
+        <Typography color="error" className="mb-2">
+          {formError}
+        </Typography>
+      )}
+
       <Grid container spacing={2}>
         <Grid item xs={12}>
           <Typography variant="body2" className="mb-2">Parking Entries</Typography>
@@ -351,6 +384,8 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
                           }}
                           fullWidth
                           required
+                          type="number"
+                          inputProps={{ min: 1 }}
                         />
                         {index > 0 && (
                           <CustomIconButton onClick={() => handleDeleteParkingEntry(index)} className="min-is-fit">
@@ -378,7 +413,12 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
         </Grid>
 
         <Grid item xs={12} style={{ marginBottom: '20px' }}>
-          <ProductImage onChange={handleImageChange} />
+          <ProductImage onChange={handleImageChange} required />
+          {!accountDetails.image && (
+            <Typography variant="caption" color="textSecondary">
+              Please upload an image
+            </Typography>
+          )}
         </Grid>
 
         <Grid item xs={12} sm={6}>
@@ -388,6 +428,7 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
             value={accountDetails.password}
             onChange={(e) => handleChange('password', e.target.value)}
             fullWidth
+            required
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -407,6 +448,7 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
             value={accountDetails.confirmPassword}
             onChange={(e) => handleChange('confirmPassword', e.target.value)}
             fullWidth
+            required
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -417,6 +459,11 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
               )
             }}
           />
+          {accountDetails.password !== accountDetails.confirmPassword && (
+            <Typography variant="caption" color="error">
+              Passwords do not match
+            </Typography>
+          )}
         </Grid>
 
         <Grid item xs={12} style={{ marginBottom: '20px' }}>
@@ -426,6 +473,7 @@ const StepAccountDetails = ({ handlePrev, handleNext, accountDetails, setAccount
                 checked={accountDetails.termsAccepted || false}
                 onChange={(e) => handleChange('termsAccepted', e.target.checked)}
                 color="primary"
+                required
               />
             }
             label={

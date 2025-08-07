@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 
-import { useRouter , useParams } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 
 import Typography from '@mui/material/Typography';
@@ -26,10 +26,10 @@ const ForgotPasswordV2 = ({ mode }) => {
   const router = useRouter();
   const darkImg = '/images/pages/auth-v2-mask-4-dark.png';
   const lightImg = '/images/pages/auth-v2-mask-4-light.png';
-  const darkIllustration = '/images/illustrations/auth/v2-forgot-password-dark.png';
-  const lightIllustration = '/images/illustrations/auth/v2-forgot-password-light.png';
-  const borderedDarkIllustration = '/images/illustrations/auth/v2-forgot-password-dark-border.png';
-  const borderedLightIllustration = '/images/illustrations/auth/v2-forgot-password-light-border.png';
+  const darkIllustration = '/images/illustrations/auth/ParkMyWheels2.gif';
+  const lightIllustration = '/images/illustrations/auth/ParkMyWheels2.gif';
+  const borderedDarkIllustration = '/images/illustrations/auth/ParkMyWheels2.gif';
+  const borderedLightIllustration = '/images/illustrations/auth/ParkMyWheels2.gif';
   const { settings } = useSettings();
   const { lang: locale } = useParams();
   const authBackground = useImageVariant(mode, lightImg, darkImg);
@@ -60,8 +60,8 @@ const ForgotPasswordV2 = ({ mode }) => {
           setResendDisabled(false);
         }
 
-        
-return prev - 1;
+
+        return prev - 1;
       });
     }, 1000);
   };
@@ -166,26 +166,27 @@ return prev - 1;
         <img src={authBackground} className='absolute bottom-[4%] z-[-1] is-full max-md:hidden' />
       </div>
       <div className='flex justify-center items-center bs-full bg-backgroundPaper p-6 md:p-12 md:is-[480px]'>
-        <Link href={getLocalizedUrl('/', locale)} className='absolute block-start-5 sm:block-start-[38px] inline-start-6 sm:inline-start-[38px]'>
+        {/* <Link href={getLocalizedUrl('/', locale)} className='absolute block-start-5 sm:block-start-[38px] inline-start-6 sm:inline-start-[38px]'>
           <Logo />
-        </Link>
+        </Link> */}
         <div className='flex flex-col gap-5 is-full sm:max-is-[400px]'>
+           <Logo />
           <Typography variant='h4'>Forgot Password 🔒</Typography>
           <form noValidate autoComplete='off' className='flex flex-col gap-5'>
-          <TextField
-  autoFocus
-  fullWidth
-  label="Mobile Number"
-  value={mobile}
-  onChange={e => {
-    const input = e.target.value;
-    if (/^\d{0,10}$/.test(input)) {
-      setMobile(input);
-    }
-  }}
-  inputMode="numeric"
-  placeholder="Enter 10-digit mobile number"
-/>  
+            <TextField
+              autoFocus
+              fullWidth
+              label="Mobile Number"
+              value={mobile}
+              onChange={e => {
+                const input = e.target.value;
+                if (/^\d{0,10}$/.test(input)) {
+                  setMobile(input);
+                }
+              }}
+              inputMode="numeric"
+              placeholder="Enter 10-digit mobile number"
+            />
 
             {showOtpField && (
               <>

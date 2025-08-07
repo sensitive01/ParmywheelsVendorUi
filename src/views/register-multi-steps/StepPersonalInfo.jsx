@@ -408,6 +408,199 @@
 
 // export default StepPersonalInfo
 
+// 'use client'
+// import { useState, useEffect } from 'react'
+
+// import Grid from '@mui/material/Grid'
+// import Button from '@mui/material/Button'
+// import TextField from '@mui/material/TextField'
+// import Typography from '@mui/material/Typography'
+// import InputAdornment from '@mui/material/InputAdornment'
+// import IconButton from '@mui/material/IconButton'
+// import AddIcon from '@mui/icons-material/Add'
+// import RemoveIcon from '@mui/icons-material/Remove'
+
+// import DirectionalIcon from '@components/DirectionalIcon'
+
+// const StepPersonalInfo = ({ 
+//   handleNext, 
+//   contacts, 
+//   setContacts, 
+//   address, 
+//   setAddress, 
+//   vendorName, 
+//   setVendorName, 
+//   latitude, 
+//   setLatitude, 
+//   longitude, 
+//   setLongitude, 
+//   landmark, 
+//   setLandmark 
+// }) => {
+//   // State to track if add button should be enabled
+//   const [addButtonEnabled, setAddButtonEnabled] = useState(false)
+
+//   // Check if the last contact has both name and mobile filled
+//   useEffect(() => {
+//     if (contacts.length > 0) {
+//       const lastContact = contacts[contacts.length - 1]
+//       setAddButtonEnabled(
+//         lastContact.name.trim() !== '' &&
+//         /^\d{10}$/.test(lastContact.mobile.trim())
+//       )
+      
+//     } else {
+//       setAddButtonEnabled(false)
+//     }
+//   }, [contacts])
+
+//   const handleAddContact = () => {
+//     setContacts([...contacts, { id: contacts.length + 1, name: '', mobile: '' }])
+//     // Disable button after adding a new contact
+//     setAddButtonEnabled(false)
+//   }
+
+//   const handleContactChange = (id, field, value) => {
+//     if (field === 'mobile') {
+//       // Allow only digits and limit to 10 characters
+//       if (!/^\d*$/.test(value) || value.length > 10) return
+//     }
+//     setContacts(contacts.map(contact => {
+//       if (contact.id === id) {
+//         return { ...contact, [field]: value }
+//       }
+//       return contact
+//     }))
+//   }
+
+//   const handleRemoveContact = id => {
+//     setContacts(contacts.filter(contact => contact.id !== id))
+//   }
+
+//   return (
+//     <>
+//       <Typography variant='h4' className='mbe-1'>
+//         Personal Information
+//       </Typography>
+//       <Typography>Enter Vendor Personal Information</Typography>
+//       <br />
+//       <Grid container spacing={3}>
+//         <Grid item xs={12}>
+//           <TextField
+//             fullWidth
+//             label='Vendor Name'
+//             placeholder='Enter Your Vendor Name'
+//             value={vendorName}
+//             onChange={e => setVendorName(e.target.value)}
+//           />
+//         </Grid>
+//       </Grid>
+//       <Grid container spacing={3} style={{ marginTop: '10px' }}>
+//         {contacts.map((contact, index) => (
+//           <Grid item xs={12} key={contact.id} className='repeater-item'>
+//             <Grid container spacing={3} alignItems='center'>
+//               <Grid item xs={12} sm={6}>
+//                 <TextField
+//                   fullWidth
+//                   label={`Contact Person`}
+//                   placeholder='Contact Person'
+//                   value={contact.name}
+//                   onChange={e => handleContactChange(contact.id, 'name', e.target.value)}
+//                   required
+//                 />
+//               </Grid>
+//               <Grid item xs={12} sm={6}>
+//                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+//                   <TextField
+//                     fullWidth
+//                     label={`Contact Number`}
+//                     placeholder='Contact Number'
+//                     value={contact.mobile}
+//                     onChange={e => handleContactChange(contact.id, 'mobile', e.target.value)}
+//                     InputProps={{
+//                       startAdornment: <InputAdornment position='start'>IN (+91)</InputAdornment>,
+//                       inputProps: { maxLength: 10 }
+//                     }}
+//                     required
+//                   />
+//                   {index > 0 && (
+//                     <IconButton onClick={() => handleRemoveContact(contact.id)} color='error'>
+//                       <RemoveIcon />
+//                     </IconButton>
+//                   )}
+//                 </div>
+//               </Grid>
+//             </Grid>
+//           </Grid>
+//         ))}
+//         <Grid item xs={12}>
+//           <Button 
+//             variant='contained' 
+//             onClick={handleAddContact} 
+//             startIcon={<AddIcon />}
+//             disabled={!addButtonEnabled}
+//           >
+//             Add Another Contact
+//           </Button>
+//         </Grid>
+//       </Grid>
+//       <Grid container spacing={3} style={{ marginTop: '10px' }}>
+//         <Grid item xs={12}>
+//           <TextField
+//             fullWidth
+//             label='Address'
+//             placeholder='Enter complete address'
+//             value={address}
+//             onChange={e => setAddress(e.target.value)}
+//           />
+//         </Grid>
+//         <Grid item xs={12} sm={6}>
+//           <TextField
+//             fullWidth
+//             label='Latitude'
+//             placeholder='Enter latitude (e.g., 28.6139)'
+//             value={latitude}
+//             onChange={e => setLatitude(e.target.value)}
+//           />
+//         </Grid>
+//         <Grid item xs={12} sm={6}>
+//           <TextField
+//             fullWidth
+//             label='Longitude'
+//             placeholder='Enter longitude (e.g., 77.209)'
+//             value={longitude}
+//             onChange={e => setLongitude(e.target.value)}
+//           />
+//         </Grid>
+//         <Grid item xs={12}>
+//           <TextField
+//             fullWidth
+//             label='Landmark'
+//             placeholder='Enter a nearby landmark'
+//             value={landmark}
+//             onChange={e => setLandmark(e.target.value)}
+//           />
+//         </Grid>
+//       </Grid>
+//       <Grid container spacing={3} justifyContent='space-between' style={{ marginTop: '20px' }}>
+//         <Grid item>
+//           <Button
+//             variant='contained'
+//             onClick={handleNext}
+//             endIcon={<DirectionalIcon ltrIconClass='ri-arrow-right-line' />}
+//           >
+//             Next
+//           </Button>
+//         </Grid>
+//       </Grid>
+//     </>
+//   )
+// }
+
+// export default StepPersonalInfo
+
+
+
 'use client'
 import { useState, useEffect } from 'react'
 
@@ -419,6 +612,8 @@ import InputAdornment from '@mui/material/InputAdornment'
 import IconButton from '@mui/material/IconButton'
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
 import DirectionalIcon from '@components/DirectionalIcon'
 
@@ -439,6 +634,29 @@ const StepPersonalInfo = ({
 }) => {
   // State to track if add button should be enabled
   const [addButtonEnabled, setAddButtonEnabled] = useState(false)
+  const [formValid, setFormValid] = useState(false)
+  const { lang: locale } = useParams()
+
+  // Check form validity
+  useEffect(() => {
+    const isVendorNameValid = vendorName.trim() !== ''
+    const isContactsValid = contacts.every(contact => 
+      contact.name.trim() !== '' && /^\d{10}$/.test(contact.mobile.trim())
+    )
+    const isAddressValid = address.trim() !== ''
+    const isLatitudeValid = latitude !== null && latitude !== ''
+    const isLongitudeValid = longitude !== null && longitude !== ''
+    const isLandmarkValid = landmark.trim() !== ''
+
+    setFormValid(
+      isVendorNameValid &&
+      isContactsValid &&
+      isAddressValid &&
+      isLatitudeValid &&
+      isLongitudeValid &&
+      isLandmarkValid
+    )
+  }, [vendorName, contacts, address, latitude, longitude, landmark])
 
   // Check if the last contact has both name and mobile filled
   useEffect(() => {
@@ -448,7 +666,6 @@ const StepPersonalInfo = ({
         lastContact.name.trim() !== '' &&
         /^\d{10}$/.test(lastContact.mobile.trim())
       )
-      
     } else {
       setAddButtonEnabled(false)
     }
@@ -477,6 +694,14 @@ const StepPersonalInfo = ({
     setContacts(contacts.filter(contact => contact.id !== id))
   }
 
+  const handleNextClick = () => {
+    if (!formValid) {
+      alert('Please fill all required fields before proceeding')
+      return
+    }
+    handleNext()
+  }
+
   return (
     <>
       <Typography variant='h4' className='mbe-1'>
@@ -492,6 +717,7 @@ const StepPersonalInfo = ({
             placeholder='Enter Your Vendor Name'
             value={vendorName}
             onChange={e => setVendorName(e.target.value)}
+            required
           />
         </Grid>
       </Grid>
@@ -552,6 +778,7 @@ const StepPersonalInfo = ({
             placeholder='Enter complete address'
             value={address}
             onChange={e => setAddress(e.target.value)}
+            required
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -561,6 +788,7 @@ const StepPersonalInfo = ({
             placeholder='Enter latitude (e.g., 28.6139)'
             value={latitude}
             onChange={e => setLatitude(e.target.value)}
+            required
           />
         </Grid>
         <Grid item xs={12} sm={6}>
@@ -570,6 +798,7 @@ const StepPersonalInfo = ({
             placeholder='Enter longitude (e.g., 77.209)'
             value={longitude}
             onChange={e => setLongitude(e.target.value)}
+            required
           />
         </Grid>
         <Grid item xs={12}>
@@ -579,14 +808,25 @@ const StepPersonalInfo = ({
             placeholder='Enter a nearby landmark'
             value={landmark}
             onChange={e => setLandmark(e.target.value)}
+            required
           />
         </Grid>
       </Grid>
       <Grid container spacing={3} justifyContent='space-between' style={{ marginTop: '20px' }}>
         <Grid item>
+          <Link href="/vendor" passHref>
+            <Button
+              variant='outlined'
+              color='secondary'
+            >
+              Back to Login
+            </Button>
+          </Link>
+        </Grid>
+        <Grid item>
           <Button
             variant='contained'
-            onClick={handleNext}
+            onClick={handleNextClick}
             endIcon={<DirectionalIcon ltrIconClass='ri-arrow-right-line' />}
           >
             Next
