@@ -94,7 +94,7 @@ const HorizontalMenu = ({ dictionary }) => {
           </MenuItem>
           <SubMenu label={dictionary['navigation'].Transactions} >
             <MenuItem href={`/${locale}/pages/platformfee`}>{dictionary['navigation'].VendorBookings}</MenuItem>
-            <MenuItem href={`/${locale}/pages/platformfee`}>
+            <MenuItem href={`/${locale}/pages/userbookings`}>
               {dictionary['navigation'].UserBookings}
             </MenuItem>
           </SubMenu>

@@ -73,6 +73,8 @@ const VehicleBookingTransactions = () => {
           id: item._id,
           serialNo: index + 1,
           bookingId: item._id,
+          parkingDate: item.parkingDate || "N/A",  // Add this line
+          parkingTime: item.parkingTime || "N/A",
           bookingAmount: `₹${item.amount}`,
           platformFee: `₹${item.platformfee}`,
           receivable: `₹${item.receivableAmount}`,
@@ -134,17 +136,19 @@ const VehicleBookingTransactions = () => {
     }
 
     // Create CSV content
-    const headers = ["S.No", "Booking ID", "Total Amount", "Platform Fee", "Receivable"];
+    const headers = ["S.No", "Booking ID", "Date", "Time", "Amount", "Platform Fee", "Receivable"];
     const rows = transactions.map(t => [
       t.serialNo,
       t.bookingId,
+      t.parkingDate,
+      t.parkingTime,
       t.bookingAmount,
       t.platformFee,
       t.receivable
     ]);
 
-    let csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n" 
+    let csvContent = "data:text/csv;charset=utf-8,"
+      + headers.join(",") + "\n"
       + rows.map(row => row.join(",")).join("\n");
 
     const encodedUri = encodeURI(csvContent);
@@ -170,47 +174,51 @@ const VehicleBookingTransactions = () => {
 
     // Create a simple HTML table for PDF
     const htmlContent = `
-      <html>
-        <head>
-          <title>Transactions Report</title>
-          <style>
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .title { text-align: center; margin-bottom: 20px; }
-            .date-range { margin-bottom: 20px; }
-            .total { margin-top: 20px; font-weight: bold; }
-          </style>
-        </head>
-        <body>
-          <h1 class="title">Booking Transactions Report</h1>
-          <div class="date-range">Date Range: ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}</div>
-          <table>
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Booking ID</th>
-                <th>Total Amount</th>
-                <th>Platform Fee</th>
-                <th>Receivable</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transactions.map(t => `
-                <tr>
-                  <td>${t.serialNo}</td>
-                  <td>${t.bookingId}</td>
-                  <td>${t.bookingAmount}</td>
-                  <td>${t.platformFee}</td>
-                  <td>${t.receivable}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="total">Total Receivable: ₹${getTotalReceivable().toFixed(2)}</div>
-        </body>
-      </html>
-    `;
+  <html>
+    <head>
+      <title>Transactions Report</title>
+      <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .title { text-align: center; margin-bottom: 20px; }
+        .date-range { margin-bottom: 20px; }
+        .total { margin-top: 20px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <h1 class="title">Booking Transactions Report</h1>
+      <div class="date-range">Date Range: ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}</div>
+      <table>
+        <thead>
+          <tr>
+            <th>S.No</th>
+            <th>Booking ID</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Amount</th>
+            <th>Platform Fee</th>
+            <th>Receivable</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${transactions.map(t => `
+            <tr>
+              <td>${t.serialNo}</td>
+              <td>${t.bookingId}</td>
+              <td>${t.parkingDate}</td>
+              <td>${t.parkingTime}</td>
+              <td>${t.bookingAmount}</td>
+              <td>${t.platformFee}</td>
+              <td>${t.receivable}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div class="total">Total Receivable: ₹${getTotalReceivable().toFixed(2)}</div>
+    </body>
+  </html>
+`;
 
     // Open print dialog which allows saving as PDF
     const win = window.open('', '_blank');
@@ -228,7 +236,9 @@ const VehicleBookingTransactions = () => {
   const columns = [
     { field: "serialNo", headerName: "S.No", width: 80 },
     { field: "bookingId", headerName: "Booking ID", width: 220 },
-    { field: "bookingAmount", headerName: "Total Amount", width: 150 },
+    { field: "parkingDate", headerName: "Date", width: 120 },  // Add this
+    { field: "parkingTime", headerName: "Time", width: 120 },
+    { field: "bookingAmount", headerName: "Amount", width: 150 },
     { field: "platformFee", headerName: "Platform Fee", width: 150 },
     { field: "receivable", headerName: "Receivable", width: 150 },
   ];
