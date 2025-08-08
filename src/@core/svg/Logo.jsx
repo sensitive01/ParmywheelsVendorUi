@@ -82,7 +82,7 @@ const Award = () => {
   return (
     <img
       src='/images/cards/login.png'
-      style={{ width: 'auto', height: 'auto', maxWidth: '9%', maxHeight: '9%' }}
+      style={{ width: 'auto', height: 'auto', maxWidth: '100%' }}
       alt='Award'
     />
   )

@@ -1,12 +1,10 @@
 'use client'
 
 // React Imports
-import { useRef, useState } from 'react'
-
+import { useRef, useState, useEffect } from 'react'
 
 // Next Imports
 import { useParams, useRouter } from 'next/navigation'
-
 
 // MUI Imports
 import { styled } from '@mui/material/styles'
@@ -25,13 +23,11 @@ import Button from '@mui/material/Button'
 // Third-party Imports
 import { signOut, useSession } from 'next-auth/react'
 
-
 // Hook Imports
 import { useSettings } from '@core/hooks/useSettings'
 
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n'
-
 
 // Styled component for badge content
 const BadgeContentSpan = styled('span')({
@@ -43,9 +39,11 @@ const BadgeContentSpan = styled('span')({
   boxShadow: '0 0 0 2px var(--mui-palette-background-paper)'
 })
 
-const UserDropdown = () => {
+const UserDropdown = ({ dictionary }) => {
   // States
   const [open, setOpen] = useState(false)
+  const [userData, setUserData] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   // Refs
   const anchorRef = useRef(null)
@@ -55,6 +53,38 @@ const UserDropdown = () => {
   const { data: session } = useSession()
   const { settings } = useSettings()
   const { lang: locale } = useParams()
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!session?.user?.id) {
+        setLoading(false)
+        return
+      }
+      
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${session.user.id}`, {
+          cache: 'no-store',
+          headers: {
+            'pragma': 'no-cache',
+            'cache-control': 'no-cache'
+          }
+        })
+        const result = await response.json()
+        
+        if (response.ok && result.data) {
+          setUserData(result.data)
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    if (session?.user?.id) {
+      fetchUserData()
+    }
+  }, [session])
 
   const handleDropdownOpen = () => {
     !open ? setOpen(true) : setOpen(false)
@@ -78,14 +108,17 @@ const UserDropdown = () => {
       await signOut({ callbackUrl: process.env.NEXT_PUBLIC_APP_URL })
     } catch (error) {
       console.error(error)
-
-      // Show above error in a toast like following
-      // toastService.error((err as Error).message)
     }
   }
 
-  
-return (
+  // Merge session user data with fetched user data
+  const user = {
+    ...session?.user,
+    ...(userData || {}),
+    image: userData?.image || session?.user?.image || '/default-profile.jpg'
+  }
+
+  return (
     <>
       <Badge
         ref={anchorRef}
@@ -94,13 +127,19 @@ return (
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         className='mis-2'
       >
-        <Avatar
+        <div 
           ref={anchorRef}
-          alt={session?.user?.name || ''}
-          src={session?.user?.image || ''}
           onClick={handleDropdownOpen}
-          className='cursor-pointer bs-[38px] is-[38px]'
-        />
+          className='cursor-pointer bs-[38px] is-[38px] rounded-full overflow-hidden border-2 border-white'
+        >
+          <img 
+            src={user.image} 
+            alt={user.name || ''}
+            className='w-full h-full object-cover'
+            width={38}
+            height={38}
+          />
+        </div>
       </Badge>
       <Popper
         open={open}
@@ -124,12 +163,20 @@ return (
               <ClickAwayListener onClickAway={e => handleDropdownClose(e)}>
                 <MenuList>
                   <div className='flex items-center plb-2 pli-4 gap-2' tabIndex={-1}>
-                    <Avatar alt={session?.user?.name || ''} src={session?.user?.image || ''} />
+                    <div className='rounded-full overflow-hidden bs-[40px] is-[40px] border-2 border-white'>
+                      <img 
+                        src={user.image} 
+                        alt={user.name || ''}
+                        className='w-full h-full object-cover'
+                        width={40}
+                        height={40}
+                      />
+                    </div>
                     <div className='flex items-start flex-col'>
                       <Typography variant='body2' className='font-medium' color='text.primary'>
-                        {session?.user?.name || ''}
+                        {user.vendorName || user.name || ''}
                       </Typography>
-                      <Typography variant='caption'>{session?.user?.email || ''}</Typography>
+                      <Typography variant='caption'>{user.email || ''}</Typography>
                     </div>
                   </div>
                   <Divider className='mlb-1' />
@@ -137,24 +184,43 @@ return (
                     <i className='ri-user-3-line' />
                     <Typography color='text.primary'>My Profile</Typography>
                   </MenuItem>
-                <div className='flex items-center plb-1.5 pli-4'>
-                  <Button
-                    fullWidth
-                    variant='contained'
-                    color='error'
-                    size='small'
-                    endIcon={<i className='ri-logout-box-r-line' />}
-                    onClick={handleUserLogout}
+                  <MenuItem 
+                    className='gap-3 pli-4' 
+                    onClick={e => handleDropdownClose(e, `/${locale}/pages/account-settings`)}
                   >
-                    Logout 
-                  </Button>
-                </div>
-              </MenuList>
-            </ClickAwayListener>
-          </Paper>
+                    <i className='ri-user-settings-line' />
+                    <Typography color='text.primary'>
+                      {dictionary?.navigation?.accountSettings || 'Account Settings'}
+                    </Typography>
+                  </MenuItem>
+                  <MenuItem 
+                    className='gap-3 pli-4' 
+                    onClick={e => handleDropdownClose(e, `/${locale}/pages/notifications`)}
+                  >
+                    <i className='ri-notification-3-line' style={{ color: 'black', fontSize: '1.25rem' }} />
+                    <Typography color='text.primary'>
+                      {dictionary?.navigation?.notifications || 'Notifications'}
+                    </Typography>
+                  </MenuItem>
+                  <Divider className='mlb-1' />
+                  <div className='flex items-center plb-1.5 pli-4'>
+                    <Button
+                      fullWidth
+                      variant='contained'
+                      color='error'
+                      size='small'
+                      endIcon={<i className='ri-logout-box-r-line' />}
+                      onClick={handleUserLogout}
+                    >
+                      {dictionary?.navigation?.logout || 'Logout'}
+                    </Button>
+                  </div>
+                </MenuList>
+              </ClickAwayListener>
+            </Paper>
           </Fade>
         )}
-    </Popper >
+      </Popper>
     </>
   )
 }
