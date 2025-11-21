@@ -746,6 +746,7 @@ const ExitVehicleCalculator = ({
         otp: isVendorBooking ? null : backendOtp
       })
 
+      // In the handleSubmit function, update the fetch call's body to use formattedDuration
       const response = await fetch(`${API_URL}/vendor/exitvehicle/${bookingId}`, {
         method: 'PUT',
         headers: {
@@ -754,7 +755,8 @@ const ExitVehicleCalculator = ({
         },
         body: JSON.stringify({
           amount,
-          hour: hours,
+          duration: formattedDuration,
+          hour: formattedDuration, // Changed from hour: hours
           is24Hours,
           isSubscription,
           vendorId,

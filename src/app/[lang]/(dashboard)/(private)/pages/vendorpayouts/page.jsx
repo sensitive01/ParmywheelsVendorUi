@@ -16,22 +16,40 @@ import {
     DialogActions,
     TextField,
     Menu,
-    MenuItem
+    MenuItem,
+    IconButton,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    TablePagination,
+    Paper,
+    Chip,
+    CircularProgress
 } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import { DataGrid } from "@mui/x-data-grid";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import CloseIcon from "@mui/icons-material/Close";
 import { useSession } from "next-auth/react";
 
 const VendorPayOuts = () => {
+    const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL;
     const { data: session, status } = useSession();
     const [transactions, setTransactions] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [dateDialogOpen, setDateDialogOpen] = useState(false);
+    const [viewMoreDialogOpen, setViewMoreDialogOpen] = useState(false);
+    const [selectedSettlement, setSelectedSettlement] = useState(null);
     const [downloadAnchorEl, setDownloadAnchorEl] = useState(null);
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+
     const [summaryData, setSummaryData] = useState({
-        totalAmount: 0,
-        totalReceivable: 0,
-        platformFeePercentage: 0
+        totalParkingAmount: 0,
+        totalPlatformFee: 0,
+        totalReceivable: 0
     });
 
     const getCurrentDate = () => {
@@ -50,15 +68,43 @@ const VendorPayOuts = () => {
 
     const formatDateForDisplay = (dateString) => {
         if (!dateString) return "";
-        const [day, month, year] = dateString.split('-');
+
+        // If already in DD-MM-YYYY format
+        if (dateString.includes('-') && dateString.split('-')[0].length <= 2) {
+            return dateString;
+        }
+
+        // If in YYYY-MM-DD format, convert to DD-MM-YYYY
+        const date = new Date(dateString);
+        const day = date.getDate().toString().padStart(2, '0');
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const year = date.getFullYear();
         return `${day}-${month}-${year}`;
     };
 
-    const getTotalReceivable = () => {
-        return transactions.reduce((total, transaction) => {
-            const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
-            return total + amount;
-        }, 0);
+    const formatTimeForDisplay = (timeString) => {
+        if (!timeString) return "";
+
+        // If time is in HH:MM:SS format, convert to 12-hour format
+        if (timeString.includes(':')) {
+            const parts = timeString.split(':');
+            let hours = parseInt(parts[0]);
+            const minutes = parts[1];
+            const period = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            return `${hours}:${minutes} ${period}`;
+        }
+
+        return timeString;
+    };
+
+    const handleChangePage = (event, newPage) => {
+        setPage(newPage);
+    };
+
+    const handleChangeRowsPerPage = (event) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
     };
 
     useEffect(() => {
@@ -77,9 +123,8 @@ const VendorPayOuts = () => {
         if (!vendorId) return;
 
         setIsLoading(true);
-
         try {
-            let url = `https://api.parkmywheels.com/vendor/getvendorpayouts/${vendorId}`;
+            let url = `${NEXT_PUBLIC_API_URL}/vendor/fetchsettlement/${vendorId}`;
 
             if (dateFilter && startDate && endDate) {
                 url += `?startDate=${startDate}&endDate=${endDate}`;
@@ -88,36 +133,82 @@ const VendorPayOuts = () => {
             const response = await axios.get(url);
 
             if (response.status === 200) {
-                const data = response.data.data.bookings.map((item, index) => ({
+                // Handle case when no settlements found
+                if (!response.data.data || response.data.data.length === 0) {
+                    setTransactions([]);
+                    setFilteredData([]);
+                    setSummaryData({
+                        totalParkingAmount: '0.00',
+                        totalPlatformFee: '0.00',
+                        totalReceivable: '0.00'
+                    });
+                    setSnackbar({
+                        open: true,
+                        message: "No settlement records found for this vendor",
+                        severity: "info",
+                    });
+                    return;
+                }
+
+                const settlements = response.data.data;
+                const data = settlements.map((item, index) => ({
                     id: item._id,
                     serialNo: index + 1,
-                    bookingId: item._id,
-                    bookingAmount: `₹${item.amount}`,
-                    platformFee: `₹${item.platformfee}`,
-                    receivable: `₹${item.receivableAmount}`,
-                    bookingDate: formatDateForDisplay(item.bookingDate),
-                    bookingTime: item.parkingTime,
+                    settlementId: item.settlementid || item._id,
+                    orderId: item.orderid,
+                    date: item.date,
+                    time: item.time,
+                    parkingAmount: `₹${parseFloat(item.parkingamout || 0).toFixed(2)}`,
+                    platformFee: `₹${parseFloat(item.platformfee || 0).toFixed(2)}`,
+                    receivable: `₹${parseFloat(item.payableammout || 0).toFixed(2)}`,
+                    status: item.status || 'pending',
+                    bookings: item.bookings || [],
+                    gst: item.gst,
+                    tds: item.tds,
+                    bookingTotal: item.bookingtotal
                 }));
 
                 setTransactions(data);
+                setFilteredData(data);
+
+                // Calculate summary
+                const totalParkingAmount = settlements.reduce((sum, item) =>
+                    sum + parseFloat(item.parkingamout || 0), 0);
+                const totalPlatformFee = settlements.reduce((sum, item) =>
+                    sum + parseFloat(item.platformfee || 0), 0);
+                const totalReceivable = settlements.reduce((sum, item) =>
+                    sum + parseFloat(item.payableammout || 0), 0);
+
                 setSummaryData({
-                    totalAmount: response.data.data.totalAmount,
-                    totalReceivable: response.data.data.totalReceivable,
-                    platformFeePercentage: response.data.data.platformFeePercentage
+                    totalParkingAmount: totalParkingAmount.toFixed(2),
+                    totalPlatformFee: totalPlatformFee.toFixed(2),
+                    totalReceivable: totalReceivable.toFixed(2)
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+
+            // Handle 404 - No settlements found
+            if (error.response && error.response.status === 404) {
+                setTransactions([]);
+                setFilteredData([]);
+                setSummaryData({
+                    totalParkingAmount: '0.00',
+                    totalPlatformFee: '0.00',
+                    totalReceivable: '0.00'
+                });
+                setSnackbar({
+                    open: true,
+                    message: "No settlement records found for this vendor",
+                    severity: "info",
                 });
             } else {
                 setSnackbar({
                     open: true,
-                    message: "Error fetching transactions: " + response.statusText,
+                    message: "Failed to fetch transactions. Please try again.",
                     severity: "error",
                 });
             }
-        } catch (error) {
-            setSnackbar({
-                open: true,
-                message: "Error fetching transactions: " + error.message,
-                severity: "error",
-            });
         } finally {
             setIsLoading(false);
         }
@@ -141,6 +232,11 @@ const VendorPayOuts = () => {
         setDateDialogOpen(false);
     };
 
+    const handleViewMore = (settlement) => {
+        setSelectedSettlement(settlement);
+        setViewMoreDialogOpen(true);
+    };
+
     const handleDownloadClick = (event) => {
         setDownloadAnchorEl(event.currentTarget);
     };
@@ -150,22 +246,19 @@ const VendorPayOuts = () => {
     };
 
     const exportToCSV = () => {
-        // Create CSV content
         let csvContent = "data:text/csv;charset=utf-8,";
 
         // Add headers
         const headers = [
             'S.No',
-            'Booking ID',
-            'Booking Date',
-            'Booking Time',
-            'Parking Date',
-            'Parking Time',
-            'Exit Date',
-            'Exit Time',
-            'Total Amount',
+            'Settlement ID',
+            'Order ID',
+            'Date',
+            'Time',
+            'Parking Amount',
             'Platform Fee',
-            'Receivable'
+            'Receivable',
+            'Status'
         ];
         csvContent += headers.join(',') + '\r\n';
 
@@ -173,16 +266,14 @@ const VendorPayOuts = () => {
         transactions.forEach(transaction => {
             const row = [
                 transaction.serialNo,
-                `"${transaction.bookingId}"`, // Wrap in quotes to prevent CSV injection
-                transaction.bookingDate,
-                transaction.bookingTime,
-                transaction.parkingDate,
-                transaction.parkingTime,
-                transaction.exitDate,
-                transaction.exitTime,
-                transaction.bookingAmount,
+                `"${transaction.settlementId}"`,
+                `"${transaction.orderId}"`,
+                formatDateForDisplay(transaction.date),
+                formatTimeForDisplay(transaction.time),
+                transaction.parkingAmount,
                 transaction.platformFee,
-                transaction.receivable
+                transaction.receivable,
+                transaction.status
             ];
             csvContent += row.join(',') + '\r\n';
         });
@@ -190,11 +281,10 @@ const VendorPayOuts = () => {
         // Add summary
         csvContent += '\r\n';
         csvContent += 'Summary\r\n';
-        csvContent += `Platform Fee Percentage,${summaryData.platformFeePercentage}%\r\n`;
-        csvContent += `Total Amount,₹${summaryData.totalAmount}\r\n`;
+        csvContent += `Total Parking Amount,₹${summaryData.totalParkingAmount}\r\n`;
+        csvContent += `Total Platform Fee,₹${summaryData.totalPlatformFee}\r\n`;
         csvContent += `Total Receivable,₹${summaryData.totalReceivable}\r\n`;
 
-        // Create download link
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -207,77 +297,77 @@ const VendorPayOuts = () => {
     };
 
     const exportToPDF = () => {
-        // Create a printable HTML content
         const printContent = `
-      <html>
-        <head>
-          <title>Vendor Payouts Report</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1 { color: #329a73; text-align: center; }
-            .summary { margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background-color: #329a73; color: white; padding: 8px; text-align: left; }
-            td { padding: 8px; border-bottom: 1px solid #ddd; }
-            .footer { margin-top: 30px; font-size: 0.8em; }
-          </style>
-        </head>
-        <body>
-          <h1>Vendor Payouts Report</h1>
-          <div class="summary">
-            <p><strong>Date Range:</strong> ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}</p>
-            <p><strong>Platform Fee:</strong> ${summaryData.platformFeePercentage}%</p>
-            <p><strong>Total Amount:</strong> ₹${summaryData.totalAmount}</p>
-            <p><strong>Total Receivable:</strong> ₹${summaryData.totalReceivable}</p>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Booking ID</th>
-                <th>Booking Date</th>
-                <th>Booking Time</th>
-                <th>Parking Date</th>
-                <th>Parking Time</th>
-                <th>Exit Date</th>
-                <th>Exit Time</th>
-                <th>Total Amount</th>
-                <th>Platform Fee</th>
-                <th>Receivable</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${transactions.map(transaction => `
-                <tr>
-                  <td>${transaction.serialNo}</td>
-                  <td>${transaction.bookingId}</td>
-                  <td>${transaction.bookingDate}</td>
-                  <td>${transaction.bookingTime}</td>
-                  <td>${transaction.parkingDate}</td>
-                  <td>${transaction.parkingTime}</td>
-                  <td>${transaction.exitDate}</td>
-                  <td>${transaction.exitTime}</td>
-                  <td>${transaction.bookingAmount}</td>
-                  <td>${transaction.platformFee}</td>
-                  <td>${transaction.receivable}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="footer">
-            <p>Generated on: ${new Date().toLocaleString()}</p>
-          </div>
-        </body>
-      </html>
-    `;
+            <html>
+                <head>
+                    <title>Vendor Payouts Report</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        h1 { color: #329a73; text-align: center; }
+                        .summary { 
+                            margin-bottom: 20px; 
+                            background-color: #f5f5f5;
+                            padding: 15px;
+                            border-radius: 5px;
+                        }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th { background-color: #329a73; color: white; padding: 10px; text-align: left; }
+                        td { padding: 10px; border-bottom: 1px solid #ddd; }
+                        .footer { margin-top: 30px; font-size: 0.8em; text-align: center; }
+                        .status-settled { color: #329a73; font-weight: bold; }
+                        .status-pending { color: #ff9800; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Vendor Payouts Report</h1>
+                    <div class="summary">
+                        <p><strong>Date Range:</strong> ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}</p>
+                        <p><strong>Total Parking Amount:</strong> ₹${summaryData.totalParkingAmount}</p>
+                        <p><strong>Total Platform Fee:</strong> ₹${summaryData.totalPlatformFee}</p>
+                        <p><strong>Total Receivable:</strong> ₹${summaryData.totalReceivable}</p>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>S.No</th>
+                                <th>Settlement ID</th>
+                                <th>Order ID</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Parking Amount</th>
+                                <th>Platform Fee</th>
+                                <th>Receivable</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${transactions.map(transaction => `
+                                <tr>
+                                    <td>${transaction.serialNo}</td>
+                                    <td>${transaction.settlementId}</td>
+                                    <td>${transaction.orderId}</td>
+                                    <td>${formatDateForDisplay(transaction.date)}</td>
+                                    <td>${formatTimeForDisplay(transaction.time)}</td>
+                                    <td>${transaction.parkingAmount}</td>
+                                    <td>${transaction.platformFee}</td>
+                                    <td>${transaction.receivable}</td>
+                                    <td class="status-${transaction.status}">${transaction.status.toUpperCase()}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <div class="footer">
+                        <p>Generated on: ${new Date().toLocaleString()}</p>
+                    </div>
+                </body>
+            </html>
+        `;
 
-        // Open a new window with the printable content
         const printWindow = window.open('', '_blank');
         printWindow.document.open();
         printWindow.document.write(printContent);
         printWindow.document.close();
 
-        // Wait for content to load then print
         printWindow.onload = () => {
             printWindow.print();
         };
@@ -285,38 +375,62 @@ const VendorPayOuts = () => {
         handleDownloadClose();
     };
 
-    const columns = [
-        { field: "serialNo", headerName: "S.No", width: 80 },
-        { field: "bookingId", headerName: "Booking ID", width: 220 },
-        { field: "bookingDate", headerName: "Booking Date", width: 120 },
-        { field: "bookingTime", headerName: "Booking Time", width: 120 },
-        { field: "bookingAmount", headerName: "Total Amount", width: 120 },
-        { field: "platformFee", headerName: "Platform Fee", width: 120 },
-        { field: "receivable", headerName: "Receivable", width: 120 },
-    ];
-
     return (
-        <Box sx={{ backgroundColor: "#f4f4f4", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", padding: 2 }}>
-            <Card sx={{ width: "100%", maxWidth: 1200, borderRadius: 3, boxShadow: 3 }}>
+        <Box sx={{ backgroundColor: "#f4f4f4", minHeight: "100vh", padding: 3 }}>
+            <Card sx={{ width: "100%", maxWidth: 1400, margin: '0 auto',  boxShadow: 3 }}>
                 <CardContent sx={{ p: 3 }}>
-                    <Typography variant="h5" component="h1" sx={{ mb: 3, textAlign: 'center' }}>
-                        Vendor Payouts
+                    <Typography variant="h5" component="h1" sx={{ mb: 3, fontWeight: 600, color: '#329a73' }}>
+                        Vendor Payouts & Settlements
                     </Typography>
 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    {/* Summary Cards */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 2, mb: 3 }}>
+                        <Card sx={{ bgcolor: '#e8f5e9', p: 2, boxShadow: 1 }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Total Parking Amount
+                            </Typography>
+                            <Typography variant="h5" sx={{ color: '#2e7d32', fontWeight: 600 }}>
+                                ₹{summaryData.totalParkingAmount}
+                            </Typography>
+                        </Card>
+                        <Card sx={{ bgcolor: '#fff3e0', p: 2, boxShadow: 1 }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Total Platform Fee
+                            </Typography>
+                            <Typography variant="h5" sx={{ color: '#e65100', fontWeight: 600 }}>
+                                ₹{summaryData.totalPlatformFee}
+                            </Typography>
+                        </Card>
+                        <Card sx={{ bgcolor: '#e3f2fd', p: 2, boxShadow: 1 }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Total Receivable
+                            </Typography>
+                            <Typography variant="h5" sx={{ color: '#1565c0', fontWeight: 600 }}>
+                                ₹{summaryData.totalReceivable}
+                            </Typography>
+                        </Card>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                         <Box sx={{ display: 'flex', gap: 2 }}>
                             <Button
                                 variant="outlined"
                                 startIcon={<CalendarMonthIcon />}
                                 onClick={() => setDateDialogOpen(true)}
-                                size="small"
+                                sx={{
+                                    borderColor: '#329a73',
+                                    color: '#329a73',
+                                    '&:hover': {
+                                        borderColor: '#2a8a66',
+                                        backgroundColor: '#f0fdf4'
+                                    }
+                                }}
                             >
                                 Filter Dates
                             </Button>
                             <Button
                                 variant="contained"
                                 onClick={handleDownloadClick}
-                                size="small"
                                 sx={{
                                     backgroundColor: '#329a73',
                                     '&:hover': {
@@ -327,57 +441,154 @@ const VendorPayOuts = () => {
                                 Download Report
                             </Button>
                         </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Box sx={{
-                                bgcolor: '#f5f5f5',
-                                padding: '6px 12px',
-                                borderRadius: 1,
-                                border: '1px solid #e0e0e0'
-                            }}>
-                                <Typography variant="body2" fontWeight="bold" color="#329a73">
-                                    Total Receivable: ₹{summaryData.totalReceivable || getTotalReceivable().toFixed(2)}
-                                </Typography>
-                            </Box>
-                            <Box sx={{
-                                bgcolor: '#f0f8ff',
-                                padding: '6px 12px',
-                                borderRadius: 1,
-                                border: '1px solid #e0e0e0'
-                            }}>
-                                <Typography variant="body2" fontWeight="medium" color="#1976d2">
-                                    {`${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`}
-                                </Typography>
-                            </Box>
+                        <Box sx={{
+                            bgcolor: '#f0f8ff',
+                            padding: '8px 16px',
+                            borderRadius: 1,
+                            border: '1px solid #e0e0e0'
+                        }}>
+                            <Typography variant="body2" fontWeight="medium" color="#1976d2">
+                                {`${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`}
+                            </Typography>
                         </Box>
                     </Box>
 
                     {status === "loading" || isLoading ? (
-                        <Typography sx={{ textAlign: "center", color: "gray" }}>Loading transactions...</Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+                            <CircularProgress sx={{ color: '#329a73' }} />
+                        </Box>
                     ) : status === "unauthenticated" ? (
-                        <Typography sx={{ textAlign: "center", color: "gray" }}>Please login to view your transactions</Typography>
+                        <Alert severity="warning">Please login to view your transactions</Alert>
                     ) : transactions.length === 0 ? (
-                        <Typography sx={{ textAlign: "center", color: "gray" }}>No transactions found.</Typography>
+                        <Alert severity="info">No transactions found for the selected date range.</Alert>
                     ) : (
-                        <DataGrid
-                            rows={transactions}
-                            columns={columns}
-                            pageSizeOptions={[5, 10, 20]}
-                            initialState={{
-                                pagination: { paginationModel: { pageSize: 5 } },
-                            }}
-                            autoHeight
-                            sx={{
-                                "& .MuiDataGrid-columnHeaders": { backgroundColor: "#329a73", color: "black" },
-                                mb: 2,
-                                borderRadius: 2,
-                            }}
-                        />
+                        <>
+                            <TableContainer component={Paper} sx={{ mb: 2, boxShadow: 2, borderRadius: 2 }}>
+                                <Table>
+                                    <TableHead>
+                                        <TableRow sx={{ backgroundColor: '#329a73' }}>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                S.No
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Settlement ID
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Order ID
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Date
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Time
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Parking Amount
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Platform Fee
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Receivable
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Status
+                                            </TableCell>
+                                            <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
+                                                Actions
+                                            </TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {transactions
+                                            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                                            .map((transaction) => (
+                                                <TableRow
+                                                    key={transaction.id}
+                                                    hover
+                                                    sx={{
+                                                        '&:hover': {
+                                                            backgroundColor: '#f5f5f5'
+                                                        }
+                                                    }}
+                                                >
+                                                    <TableCell sx={{ py: 2 }}>{transaction.serialNo}</TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                                                            {transaction.settlementId}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        <Typography sx={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#1976d2' }}>
+                                                            {transaction.orderId}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        {formatDateForDisplay(transaction.date)}
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        {formatTimeForDisplay(transaction.time)}
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        <Typography sx={{ fontWeight: 500, color: '#329a73' }}>
+                                                            {transaction.parkingAmount}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        <Typography sx={{ color: '#ff9800' }}>
+                                                            {transaction.platformFee}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        <Typography sx={{ fontWeight: 600, color: '#2e7d32' }}>
+                                                            {transaction.receivable}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        <Chip
+                                                            label={transaction.status.toUpperCase()}
+                                                            size="small"
+                                                            color={transaction.status.toLowerCase() === 'settled' ? 'success' : 'warning'}
+                                                            sx={{ fontWeight: 500 }}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell sx={{ py: 2 }}>
+                                                        <IconButton
+                                                            color="primary"
+                                                            onClick={() => handleViewMore(transaction)}
+                                                            size="small"
+                                                        >
+                                                            <VisibilityIcon />
+                                                        </IconButton>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                            <TablePagination
+                                component="div"
+                                count={transactions.length}
+                                page={page}
+                                onPageChange={handleChangePage}
+                                rowsPerPage={rowsPerPage}
+                                onRowsPerPageChange={handleChangeRowsPerPage}
+                                rowsPerPageOptions={[5, 10, 20, 50]}
+                                sx={{
+                                    '.MuiTablePagination-toolbar': {
+                                        backgroundColor: '#fafafa',
+                                       
+                                    }
+                                }}
+                            />
+                        </>
                     )}
 
+                    {/* Date Filter Dialog */}
                     <Dialog open={dateDialogOpen} onClose={() => setDateDialogOpen(false)}>
                         <DialogTitle>Filter Transactions by Date</DialogTitle>
                         <DialogContent>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, minWidth: '300px' }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, minWidth: '350px' }}>
                                 <TextField
                                     label="Start Date"
                                     type="date"
@@ -397,22 +608,192 @@ const VendorPayOuts = () => {
                             </Box>
                         </DialogContent>
                         <DialogActions>
+                            <Button onClick={() => setDateDialogOpen(false)} color="secondary">
+                                Cancel
+                            </Button>
                             <Button onClick={handleClearFilters} color="secondary">
                                 Reset to Today
                             </Button>
-                            <Button onClick={handleApplyDateFilter} color="primary" variant="contained">
+                            <Button
+                                onClick={handleApplyDateFilter}
+                                variant="contained"
+                                sx={{
+                                    backgroundColor: '#329a73',
+                                    '&:hover': {
+                                        backgroundColor: '#2a8a66',
+                                    }
+                                }}
+                            >
                                 Apply
                             </Button>
                         </DialogActions>
                     </Dialog>
 
+                    {/* View More Dialog */}
+                    <Dialog
+                        open={viewMoreDialogOpen}
+                        onClose={() => setViewMoreDialogOpen(false)}
+                        maxWidth="lg"
+                        fullWidth
+                    >
+                        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#f5f5f5' }}>
+                            <Typography variant="h6" sx={{ color: '#329a73', fontWeight: 600 }}>
+                                Settlement Details
+                            </Typography>
+                            <IconButton onClick={() => setViewMoreDialogOpen(false)}>
+                                <CloseIcon />
+                            </IconButton>
+                        </DialogTitle>
+                        <DialogContent dividers>
+                            {selectedSettlement && (
+                                <Box>
+                                    {/* Settlement Summary */}
+                                    <Card sx={{ mb: 3, bgcolor: '#f9fafb', boxShadow: 1 }}>
+                                        <CardContent>
+                                            <Typography variant="h6" gutterBottom sx={{ color: '#329a73', mb: 2 }}>
+                                                Settlement Summary
+                                            </Typography>
+                                            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 3 }}>
+                                                <Box>
+                                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                        Settlement ID
+                                                    </Typography>
+                                                    <Typography variant="body1" fontWeight={500} sx={{ fontFamily: 'monospace' }}>
+                                                        {selectedSettlement.settlementId}
+                                                    </Typography>
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                        Order ID
+                                                    </Typography>
+                                                    <Typography variant="body1" fontWeight={500} sx={{ fontFamily: 'monospace', color: '#1976d2' }}>
+                                                        {selectedSettlement.orderId}
+                                                    </Typography>
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                        Date & Time
+                                                    </Typography>
+                                                    <Typography variant="body1" fontWeight={500}>
+                                                        {formatDateForDisplay(selectedSettlement.date)} at {formatTimeForDisplay(selectedSettlement.time)}
+                                                    </Typography>
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                        Status
+                                                    </Typography>
+                                                    <Chip
+                                                        label={selectedSettlement.status.toUpperCase()}
+                                                        size="small"
+                                                        color={selectedSettlement.status.toLowerCase() === 'settled' ? 'success' : 'warning'}
+                                                    />
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                        Parking Amount
+                                                    </Typography>
+                                                    <Typography variant="h6" sx={{ color: '#329a73', fontWeight: 600 }}>
+                                                        {selectedSettlement.parkingAmount}
+                                                    </Typography>
+                                                </Box>
+                                                <Box>
+                                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                        Platform Fee
+                                                    </Typography>
+                                                    <Typography variant="h6" sx={{ color: '#ff9800', fontWeight: 600 }}>
+                                                        {selectedSettlement.platformFee}
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ gridColumn: 'span 2' }}>
+                                                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                                                        Total Receivable
+                                                    </Typography>
+                                                    <Typography variant="h5" sx={{ color: '#2e7d32', fontWeight: 700 }}>
+                                                        {selectedSettlement.receivable}
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+
+                                    {/* Bookings Table */}
+                                    {selectedSettlement.bookings && selectedSettlement.bookings.length > 0 && (
+                                        <>
+                                            <Typography variant="h6" gutterBottom sx={{ color: '#329a73', mb: 2 }}>
+                                                Associated Bookings ({selectedSettlement.bookings.length})
+                                            </Typography>
+                                            <TableContainer component={Paper} sx={{ boxShadow: 2 }}>
+                                                <Table size="small">
+                                                    <TableHead>
+                                                        <TableRow sx={{ bgcolor: '#329a73' }}>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>S.No</TableCell>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Booking ID</TableCell>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Vehicle</TableCell>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Parking Date</TableCell>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Parking Time</TableCell>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Exit Date</TableCell>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Exit Time</TableCell>
+                                                            <TableCell sx={{ color: 'white', fontWeight: 600 }}>Amount</TableCell>
+                                                        </TableRow>
+                                                    </TableHead>
+                                                    <TableBody>
+                                                        {selectedSettlement.bookings.map((booking, index) => (
+                                                            <TableRow key={booking._id} hover>
+                                                                <TableCell>{index + 1}</TableCell>
+                                                                <TableCell>
+                                                                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                                                                        {booking._id}
+                                                                    </Typography>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Box>
+                                                                        <Typography variant="body2" fontWeight={500}>
+                                                                            {booking.vehicleType} - {booking.vehicleNumber}
+                                                                        </Typography>
+                                                                        <Typography variant="caption" color="text.secondary">
+                                                                            {booking.vendorName}
+                                                                        </Typography>
+                                                                    </Box>
+                                                                </TableCell>
+                                                                <TableCell>{formatDateForDisplay(booking.parkingDate)}</TableCell>
+                                                                <TableCell>{formatTimeForDisplay(booking.parkingTime)}</TableCell>
+                                                                <TableCell>{formatDateForDisplay(booking.exitvehicledate)}</TableCell>
+                                                                <TableCell>{formatTimeForDisplay(booking.exitvehicletime)}</TableCell>
+                                                                <TableCell>
+                                                                    <Typography fontWeight={500} sx={{ color: '#329a73' }}>
+                                                                        ₹{parseFloat(booking.amount || 0).toFixed(2)}
+                                                                    </Typography>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </TableContainer>
+                                        </>
+                                    )}
+                                </Box>
+                            )}
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Download Menu */}
                     <Menu
                         anchorEl={downloadAnchorEl}
                         open={Boolean(downloadAnchorEl)}
                         onClose={handleDownloadClose}
                     >
-                        <MenuItem onClick={exportToCSV}>Export to Excel</MenuItem>
-                        <MenuItem onClick={exportToPDF}>Export to PDF</MenuItem>
+                        <MenuItem onClick={exportToCSV}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <i className="ri-file-excel-line" style={{ fontSize: '18px' }} />
+                                Export to Excel
+                            </Box>
+                        </MenuItem>
+                        <MenuItem onClick={exportToPDF}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <i className="ri-file-pdf-line" style={{ fontSize: '18px' }} />
+                                Export to PDF
+                            </Box>
+                        </MenuItem>
                     </Menu>
 
                     <Snackbar

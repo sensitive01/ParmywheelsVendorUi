@@ -17,6 +17,7 @@ import CircularProgress from '@mui/material/CircularProgress'
 const AppReactApexCharts = dynamic(() => import('@/libs/styles/AppReactApexCharts'))
 
 const DonutChart = () => {
+  const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL
   // Hooks
   const theme = useTheme()
   const { data: session, status } = useSession()
@@ -33,7 +34,7 @@ const DonutChart = () => {
           const currentYear = new Date().getFullYear()
           const startDate = `${currentYear}-01-01`
           const endDate = `${currentYear}-12-31`
-          const url = `https://api.parkmywheels.com/vendor/fetchbookingtransaction/${session.user.id}?startDate=${startDate}&endDate=${endDate}`
+          const url = `${NEXT_PUBLIC_API_URL}/vendor/fetchbookingtransaction/${session.user.id}?startDate=${startDate}&endDate=${endDate}`
           
           const response = await axios.get(url)
           // Get the count of bookings from the response
@@ -99,7 +100,7 @@ const DonutChart = () => {
     return (
       <Card className='bs-full'>
         <CardContent>
-          <Typography color='error'>Error loading transaction data</Typography>
+          <Typography color='error'>Error loading transaction datas</Typography>
         </CardContent>
       </Card>
     )

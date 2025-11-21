@@ -35,6 +35,28 @@ const userbookings = () => {
         return `${day}-${month}-${year}`;
     };
 
+    // Parse date strings: ISO, YYYY-MM-DD, or DD-MM-YYYY
+    const parseToDate = (str) => {
+        if (!str) return null;
+        if (typeof str !== 'string') return new Date(str);
+        if (str.includes('T')) return new Date(str);
+        if (str.includes('-')) {
+            const parts = str.split('-');
+            if (parts[0].length === 4) {
+                // YYYY-MM-DD
+                return new Date(str);
+            } else if (parts[2]?.length === 4) {
+                // DD-MM-YYYY
+                const [day, month, year] = parts;
+                return new Date(`${year}-${month}-${day}`);
+            }
+        }
+        return null;
+    };
+
+    // Decide which date field to use for sorting
+    const getItemDate = (item) => item.parkingDate || item.bookingDate || item.createdAt || null;
+
     const getTotalReceivable = () => {
         return transactions.reduce((total, transaction) => {
             const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
@@ -61,7 +83,16 @@ const userbookings = () => {
             const response = await axios.get(`https://api.parkmywheels.com/vendor/userbookingtrans/${userId}`);
 
             if (response.status === 200) {
-                const data = response.data.data.map((item, index) => ({
+                const raw = response.data.data || [];
+
+                // Sort newest first using parkingDate -> bookingDate -> createdAt
+                const sorted = [...raw].sort((a, b) => {
+                    const ad = parseToDate(getItemDate(a)) || 0;
+                    const bd = parseToDate(getItemDate(b)) || 0;
+                    return bd - ad;
+                });
+
+                const data = sorted.map((item, index) => ({
                     id: item._id,
                     serialNo: index + 1,
                     bookingId: item._id,

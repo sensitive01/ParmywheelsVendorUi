@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import { useSession } from 'next-auth/react';
 import axios from 'axios';
 import {
@@ -31,7 +31,7 @@ const typesByLabel = {
 };
 
 const getCategoryIcon = (category) => {
-  switch(category) {
+  switch (category) {
     case 'Car': return <CarIcon />;
     case 'Bike': return <BikeIcon />;
     case 'Others': return <OthersIcon />;
@@ -78,6 +78,9 @@ const RateDisplay = styled(Box)(({ theme }) => ({
   textAlign: 'center',
   transform: 'translateZ(0)',
   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  '& .MuiTypography-root': {
+    color: theme.palette.primary.contrastText,
+  },
   '&:hover': {
     transform: 'scale(1.05)',
     backgroundColor: theme.palette.primary.main,
@@ -120,7 +123,7 @@ const getChargeIdForNewEntry = (category, label) => {
     'Others-Full Day': 'K',
     'Others-Monthly': 'L'
   };
-  
+
   const key = `${category}-${label}`;
   return idMap[key] || key.substring(0, 1).toUpperCase(); // Fallback to first letter capitalized
 };
@@ -135,7 +138,7 @@ const ParkingChargesKanban = () => {
   const [loading, setLoading] = useState(true);
   const { data: session } = useSession();
   const [vendorExists, setVendorExists] = useState(false);
-  
+
   // Enable/disable toggles with default values
   const [enableToggles, setEnableToggles] = useState({
     carEnabled: false,
@@ -151,7 +154,7 @@ const ParkingChargesKanban = () => {
     bikeMonthly: false,
     othersMonthly: false,
   });
-  
+
   // Full day modes with default values
   const [fullDayModes, setFullDayModes] = useState({
     car: 'Full Day',
@@ -171,7 +174,7 @@ const ParkingChargesKanban = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`);
-      
+
       if (response.data && response.data.vendor) {
         setVendorExists(true);
         const { vendor } = response.data;
@@ -180,7 +183,7 @@ const ParkingChargesKanban = () => {
         vendor.charges.forEach(charge => {
           let label;
           const typeLC = charge.type.toLowerCase();
-          
+
           if (typeLC.includes('additional')) {
             label = 'Additional Hour';
           } else if (typeLC.includes('full day') || typeLC.includes('24 hour')) {
@@ -197,7 +200,7 @@ const ParkingChargesKanban = () => {
             label
           };
         });
-        
+
         setCharges(chargesMap);
 
         // Set enable/disable toggles from backend data
@@ -215,7 +218,7 @@ const ParkingChargesKanban = () => {
           bikeMonthly: vendor.bikemonthly === "true",
           othersMonthly: vendor.othersmonthly === "true",
         });
-        
+
         // Get full day modes
         fetchFullDayModes();
       } else {
@@ -239,16 +242,16 @@ const ParkingChargesKanban = () => {
   const initializeVendor = async () => {
     try {
       setLoading(true);
-      
+
       // First, create a default parking entry
       const defaultPayload = {
         vendorid: vendorId,
         charges: [] // Empty charges
       };
-      
+
       // Initialize with default settings
       await axios.post(`${API_URL}/vendor/addparkingcharges`, defaultPayload);
-      
+
       // Set default toggle states
       const defaultToggles = {
         carEnabled: false,
@@ -264,16 +267,16 @@ const ParkingChargesKanban = () => {
         bikeMonthly: false,
         othersMonthly: false,
       };
-      
+
       // Update the enable states
       await axios.put(
         `${API_URL}/vendor/updateenable/${vendorId}`,
         defaultToggles
       );
-      
+
       setVendorExists(true);
       setEnableToggles(defaultToggles);
-      
+
       setSuccess("Vendor initialized successfully!");
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -288,19 +291,19 @@ const ParkingChargesKanban = () => {
   const fetchCharges = async () => {
     try {
       const response = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`);
-      
+
       if (!response.data || !response.data.vendor) {
         setCharges({});
         return;
       }
-      
+
       const { vendor } = response.data;
       const chargesMap = {};
 
       vendor.charges.forEach(charge => {
         let label;
         const typeLC = charge.type.toLowerCase();
-        
+
         if (typeLC.includes('additional')) {
           label = 'Additional Hour';
         } else if (typeLC.includes('full day') || typeLC.includes('24 hour')) {
@@ -317,7 +320,7 @@ const ParkingChargesKanban = () => {
           label
         };
       });
-      
+
       setCharges(chargesMap);
     } catch (err) {
       console.error('Error fetching charges:', err);
@@ -352,7 +355,7 @@ const ParkingChargesKanban = () => {
       if (!vendorExists) {
         await initializeVendor();
       }
-      
+
       const payload = {
         ...enableToggles,
         [field]: value,
@@ -369,7 +372,7 @@ const ParkingChargesKanban = () => {
       console.error('Error updating enabled vehicles:', err);
       setError(`Failed to update ${category} ${field}: ${err.message}`);
       setTimeout(() => setError(''), 5000);
-      
+
       // Revert the toggle state
       setEnableToggles(prev => ({
         ...prev,
@@ -383,27 +386,27 @@ const ParkingChargesKanban = () => {
       if (!vendorExists) {
         await initializeVendor();
       }
-      
+
       // Fix: Updated the endpoint URL to match the backend route
       // The backend has "upadatefullday" instead of "updatefullday"
       const endpoint = `upadatefullday${vehicleType}`;
-      
+
       // Create the proper payload based on vehicle type
       const payload = {};
       payload[`fullday${vehicleType}`] = mode;
-      
+
       // Make the API call with the corrected endpoint and proper payload
       await axios.put(
         `${API_URL}/vendor/${endpoint}/${vendorId}`,
         payload
       );
-      
+
       // Update local state
       setFullDayModes(prev => ({
         ...prev,
         [vehicleType]: mode
       }));
-      
+
       setSuccess(`${vehicleType} full day mode updated successfully!`);
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -437,13 +440,24 @@ const ParkingChargesKanban = () => {
       };
 
       await axios.post(`${API_URL}/vendor/addparkingcharges`, payload);
-      await fetchCharges();
-      
+
+      // Update only the specific charge in the state instead of fetching all
+      setCharges(prev => ({
+        ...prev,
+        [`${category}-${label}`]: {
+          type,
+          amount,
+          category,
+          chargeid,
+          label
+        }
+      }));
+
       setEditStates(prev => ({
         ...prev,
         [`${category}-${label}`]: false
       }));
-      
+
       setSuccess('Charge saved successfully!');
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -453,32 +467,36 @@ const ParkingChargesKanban = () => {
     }
   };
 
-  const ChargeCard = ({ category, label }) => {
+  const ChargeCard = memo(({ category, label, charge, isEditing, onEditToggle, onSave }) => {
     const [formData, setFormData] = useState({
-      type: charges[`${category}-${label}`]?.type || '',
-      amount: charges[`${category}-${label}`]?.amount || ''
+      type: charge?.type || '',
+      amount: charge?.amount || ''
     });
 
     useEffect(() => {
       setFormData({
-        type: charges[`${category}-${label}`]?.type || '',
-        amount: charges[`${category}-${label}`]?.amount || ''
+        type: charge?.type || '',
+        amount: charge?.amount || ''
       });
-    }, [charges, category, label]);
-    
-    const isEditing = editStates[`${category}-${label}`];
-    const hasValue = `${category}-${label}` in charges;
-    const charge = charges[`${category}-${label}`];
+    }, [charge]);
 
     // Get type options based on label
     const typeOptions = typesByLabel[label];
 
     const handleTypeChange = (e) => {
-      setFormData({ ...formData, type: e.target.value });
+      setFormData(prev => ({ ...prev, type: e.target.value }));
     };
 
     const handleAmountChange = (e) => {
-      setFormData({ ...formData, amount: e.target.value });
+      setFormData(prev => ({ ...prev, amount: e.target.value }));
+    };
+
+    const handleCancel = () => {
+      onEditToggle(false);
+      setFormData({
+        type: charge?.type || '',
+        amount: charge?.amount || ''
+      });
     };
 
     return (
@@ -511,37 +529,22 @@ const ParkingChargesKanban = () => {
                       type="number"
                       value={formData.amount}
                       onChange={handleAmountChange}
-                      InputProps={{
-                        startAdornment: '₹',
-                      }}
+                      InputProps={{ startAdornment: '₹' }}
                     />
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                      <Button
-                        variant="outlined"
-                        startIcon={<CloseIcon />}
-                        onClick={() => {
-                          setEditStates(prev => ({
-                            ...prev,
-                            [`${category}-${label}`]: false
-                          }));
-                          setFormData({
-                            type: charge?.type || '',
-                            amount: charge?.amount || ''
-                          });
-                        }}
-                      >
+                      <Button variant="outlined" startIcon={<CloseIcon />} onClick={handleCancel}>
                         Cancel
                       </Button>
                       <Button
                         variant="contained"
                         startIcon={<SaveIcon />}
-                        onClick={() => handleSave(category, label, formData.type, formData.amount)}
+                        onClick={() => onSave(formData.type, formData.amount)}
                       >
                         Save
                       </Button>
                     </Box>
                   </Box>
-                ) : hasValue ? (
+                ) : charge ? (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <RateDisplay>
                       <Typography variant="h4" color="primary.main" gutterBottom>
@@ -554,28 +557,12 @@ const ParkingChargesKanban = () => {
                         </Typography>
                       </Box>
                     </RateDisplay>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<EditIcon />}
-                      onClick={() => setEditStates(prev => ({
-                        ...prev,
-                        [`${category}-${label}`]: true
-                      }))}
-                    >
+                    <Button fullWidth variant="outlined" startIcon={<EditIcon />} onClick={() => onEditToggle(true)}>
                       Edit Rate
                     </Button>
                   </Box>
                 ) : (
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={() => setEditStates(prev => ({
-                      ...prev,
-                      [`${category}-${label}`]: true
-                    }))}
-                  >
+                  <Button fullWidth variant="contained" startIcon={<AddIcon />} onClick={() => onEditToggle(true)}>
                     Set Rate
                   </Button>
                 )}
@@ -585,7 +572,7 @@ const ParkingChargesKanban = () => {
         </StyledCard>
       </Grow>
     );
-  };
+  });
 
   const CategorySection = ({ category }) => {
     const vehicleType = category.toLowerCase();
@@ -595,24 +582,24 @@ const ParkingChargesKanban = () => {
     const handleCategoryToggle = async () => {
       const field = `${vehicleType}Enabled`;
       const newValue = !enableToggles[field];
-      
+
       setEnableToggles(prev => ({
         ...prev,
         [field]: newValue
       }));
-      
+
       await updateEnabledVehicles(category, field, newValue);
     };
 
     const handleSectionToggle = async (section) => {
       const field = `${vehicleType}${section}`;
       const newValue = !enableToggles[field];
-      
+
       setEnableToggles(prev => ({
         ...prev,
         [field]: newValue
       }));
-      
+
       await updateEnabledVehicles(category, field, newValue);
     };
 
@@ -627,7 +614,7 @@ const ParkingChargesKanban = () => {
           </Box>
           <FormControlLabel
             control={
-              <Switch 
+              <Switch
                 checked={categoryEnabled}
                 onChange={handleCategoryToggle}
               />
@@ -635,7 +622,7 @@ const ParkingChargesKanban = () => {
             label={categoryEnabled ? "On" : "Off"}
           />
         </SectionToggle>
-        
+
         {categoryEnabled && (
           <Box sx={{ pl: 3, pt: 1 }}>
             <SectionToggle>
@@ -647,7 +634,7 @@ const ParkingChargesKanban = () => {
               </Box>
               <FormControlLabel
                 control={
-                  <Switch 
+                  <Switch
                     checked={enableToggles[`${vehicleType}Temporary`]}
                     onChange={() => handleSectionToggle('Temporary')}
                   />
@@ -655,20 +642,34 @@ const ParkingChargesKanban = () => {
                 label={enableToggles[`${vehicleType}Temporary`] ? "On" : "Off"}
               />
             </SectionToggle>
-            
+
             {enableToggles[`${vehicleType}Temporary`] && (
               <Box sx={{ pl: 3, mb: 2 }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6}>
-                    <ChargeCard category={category} label="Minimum Charges" />
+                    <ChargeCard
+                      category={category}
+                      label="Minimum Charges"
+                      charge={charges[`${category}-Minimum Charges`]}
+                      isEditing={!!editStates[`${category}-Minimum Charges`]}
+                      onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Minimum Charges`]: val })), [category])}
+                      onSave={useCallback((type, amount) => handleSave(category, 'Minimum Charges', type, amount), [category])}
+                    />
                   </Grid>
                   <Grid item xs={12} sm={6}>
-                    <ChargeCard category={category} label="Additional Hour" />
+                    <ChargeCard
+                      category={category}
+                      label="Additional Hour"
+                      charge={charges[`${category}-Additional Hour`]}
+                      isEditing={!!editStates[`${category}-Additional Hour`]}
+                      onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Additional Hour`]: val })), [category])}
+                      onSave={useCallback((type, amount) => handleSave(category, 'Additional Hour', type, amount), [category])}
+                    />
                   </Grid>
                 </Grid>
               </Box>
             )}
-            
+
             <SectionToggle>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TimelapseIcon />
@@ -678,7 +679,7 @@ const ParkingChargesKanban = () => {
               </Box>
               <FormControlLabel
                 control={
-                  <Switch 
+                  <Switch
                     checked={enableToggles[`${vehicleType}FullDay`]}
                     onChange={() => handleSectionToggle('FullDay')}
                   />
@@ -686,7 +687,7 @@ const ParkingChargesKanban = () => {
                 label={enableToggles[`${vehicleType}FullDay`] ? "On" : "Off"}
               />
             </SectionToggle>
-            
+
             {enableToggles[`${vehicleType}FullDay`] && (
               <Box sx={{ pl: 3, mb: 2 }}>
                 <Box sx={{ mb: 2 }}>
@@ -709,10 +710,17 @@ const ParkingChargesKanban = () => {
                   </Box>
                 </Box>
                 {/* Only show one ChargeCard for Full Day regardless of selected mode */}
-                <ChargeCard category={category} label="Full Day" />
+                <ChargeCard
+                  category={category}
+                  label="Full Day"
+                  charge={charges[`${category}-Full Day`]}
+                  isEditing={!!editStates[`${category}-Full Day`]}
+                  onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Full Day`]: val })), [category])}
+                  onSave={useCallback((type, amount) => handleSave(category, 'Full Day', type, amount), [category])}
+                />
               </Box>
             )}
-            
+
             <SectionToggle>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <CalendarIcon />
@@ -722,7 +730,7 @@ const ParkingChargesKanban = () => {
               </Box>
               <FormControlLabel
                 control={
-                  <Switch 
+                  <Switch
                     checked={enableToggles[`${vehicleType}Monthly`]}
                     onChange={() => handleSectionToggle('Monthly')}
                   />
@@ -730,10 +738,17 @@ const ParkingChargesKanban = () => {
                 label={enableToggles[`${vehicleType}Monthly`] ? "On" : "Off"}
               />
             </SectionToggle>
-            
+
             {enableToggles[`${vehicleType}Monthly`] && (
               <Box sx={{ pl: 3, mb: 2 }}>
-                <ChargeCard category={category} label="Monthly" />
+                <ChargeCard
+                  category={category}
+                  label="Monthly"
+                  charge={charges[`${category}-Monthly`]}
+                  isEditing={!!editStates[`${category}-Monthly`]}
+                  onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Monthly`]: val })), [category])}
+                  onSave={useCallback((type, amount) => handleSave(category, 'Monthly', type, amount), [category])}
+                />
               </Box>
             )}
           </Box>
@@ -748,8 +763,8 @@ const ParkingChargesKanban = () => {
         <Alert severity="info" sx={{ mb: 3 }}>
           Parking charges data needs to be initialized before you can configure rates
         </Alert>
-        <Button 
-          variant="contained" 
+        <Button
+          variant="contained"
           size="large"
           onClick={initializeVendor}
           disabled={loading}
@@ -773,7 +788,7 @@ const ParkingChargesKanban = () => {
       <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
         Parking Charges Management
       </Typography>
-      
+
       <Box sx={{ mb: 3 }}>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -786,7 +801,7 @@ const ParkingChargesKanban = () => {
           </Alert>
         )}
       </Box>
-      
+
       {!vendorExists ? (
         renderInitializationPrompt()
       ) : (

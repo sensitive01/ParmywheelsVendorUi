@@ -75,6 +75,9 @@ const HorizontalMenu = ({ dictionary }) => {
           {dictionary['navigation'].dashboards}
         </MenuItem>
         <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
+          <MenuItem href={`/${locale}/pages/wizard-examples/property-listing`}>
+            New Bookings
+          </MenuItem>
           <SubMenu label={dictionary['navigation'].Bookings} >
             <SubMenu label={dictionary['navigation'].products}>
               <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].list}</MenuItem>
@@ -89,7 +92,7 @@ const HorizontalMenu = ({ dictionary }) => {
               </MenuItem>
             </SubMenu>
           </SubMenu>
-            <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
+          <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
             {dictionary['navigation'].SubscriptionBooking}
           </MenuItem>
           <SubMenu label={dictionary['navigation'].Transactions} >
@@ -98,34 +101,33 @@ const HorizontalMenu = ({ dictionary }) => {
               {dictionary['navigation'].UserBookings}
             </MenuItem>
           </SubMenu>
-        
           <MenuItem href={`/${locale}/pages/vendorpayouts`} >
-          {dictionary['navigation'].vendorpayouts}
-        </MenuItem>
-        <MenuItem href={`/${locale}/pages/vendorpayouts`} >
-          {dictionary['navigation'].Settlements}
-        </MenuItem>
+            {dictionary['navigation'].vendorpayouts}
+          </MenuItem>
+          <MenuItem href={`/${locale}/pages/vendorpayouts`} >
+            {dictionary['navigation'].Settlements}
+          </MenuItem>
         </SubMenu>
         <SubMenu label={dictionary['navigation'].apps} icon={<i className='ri-shopping-bag-3-line' />}>
           <MenuItem href={`/${locale}/pages/widget-examples/statistics`}>
             {dictionary['navigation'].slots}
           </MenuItem>
-            <MenuItem href={`/${locale}/apps/kanban`}>
+          <MenuItem href={`/${locale}/apps/kanban`}>
             {dictionary['navigation'].Charges}
           </MenuItem>
-            <MenuItem href={`/${locale}/pages/user-profile`} >
+          <MenuItem href={`/${locale}/pages/user-profile`} >
             {dictionary['navigation'].ParkingProfile}
           </MenuItem>
-            <MenuItem href={`/${locale}/pages/pricing`} >
+          <MenuItem href={`/${locale}/pages/pricing`} >
             {dictionary['navigation'].AmenitiesServices}
           </MenuItem>
-            <MenuItem href={`/${locale}/pages/onboardingprocess`} >
+          <MenuItem href={`/${locale}/pages/onboardingprocess`} >
             {dictionary['navigation'].Kyc}
           </MenuItem>
-            <MenuItem href={`/${locale}//pages/bankdetails`}>
+          <MenuItem href={`/${locale}//pages/bankdetails`}>
             {dictionary['navigation'].BankDetails}
           </MenuItem>
-            <MenuItem href={`/${locale}/pages/account-settings`}>
+          <MenuItem href={`/${locale}/pages/account-settings`}>
             {dictionary['navigation'].AccountSettings}
           </MenuItem>
         </SubMenu>
@@ -136,11 +138,11 @@ const HorizontalMenu = ({ dictionary }) => {
           <MenuItem href={`/${locale}/pages/currentplan`}>
             {dictionary['navigation'].Plans}
           </MenuItem>
-            <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
+          <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
             {dictionary['navigation'].Subscriptions}
           </MenuItem>
         </SubMenu>
-         <MenuItem href={`/${locale}/apps/calendar`} icon={<i className='ri-calendar-line' />}>
+        <MenuItem href={`/${locale}/apps/calendar`} icon={<i className='ri-calendar-line' />}>
           {dictionary['navigation'].calendar}
         </MenuItem>
         {/* <SubMenu label={dictionary['navigation'].pages} icon={<i className='ri-file-list-2-line' />}>

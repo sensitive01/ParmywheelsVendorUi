@@ -1,5 +1,5 @@
 'use client'
-import { useRouter } from 'next/navigation'; 
+import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import { useSession } from 'next-auth/react'
@@ -187,6 +187,7 @@ export default function ParkingBooking() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL
   const { data: session } = useSession()
   const vendorId = session?.user?.id
+  const vendorName = session?.user?.name
   const [activeStep, setActiveStep] = useState(0)
   const [vehicleType, setVehicleType] = useState('Car')
   const [vehicleNumber, setVehicleNumber] = useState('')
@@ -201,6 +202,7 @@ export default function ParkingBooking() {
   const [loading, setLoading] = useState(false)
   const [alert, setAlert] = useState({ show: false, message: '', type: 'success' })
   const [errors, setErrors] = useState({})
+  const [businessHours, setBusinessHours] = useState([])
   const [bookType, setBookType] = useState('Hourly')
   const [is24Hours, setIs24Hours] = useState(false)
   const [minDate, setMinDate] = useState('')
@@ -243,25 +245,64 @@ export default function ParkingBooking() {
   };
 
   useEffect(() => {
-    updateCurrentDateTime();
+    // Clear any existing timer
+    if (timerRef.current) clearInterval(timerRef.current);
 
-    timerRef.current = setInterval(() => {
-      if (['Instant', 'Schedule', 'Subscription'].includes(sts)) {
-        const { dateString, timeString } = updateCurrentDateTime();
-        updateMinTentativeDateTime(dateString, timeString);
-      }
-    }, 1000);
+    if (sts === 'Instant') {
+      // For Instant bookings, keep date/time in sync with now
+      const { dateString, timeString } = updateCurrentDateTime();
+      updateMinTentativeDateTime(dateString, timeString);
+      timerRef.current = setInterval(() => {
+        const { dateString: d, timeString: t } = updateCurrentDateTime();
+        updateMinTentativeDateTime(d, t);
+      }, 1000);
+    } else {
+      // For Schedule/Subscription, set minimums but DO NOT override user selections
+      const now = new Date();
+      const dateString = now.toISOString().split('T')[0];
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      setMinDate(dateString);
+      setMinTime('00:00');
+      updateMinTentativeDateTime(parkingDate || dateString, parkingTime || `${hours}:${minutes}`);
+    }
 
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [sts]);
 
   useEffect(() => {
     updateMinTentativeDateTime();
   }, [parkingDate, parkingTime]);
+
+  useEffect(() => {
+    if (!alert.show) return;
+    const t = setTimeout(() => {
+      setAlert(prev => ({ ...prev, show: false }));
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [alert.show]);
+
+  useEffect(() => {
+    if (!vendorId || !API_URL) return;
+    (async () => {
+      try {
+        const res = await axios.get(`${API_URL}/vendor/fetchbusinesshours/${vendorId}`)
+        console.log("res.data", res.data)
+        const bh = res.data?.businessHours || []
+        if (bh?.length) {
+          setBusinessHours(bh)
+          return
+        }
+        const res2 = await axios.get(`${API_URL}/vendor/getvendor/${vendorId}`)
+        const bh2 = res2.data?.data?.businessHours || []
+        setBusinessHours(bh2)
+      } catch (e) {
+        setBusinessHours([])
+      }
+    })()
+  }, [vendorId, API_URL]);
 
   const updateMinTentativeDateTime = (date = parkingDate, time = parkingTime) => {
     if (!date || !time) return;
@@ -272,6 +313,16 @@ export default function ParkingBooking() {
     if (sts === 'Instant' && tentativeCheckout && tentativeCheckout < dateTimeString) {
       setTentativeCheckout(dateTimeString);
     }
+  };
+
+  const isClosedOnDate = (isoDate) => {
+    console.log("isoDate", isoDate)
+    if (!isoDate || !businessHours?.length) return false;
+    const d = new Date(isoDate);
+    if (isNaN(d)) return false;
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+    const entry = businessHours.find(b => b.day === dayName);
+    return entry ? !!entry.isClosed : false;
   };
 
   const validate = () => {
@@ -310,6 +361,11 @@ export default function ParkingBooking() {
   };
 
   const handleSubmit = async () => {
+    if (isClosedOnDate(parkingDate)) {
+      const dayName = new Date(parkingDate).toLocaleDateString('en-US', { weekday: 'long' });
+      setAlert({ show: true, message: `Booking is closed on ${dayName}. Please choose another date.`, type: 'error' });
+      return;
+    }
     setLoading(true);
 
     try {
@@ -323,6 +379,7 @@ export default function ParkingBooking() {
 
       const payload = {
         vendorId,
+        vendorName,
         personName,
         mobileNumber,
         vehicleType,
@@ -409,6 +466,21 @@ export default function ParkingBooking() {
 
   const handleParkingDateChange = (e) => {
     const selectedDate = e.target.value;
+
+    const today = new Date().toISOString().split('T')[0];
+    if (selectedDate < today) {
+      setAlert({ show: true, message: 'You cannot select a past date', type: 'error' });
+      setParkingDate('');
+      return;
+    }
+
+    if (isClosedOnDate(selectedDate)) {
+      const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
+      setAlert({ show: true, message: `Booking is closed on ${dayName}. Please choose another date.`, type: 'error' });
+      setParkingDate('');
+      return;
+    }
+
     setParkingDate(selectedDate);
 
     if (sts === 'Instant') {
@@ -576,7 +648,7 @@ export default function ParkingBooking() {
             helperText={errors.parkingDate}
             InputLabelProps={{ shrink: true }}
             inputProps={{
-              min: sts === 'Instant' ? minDate : undefined
+              min: minDate
             }}
           />
         </Grid>

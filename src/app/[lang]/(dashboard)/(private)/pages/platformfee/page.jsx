@@ -8,19 +8,27 @@ import { DataGrid } from "@mui/x-data-grid";
 import { useSession } from "next-auth/react";
 
 const VehicleBookingTransactions = () => {
+  const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL;
   const { data: session, status } = useSession();
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
+  const [useDateFilter, setUseDateFilter] = useState(true);
 
   const getCurrentDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
   };
 
-  const [startDate, setStartDate] = useState(getCurrentDate());
+  const getDateNDaysAgo = (n) => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.toISOString().split('T')[0];
+  };
+
+  const [startDate, setStartDate] = useState(getDateNDaysAgo(14));
   const [endDate, setEndDate] = useState(getCurrentDate());
 
   const [snackbar, setSnackbar] = useState({
@@ -35,6 +43,27 @@ const VehicleBookingTransactions = () => {
     return `${day}-${month}-${year}`;
   };
 
+  // Parse date strings in formats: YYYY-MM-DD, DD-MM-YYYY, or ISO
+  const parseToDate = (str) => {
+    if (!str) return null;
+    if (str.includes('T')) return new Date(str);
+    if (str.includes('-')) {
+      const parts = str.split('-');
+      if (parts[0].length === 4) {
+        // YYYY-MM-DD
+        return new Date(str);
+      } else {
+        // DD-MM-YYYY
+        const [day, month, year] = parts;
+        return new Date(`${year}-${month}-${day}`);
+      }
+    }
+    return null;
+  };
+
+  // Decide which date field to use for filtering
+  const getItemDate = (item) => item.parkingDate || item.bookingDate || item.createdAt || null;
+
   const getTotalReceivable = () => {
     return transactions.reduce((total, transaction) => {
       const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
@@ -44,7 +73,7 @@ const VehicleBookingTransactions = () => {
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id) {
-      fetchTransactions(session.user.id, true);
+      fetchTransactions(session.user.id, useDateFilter);
     } else if (status === "unauthenticated") {
       setSnackbar({
         open: true,
@@ -52,7 +81,7 @@ const VehicleBookingTransactions = () => {
         severity: "warning",
       });
     }
-  }, [status, session]);
+  }, [status, session, useDateFilter]);
 
   const fetchTransactions = async (vendorId, dateFilter = false) => {
     if (!vendorId) return;
@@ -60,7 +89,7 @@ const VehicleBookingTransactions = () => {
     setIsLoading(true);
 
     try {
-      let url = `https://api.parkmywheels.com/vendor/fetchbookingtransaction/${vendorId}`;
+      let url = `${NEXT_PUBLIC_API_URL}/vendor/fetchbookingtransaction/${vendorId}`;
 
       if (dateFilter && startDate && endDate) {
         url += `?startDate=${startDate}&endDate=${endDate}`;
@@ -69,11 +98,33 @@ const VehicleBookingTransactions = () => {
       const response = await axios.get(url);
 
       if (response.status === 200) {
-        const data = response.data.data.bookings.map((item, index) => ({
+        const raw = response.data?.data?.bookings || [];
+        console.log("raw", raw.length)
+
+        // Apply client-side filtering if dateFilter is true
+        let filtered = raw;
+        if (dateFilter && startDate && endDate) {
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          filtered = raw.filter(item => {
+            const d = parseToDate(getItemDate(item));
+            return d && d >= start && d <= end;
+          });
+        }
+
+        // Sort newest first using parkingDate -> bookingDate -> createdAt
+        filtered.sort((a, b) => {
+          const ad = parseToDate(getItemDate(a)) || 0
+          const bd = parseToDate(getItemDate(b)) || 0
+          return bd - ad
+        })
+
+        const data = filtered.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
           bookingId: item._id,
-          parkingDate: item.parkingDate || "N/A",  // Add this line
+          parkingDate: item.parkingDate || "N/A",
           parkingTime: item.parkingTime || "N/A",
           bookingAmount: `₹${item.amount}`,
           platformFee: `₹${item.platformfee}`,
@@ -101,6 +152,7 @@ const VehicleBookingTransactions = () => {
 
   const handleApplyDateFilter = () => {
     if (session?.user?.id) {
+      setUseDateFilter(true);
       fetchTransactions(session.user.id, true);
     }
     setDateDialogOpen(false);
@@ -234,18 +286,18 @@ const VehicleBookingTransactions = () => {
   };
 
   const columns = [
-    { field: "serialNo", headerName: "S.No", width: 80 },
-    { field: "bookingId", headerName: "Booking ID", width: 220 },
-    { field: "parkingDate", headerName: "Date", width: 120 },  // Add this
-    { field: "parkingTime", headerName: "Time", width: 120 },
-    { field: "bookingAmount", headerName: "Amount", width: 150 },
-    { field: "platformFee", headerName: "Platform Fee", width: 150 },
-    { field: "receivable", headerName: "Receivable", width: 150 },
+    { field: "serialNo", headerName: "S.No", width: 90 },
+    { field: "bookingId", headerName: "Booking ID", flex: 1, minWidth: 200 },
+    { field: "parkingDate", headerName: "Date", flex: 0.6, minWidth: 120 },
+    { field: "parkingTime", headerName: "Time", flex: 0.5, minWidth: 110 },
+    { field: "bookingAmount", headerName: "Amount", flex: 0.6, minWidth: 140 },
+    { field: "platformFee", headerName: "Platform Fee", flex: 0.6, minWidth: 140 },
+    { field: "receivable", headerName: "Receivable", flex: 0.6, minWidth: 140 },
   ];
 
   return (
-    <Box sx={{ backgroundColor: "#f4f4f4", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", padding: 2 }}>
-      <Card sx={{ width: "100%", maxWidth: 900, borderRadius: 3, boxShadow: 3 }}>
+    <Box sx={{ backgroundColor: "#f4f4f4", minHeight: "100vh", p: 2 }}>
+      <Card sx={{ width: "100%", maxWidth: '100%', mx: 'auto',  boxShadow: 3 }}>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h5" component="h1" sx={{ mb: 3, textAlign: 'center' }}>
             Booking Transactions
@@ -260,6 +312,18 @@ const VehicleBookingTransactions = () => {
                 size="small"
               >
                 Filter Dates
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  if (session?.user?.id) {
+                    setUseDateFilter(false);
+                    fetchTransactions(session.user.id, false);
+                  }
+                }}
+                size="small"
+              >
+                Show All
               </Button>
               <Button
                 variant="outlined"
@@ -311,9 +375,9 @@ const VehicleBookingTransactions = () => {
             <DataGrid
               rows={transactions}
               columns={columns}
-              pageSizeOptions={[5, 10, 20]}
+              pageSizeOptions={[10, 25, 50, 100]}
               initialState={{
-                pagination: { paginationModel: { pageSize: 5 } },
+                pagination: { paginationModel: { pageSize: 10, page: 0 } },
               }}
               autoHeight
               sx={{

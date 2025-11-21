@@ -23,7 +23,7 @@ import UserTable from '@views/dashboards/crm/UserTable'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Typography } from '@mui/material'
+import { Typography, Button, Menu, MenuItem } from '@mui/material'
 
 const DashboardCRM = () => {
   // State for booking counts
@@ -39,6 +39,10 @@ const DashboardCRM = () => {
   const [loading, setLoading] = useState(true)
   const { data: session } = useSession()
   const vendorId = session?.user?.id
+
+  const [bookings, setBookings] = useState([])
+  const [downloadAnchorEl, setDownloadAnchorEl] = useState(null)
+  const downloadMenuOpen = Boolean(downloadAnchorEl)
 
   // Fetch booking data
   useEffect(() => {
@@ -57,6 +61,7 @@ const DashboardCRM = () => {
         })
 
         const bookings = response.data.bookings
+        setBookings(Array.isArray(bookings) ? bookings : [])
 
         if (Array.isArray(bookings)) {
           const counts = {
@@ -67,27 +72,27 @@ const DashboardCRM = () => {
             COMPLETED: 0,
             Subscriptions: 0
           }
-          
+
           bookings.forEach(booking => {
             const status = booking.status?.trim().toLowerCase()
-            const normalizedKey = 
+            const normalizedKey =
               status === 'completed' ? 'COMPLETED' :
-              status === 'pending' ? 'Pending' :
-              status === 'approved' ? 'Approved' :
-              status === 'cancelled' ? 'Cancelled' :
-              status === 'parked' ? 'Parked' :
-              null
-            
+                status === 'pending' ? 'Pending' :
+                  status === 'approved' ? 'Approved' :
+                    status === 'cancelled' ? 'Cancelled' :
+                      status === 'parked' ? 'Parked' :
+                        null
+
             if (normalizedKey && counts[normalizedKey] !== undefined) {
               counts[normalizedKey] += 1
             }
-            
+
             // Count subscriptions
             if (booking.sts === 'Subscription') {
               counts.Subscriptions += 1
             }
           })
-          
+
           setStatusCounts(counts)
         }
       } catch (error) {
@@ -100,6 +105,117 @@ const DashboardCRM = () => {
     fetchBookings()
   }, [vendorId])
 
+  const handleDownloadClick = event => setDownloadAnchorEl(event.currentTarget)
+  const handleDownloadClose = () => setDownloadAnchorEl(null)
+
+  const exportToCSV = () => {
+    if (!bookings || bookings.length === 0) return handleDownloadClose()
+
+    const headers = ['Booking ID', 'Booking Date', 'Parking Date', 'Parking Time', 'Amount', 'Status', 'Type']
+    const rows = bookings.map(b => [
+      b._id ?? '',
+      b.bookingDate ?? '',
+      b.parkingDate ?? '',
+      b.parkingTime ?? '',
+      b.amount ?? '',
+      b.status ?? '',
+      b.sts ?? ''
+    ])
+
+    let csvContent = 'data:text/csv;charset=utf-8,'
+      + headers.join(',') + '\n'
+      + rows.map(r => r.map(v => String(v).replaceAll('"', '""')).map(v => /[,"]/.test(v) ? '"' + v + '"' : v).join(',')).join('\n')
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'vendor_bookings_report.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    handleDownloadClose()
+  }
+
+  const loadXLSX = async () => {
+    if (typeof window !== 'undefined' && window.XLSX) return window.XLSX
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+      script.async = true
+      script.onload = () => resolve(window.XLSX)
+      script.onerror = reject
+      document.body.appendChild(script)
+    })
+  }
+
+  const exportXlsxByStatus = async () => {
+    if (!bookings || bookings.length === 0) return handleDownloadClose()
+    const XLSX = await loadXLSX()
+
+    const header = ['Booking ID', 'Booking Date', 'Parking Date', 'Parking Time', 'Amount', 'Status', 'Type']
+    const groups = {
+      Pending: [],
+      Approved: [],
+      Cancelled: [],
+      Parked: [],
+      COMPLETED: [],
+      Subscriptions: []
+    }
+
+    bookings.forEach(b => {
+      const raw = (b.status || '').toString().trim().toLowerCase()
+      const key = raw === 'completed' ? 'COMPLETED'
+        : raw === 'pending' ? 'Pending'
+          : raw === 'approved' ? 'Approved'
+            : raw === 'cancelled' ? 'Cancelled'
+              : raw === 'parked' ? 'Parked'
+                : null
+      const row = [b._id ?? '', b.bookingDate ?? '', b.parkingDate ?? '', b.parkingTime ?? '', b.amount ?? '', b.status ?? '', b.sts ?? '']
+      if (key && groups[key]) groups[key].push(row)
+      if (b.sts === 'Subscription') groups['Subscriptions'].push(row)
+    })
+
+    const wb = XLSX.utils.book_new()
+    Object.entries(groups).forEach(([sheetName, rows]) => {
+      const aoa = [header, ...rows]
+      const ws = XLSX.utils.aoa_to_sheet(aoa)
+      XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    })
+
+    XLSX.writeFile(wb, 'vendor_bookings_by_status.xlsx')
+    handleDownloadClose()
+  }
+
+  const exportSummaryToCSV = () => {
+    // Build a summary matching dashboard tiles
+    const totalAmount = (bookings || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
+    const totalBookings = (bookings || []).length
+
+    const rows = [
+      ['Metric', 'Value'],
+      ['Pending Bookings', String(statusCounts.Pending)],
+      ['Approved Bookings', String(statusCounts.Approved)],
+      ['Cancelled Bookings', String(statusCounts.Cancelled)],
+      ['Parked Bookings', String(statusCounts.Parked)],
+      ['Completed Bookings', String(statusCounts.COMPLETED)],
+      ['Subscriptions', String(statusCounts.Subscriptions)],
+      ['Total Bookings', String(totalBookings)],
+      ['Total Amount', String(totalAmount)]
+    ]
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(r => r.map(v => String(v).replaceAll('"', '""')).map(v => /[,"]/.test(v) ? '"' + v + '"' : v).join(',')).join('\n')
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'vendor_dashboard_summary.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+
+    handleDownloadClose()
+  }
+
   if (loading) {
     return (
       <div className='flex items-center justify-center p-10'>
@@ -110,6 +226,18 @@ const DashboardCRM = () => {
 
   return (
     <Grid container spacing={6}>
+      <Grid size={{ xs: 12 }}>
+        <div className='flex items-center justify-end gap-2'>
+          <Button variant='contained' size='small' onClick={handleDownloadClick}>
+            Download Report
+          </Button>
+          <Menu anchorEl={downloadAnchorEl} open={downloadMenuOpen} onClose={handleDownloadClose}>
+            <MenuItem onClick={exportSummaryToCSV}>Export Summary (matches tiles)</MenuItem>
+            <MenuItem onClick={exportXlsxByStatus}>Export XLSX by Status (multiple sheets)</MenuItem>
+            <MenuItem onClick={exportToCSV}>Export Detailed (all bookings)</MenuItem>
+          </Menu>
+        </div>
+      </Grid>
       <Grid size={{ xs: 12, md: 4 }}>
         <Award />
       </Grid>
