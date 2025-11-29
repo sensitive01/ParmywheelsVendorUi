@@ -66,7 +66,9 @@ const getAvatar = params => {
   }
 }
 
-const NotificationDropdown = ({ notifications }) => {
+const NotificationDropdown = ({ notifications = [] }) => {
+  // Use a subset of notifications for the dropdown (latest 5)
+  const previewNotifications = notifications.slice(0, 5);
   // States
   const [open, setOpen] = useState(false)
   const [notificationsState, setNotificationsState] = useState(notifications)
@@ -135,139 +137,169 @@ const NotificationDropdown = ({ notifications }) => {
 
   return (
     <>
-      <IconButton ref={anchorRef} onClick={handleToggle} className='text-textPrimary'>
-        <Badge
-          color='error'
-          className='cursor-pointer'
-          variant='dot'
-          overlap='circular'
-          invisible={notificationCount === 0}
-          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      <Tooltip title='Notifications'>
+        <IconButton
+          color='inherit'
+          className={classnames('rounded-md', { 'bg-action-selected': open })}
+          ref={anchorRef}
+          onClick={() => setOpen(!open)}
+          aria-label='notifications'
+          aria-haspopup='true'
+          aria-expanded={open ? 'true' : undefined}
         >
-          <i className='ri-notification-2-line' />
-        </Badge>
-      </IconButton>
+          <Badge color='error' variant='dot' invisible={!hasUnreadNotifications}>
+            <i className='tabler-bell' />
+          </Badge>
+        </IconButton>
+      </Tooltip>
       <Popper
         open={open}
+        anchorEl={anchorRef.current}
         transition
         disablePortal
-        placement='bottom-end'
-        ref={ref}
-        anchorEl={anchorRef.current}
-        {...(isSmallScreen
-          ? {
-              className: 'is-full !mbs-4 z-[1] max-bs-[550px] bs-[550px]',
-              modifiers: [
-                {
-                  name: 'preventOverflow',
-                  options: {
-                    padding: themeConfig.layoutPadding
-                  }
-                }
-              ]
-            }
-          : { className: 'is-96 !mbs-4 z-[1] max-bs-[550px] bs-[550px]' })}
+        placement={isBelowMdScreen ? 'bottom' : 'bottom-end'}
+        className='z-[1] min-is-[22rem] max-h-[28rem]'
       >
         {({ TransitionProps, placement }) => (
           <Fade {...TransitionProps} style={{ transformOrigin: placement === 'bottom-end' ? 'right top' : 'left top' }}>
             <Paper className={classnames('bs-full', settings.skin === 'bordered' ? 'border shadow-none' : 'shadow-lg')}>
               <ClickAwayListener onClickAway={handleClose}>
                 <div className='bs-full flex flex-col'>
-                  <div className='flex items-center justify-between plb-3 pli-4 is-full gap-2'>
-                    <Typography variant='h6' className='flex-auto'>
+                  <div className='flex items-center justify-between p-4'>
+                    <Typography variant='h5' className='text-textPrimary'>
                       Notifications
-                    </Typography>
-                    {notificationCount > 0 && (
-                      <Chip variant='tonal' size='small' color='primary' label={`${notificationCount} New`} />
-                    )}
-                    <Tooltip
-                      title={readAll ? 'Mark all as unread' : 'Mark all as read'}
-                      placement={placement === 'bottom-end' ? 'left' : 'right'}
-                      slotProps={{
-                        popper: {
-                          sx: {
-                            '& .MuiTooltip-tooltip': {
-                              transformOrigin:
-                                placement === 'bottom-end' ? 'right center !important' : 'right center !important'
-                            }
-                          }
-                        }
-                      }}
-                    >
-                      {notificationsState.length > 0 ? (
-                        <IconButton size='small' onClick={() => readAllNotifications()} className='text-textPrimary'>
-                          <i className={classnames(readAll ? 'ri-mail-line' : 'ri-mail-open-line', 'text-xl')} />
-                        </IconButton>
-                      ) : (
-                        <></>
+                      {hasUnreadNotifications && (
+                        <Chip
+                          size='small'
+                          label={`${notificationsState.filter(n => !n.read).length} New`}
+                          color='error'
+                          variant='tonal'
+                          className='ml-2'
+                        />
                       )}
-                    </Tooltip>
+                    </Typography>
+                    <div className='flex items-center gap-2'>
+                      <Button
+                        size='small'
+                        variant='text'
+                        onClick={markAllAsRead}
+                        disabled={!hasUnreadNotifications}
+                      >
+                        Mark all as read
+                      </Button>
+                    </div>
                   </div>
-                  <Divider />
+                  <Divider className='m-0' />
                   <ScrollWrapper hidden={hidden}>
-                    {notificationsState.map((notification, index) => {
-                      const {
-                        title,
-                        subtitle,
-                        time,
-                        read,
-                        avatarImage,
-                        avatarIcon,
-                        avatarText,
-                        avatarColor,
-                        avatarSkin
-                      } = notification
-
-                      return (
-                        <div
-                          key={index}
-                          className={classnames('flex plb-3 pli-4 gap-3 cursor-pointer hover:bg-actionHover group', {
-                            'border-be': index !== notificationsState.length - 1
-                          })}
-                          onClick={e => handleReadNotification(e, true, index)}
-                        >
-                          {getAvatar({ avatarImage, avatarIcon, title, avatarText, avatarColor, avatarSkin })}
-                          <div className='flex flex-col flex-auto'>
-                            <Typography variant='body2' className='font-medium mbe-1' color='text.primary'>
-                              {title}
-                            </Typography>
-                            <Typography variant='caption' className='mbe-2' color='text.secondary'>
-                              {subtitle}
-                            </Typography>
-                            <Typography variant='caption' color='text.disabled'>
-                              {time}
-                            </Typography>
-                          </div>
-                          <div className='flex flex-col items-end gap-2'>
-                            <Badge
-                              variant='dot'
-                              color={read ? 'secondary' : 'primary'}
-                              onClick={e => handleReadNotification(e, !read, index)}
-                              className={classnames('mbs-1 mie-1', {
-                                'invisible group-hover:visible': read
+                    <div className='p-2'>
+                      {previewNotifications.length > 0 ? (
+                        <>
+                          {previewNotifications.map((notification, index) => (
+                            <div
+                              key={notification.id || index}
+                              className={classnames(
+                                'flex items-start gap-3 p-3 rounded-lg transition-colors',
+                                notification.read ? 'bg-transparent' : 'bg-action-hover',
+                                { 'mt-1': index !== 0 },
+                                'hover:bg-action-hover cursor-pointer'
+                              )}
+                              onClick={() => handleNotificationClick(notification)}
+                            >
+                              <div className='flex-shrink-0 mt-0.5'>
+                                {notification.avatarIcon ? (
+                                  <CustomAvatar color={notification.avatarColor} skin={notification.avatarSkin} size='sm'>
+                                    <i className={notification.avatarIcon} />
+                                  </CustomAvatar>
+                                ) : notification.avatarImage ? (
+                                  <Avatar
+                                    alt={notification.title}
+                                    src={notification.avatarImage}
+                                    className='is-8 bs-8'
+                                  />
+                                ) : (
+                                  <CustomAvatar color={notification.avatarColor} skin={notification.avatarSkin} size='sm'>
+                                    {notification.avatarText || getInitials(notification.title || '')}
+                                  </CustomAvatar>
+                                )}
+                              </div>
+                              <div className='flex-grow min-w-0'>
+                                <div className='flex items-center justify-between'>
+                                  <Typography
+                                    variant='body2'
+                                    className={classnames('font-medium', {
+                                      'text-textPrimary': !notification.read,
+                                      'text-textSecondary': notification.read
+                                    })}
+                                  >
+                                    {notification.title}
+                                  </Typography>
+                                  <Typography variant='caption' className='text-textDisabled whitespace-nowrap ml-2'>
+                                    {notification.time}
+                                  </Typography>
+                                </div>
+                                <Typography
+                                  variant='body2'
+                                  className={classnames('text-sm mt-0.5', {
+                                    'text-textPrimary': !notification.read,
+                                    'text-textSecondary': notification.read
+                                  })}
+                                  style={{
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}
+                                >
+                                  {notification.subtitle || notification.message}
+                                </Typography>
+                              </div>
+                              {!notification.read && (
+                                <div className='flex-shrink-0 mt-2'>
+                                  <div className='w-2 h-2 rounded-full bg-error' />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </>
                               })}
-                            />
-                            <i
-                              className='ri-close-line text-xl invisible group-hover:visible text-textSecondary'
-                              onClick={e => handleRemoveNotification(e, index)}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </ScrollWrapper>
-                  <Divider />
-                  <div className='p-4'>
-                    <Button fullWidth variant='contained' size='small'>
-                      View All Notifications
-                    </Button>
-                  </div>
+                      style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}
+                            >
+                      {notification.subtitle || notification.message}
+                    </Typography>
                 </div>
+                {!notification.read && (
+                  <div className='flex-shrink-0 mt-2'>
+                    <div className='w-2 h-2 rounded-full bg-error' />
+                  </div>
+                )}
+                <i
+                  className='ri-close-line text-xl invisible group-hover:visible text-textSecondary'
+                  onClick={e => handleRemoveNotification(e, index)}
+                />
+              </div>
+              ))
+              ) : (
+              <div className='flex flex-col items-center justify-center p-4 text-center'>
+                <i className='tabler-bell-off text-[2rem] text-textDisabled mb-2' />
+                <Typography variant='body2' className='text-textSecondary'>
+                  No new notifications
+                </Typography>
+              </div>
+                    )}
+            </div>
+          </div>
               </ClickAwayListener>
-            </Paper>
-          </Fade>
+    </Paper >
+          </Fade >
         )}
-      </Popper>
+      </Popper >
     </>
   )
 }

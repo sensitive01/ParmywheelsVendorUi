@@ -78,7 +78,7 @@ import NavSearch from '@components/layout/shared/search'
 import LanguageDropdown from '@components/layout/shared/LanguageDropdown'
 import ModeDropdown from '@components/layout/shared/ModeDropdown'
 import ShortcutsDropdown from '@components/layout/shared/ShortcutsDropdown'
-import NotificationsDropdown from '@components/layout/shared/NotificationsDropdown'
+// import NotificationsDropdown from '@components/layout/shared/NotificationsDropdown'
 import UserDropdown from '@components/layout/shared/UserDropdown'
 
 // Hook Imports

@@ -7,7 +7,7 @@ const initialState = {
   events: [], // Start with an empty array as events will be fetched from API
   filteredEvents: [],
   selectedEvent: null,
-  selectedCalendars: ['Sales', 'Marketing', 'Finance', 'Product', 'Operations']
+  selectedCalendars: ['Sales', 'Marketing', 'Finance', 'Product', 'Operations', 'ETC']
 }
 
 
@@ -86,21 +86,29 @@ export const calendarSlice = createSlice({
         state.selectedCalendars.push(action.payload)
       }
 
-
       // Apply the selected filters to events
-      state.events = filterEventsUsingCheckbox(state.filteredEvents, state.selectedCalendars)
+      state.events = state.selectedCalendars.length > 0
+        ? filterEventsUsingCheckbox(state.filteredEvents, state.selectedCalendars)
+        : state.filteredEvents;
     },
 
     // Action to filter all calendar labels (either show all or none)
     filterAllCalendarLabels: (state, action) => {
-      state.selectedCalendars = action.payload ? ['Sales', 'Marketing', 'Finance', 'Product', 'Operations'] : []
-      state.events = filterEventsUsingCheckbox(state.filteredEvents, state.selectedCalendars)
+      state.selectedCalendars = action.payload
+        ? ['Sales', 'Marketing', 'Finance', 'Product', 'Operations', 'ETC']
+        : [];
+      state.events = action.payload
+        ? [...state.filteredEvents]
+        : [];
     },
 
     // Action to set the fetched events from API to the store
     setFetchedEvents: (state, action) => {
       state.events = action.payload;
-      state.filteredEvents = filterEventsUsingCheckbox(action.payload, state.selectedCalendars);
+      state.filteredEvents = action.payload;
+      state.events = state.selectedCalendars.length > 0
+        ? filterEventsUsingCheckbox(action.payload, state.selectedCalendars)
+        : action.payload;
     }
   }
 });

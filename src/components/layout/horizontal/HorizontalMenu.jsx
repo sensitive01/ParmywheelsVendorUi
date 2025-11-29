@@ -134,14 +134,9 @@ const HorizontalMenu = ({ dictionary }) => {
         <MenuItem href={`/${locale}/pages/helpandsupport`} icon={<i className='ri-calendar-line' />}>
           {dictionary['navigation'].helpandsupport}
         </MenuItem>
-        <SubMenu label={dictionary['navigation'].Plans} icon={<i className='ri-shopping-bag-3-line' />}>
-          <MenuItem href={`/${locale}/pages/currentplan`}>
-            {dictionary['navigation'].Plans}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
-            {dictionary['navigation'].Subscriptions}
-          </MenuItem>
-        </SubMenu>
+        <MenuItem href={`/${locale}/pages/currentplan`} icon={<i className='ri-shopping-bag-3-line' />}>
+          {dictionary['navigation'].Plans}
+        </MenuItem>
         <MenuItem href={`/${locale}/apps/calendar`} icon={<i className='ri-calendar-line' />}>
           {dictionary['navigation'].calendar}
         </MenuItem>

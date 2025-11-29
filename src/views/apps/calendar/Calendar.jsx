@@ -56,9 +56,52 @@ const Calendar = props => {
   }, [events])
 
 
+
+  const parseDateString = (dateString) => {
+    if (!dateString) return null;
+    if (dateString instanceof Date) return dateString;  // Return Date objects as-is
+
+    // If it's a string that's already in ISO format
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) return date;
+
+    return null; // Return null for invalid dates
+  };
+
+  // Debug: Log the raw events before processing
+  console.log('Raw events from Redux:', events);
+
+  // Process events to ensure dates are in correct format
+  const processedEvents = events.map(event => {
+    const processedEvent = {
+      ...event,
+      start: parseDateString(event.start) || event.start,
+      end: parseDateString(event.end) || event.end,
+      extendedProps: {
+        ...event.extendedProps,
+        // Add any additional processing for extended props if needed
+      }
+    };
+
+    // Debug: Log each processed event
+    console.log('Processed event:', {
+      id: processedEvent.id,
+      title: processedEvent.title,
+      start: processedEvent.start,
+      end: processedEvent.end,
+      allDay: processedEvent.allDay,
+      extendedProps: processedEvent.extendedProps
+    });
+
+    return processedEvent;
+  });
+
+  // Debug: Log the final processed events array
+  console.log('Processed events array:', processedEvents);
+
   // FullCalendar Options
   const calendarOptions = {
-    events: events,
+    events: processedEvents,
     plugins: [interactionPlugin, dayGridPlugin, timeGridPlugin, listPlugin],
     initialView: 'dayGridMonth',
     headerToolbar: {
@@ -103,8 +146,8 @@ const Calendar = props => {
     eventClassNames({ event: calendarEvent }) {
       const colorName = calendarsColor[calendarEvent.extendedProps.calendar]
 
-      
-return [`event-bg-${colorName}`]
+
+      return [`event-bg-${colorName}`]
     },
     eventClick({ event: clickedEvent, jsEvent }) {
       jsEvent.preventDefault()
@@ -143,8 +186,8 @@ return [`event-bg-${colorName}`]
     direction: theme.direction
   }
 
-  
-return <FullCalendar {...calendarOptions} />
+
+  return <FullCalendar {...calendarOptions} />
 }
 
 export default Calendar

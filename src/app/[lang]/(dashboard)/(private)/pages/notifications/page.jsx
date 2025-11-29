@@ -1,399 +1,584 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
+import { useSession } from 'next-auth/react';
 import {
-  Badge,
-  IconButton,
-  Menu,
-  MenuItem,
-  Typography,
   Box,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
+  Typography,
+  IconButton,
   Button,
-  ListItemIcon,
-  Avatar,
-  Tooltip,
-  Chip
+  Snackbar,
+  Alert,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  useMediaQuery,
+  useTheme,
+  Card,
+  CardContent,
+  Chip,
+  Fade,
+  Stack,
+  Divider
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import ClearAllIcon from '@mui/icons-material/ClearAll';
-import EventIcon from '@mui/icons-material/Event';
-import CancelIcon from '@mui/icons-material/Cancel';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import LocalParkingIcon from '@mui/icons-material/LocalParking';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import WarningIcon from '@mui/icons-material/Warning';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 
-import { notificationStore } from '@/utils/requestNotificationPermission';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.parkmywheels.com';
 
-const NotificationBell = () => {
+export default function NotificationsPage() {
+  const [allNotifications, setAllNotifications] = useState([]);
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [anchorEl, setAnchorEl] = useState(null);
-  
-  const handleClick = (event) => {
-    setAnchorEl(event.currentTarget);
-    setUnreadCount(0); // Mark as read when opened
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [deletingId, setDeletingId] = useState(null);
+  const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const itemsPerPage = 10;
+  const { data: session, status } = useSession();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
+  const fetchNotifications = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const handleClearAll = () => {
-    if (notificationStore) {
-      notificationStore.clearHistory();
-      setNotifications([]);
+      const vendorId = session?.user?._id || session?.user?.id;
+      if (!vendorId) {
+        throw new Error('Vendor ID not found in session');
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/vendor/fetchnotification/${vendorId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session?.accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch notifications');
+      }
+
+      const data = await response.json();
+
+      let fetchedNotifications = [];
+
+      if (data.notifications && Array.isArray(data.notifications)) {
+        fetchedNotifications = data.notifications;
+      } else if (data.data && Array.isArray(data.data)) {
+        fetchedNotifications = data.data;
+      } else if (Array.isArray(data)) {
+        fetchedNotifications = data;
+      }
+
+      if (!Array.isArray(fetchedNotifications)) {
+        throw new Error('Invalid notifications data format');
+      }
+
+      setAllNotifications(fetchedNotifications);
+
+      const total = fetchedNotifications.length;
+      const calculatedTotalPages = Math.ceil(total / itemsPerPage);
+
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedNotifications = fetchedNotifications.slice(startIndex, endIndex);
+
+      setNotifications(paginatedNotifications);
+      setTotalPages(calculatedTotalPages);
+      setTotalItems(total);
+
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+      setError(err.message || 'Failed to load notifications. Please try again later.');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleDelete = async (notificationId) => {
+    try {
+      setDeletingId(notificationId);
+
+      const response = await fetch(`${API_BASE_URL}/vendor/notification/${notificationId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session?.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete notification');
+      }
+
+      const updatedAllNotifications = allNotifications.filter(n => n._id !== notificationId);
+      setAllNotifications(updatedAllNotifications);
+
+      const newTotal = updatedAllNotifications.length;
+      const newTotalPages = Math.ceil(newTotal / itemsPerPage);
+
+      let newCurrentPage = currentPage;
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        newCurrentPage = newTotalPages;
+        setCurrentPage(newCurrentPage);
+      }
+
+      const startIndex = (newCurrentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const paginatedNotifications = updatedAllNotifications.slice(startIndex, endIndex);
+
+      setNotifications(paginatedNotifications);
+      setTotalPages(newTotalPages);
+      setTotalItems(newTotal);
+
+      setSnackbar({ open: true, message: 'Notification deleted', severity: 'success' });
+
+    } catch (err) {
+      console.error('Error deleting notification:', err);
+      setSnackbar({
+        open: true,
+        message: err.message || 'Failed to delete notification',
+        severity: 'error'
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      setIsDeletingAll(true);
+      const vendorId = session?.user?._id || session?.user?.id;
+      if (!vendorId) {
+        throw new Error('Vendor ID not found in session');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/vendor/notifications/vendor/${vendorId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session?.accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear all notifications');
+      }
+
+      setAllNotifications([]);
+      setNotifications([]);
+      setTotalPages(1);
+      setTotalItems(0);
+      setCurrentPage(1);
+      setSnackbar({ open: true, message: 'All notifications cleared', severity: 'success' });
+      setShowDeleteAllDialog(false);
+
+    } catch (err) {
+      console.error('Error clearing notifications:', err);
+      setSnackbar({
+        open: true,
+        message: err.message || 'Failed to clear notifications',
+        severity: 'error'
+      });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+
+    const startIndex = (newPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedNotifications = allNotifications.slice(startIndex, endIndex);
+
+    setNotifications(paginatedNotifications);
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   useEffect(() => {
-    // Load initial notifications
-    if (notificationStore) {
-      const history = notificationStore.getHistory();
-      setNotifications(history);
-      setUnreadCount(history.length);
-      
-      // Subscribe to new notifications
-      const unsubscribe = notificationStore.addListener((notification) => {
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
+    if (status === 'authenticated') {
+      fetchNotifications();
+    }
+  }, [status]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return isNaN(date.getTime())
+      ? ''
+      : date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
-      
-      return unsubscribe;
-    }
-  }, []);
-
-  // Format the timestamp
-  const formatTime = (date) => {
-    if (!date) return '';
-    
-    const notificationDate = new Date(date);
-    const now = new Date();
-    
-    // If today, show time only
-    if (notificationDate.toDateString() === now.toDateString()) {
-      return notificationDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    
-    // If within the last week, show day and time
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    if (notificationDate > oneWeekAgo) {
-      return notificationDate.toLocaleDateString([], { weekday: 'short' }) + ' ' + 
-             notificationDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    
-    // Otherwise show full date
-    return notificationDate.toLocaleDateString();
   };
 
-  // Determine if notification is related to cancellation
-  const isCancellationNotification = (notification) => {
-    return notification.type === 'booking_cancelled' || 
-           notification.type === 'cancelled_subscription' ||
-           (notification.title?.toLowerCase().includes('cancelled')) ||
-           (notification.message?.toLowerCase().includes('cancelled'));
-  };
-
-  // Get icon based on notification type
-  const getNotificationIcon = (notification) => {
-    const type = notification.type;
+  const getNotificationColor = (notification) => {
     const title = notification.title?.toLowerCase() || '';
-    
-    if (isCancellationNotification(notification)) {
-      return <CancelIcon color="error" />;
-    } else if (title.includes('completed')) {
-      return <CheckCircleIcon color="success" />;
-    } else if (title.includes('parked') || type === 'parked') {
-      return <LocalParkingIcon color="info" />;
-    } else if (title.includes('scheduled') || type === 'scheduled_subscription') {
-      return <EventIcon color="primary" />;
-    } else if (title.includes('approved')) {
-      return <CheckCircleIcon color="primary" />;
-    } else {
-      return <AccessTimeIcon color="action" />;
+    if (title.includes('expiring soon') || title.includes('expiring in')) {
+      return 'warning';
     }
+    if (title.includes('expired')) {
+      return 'error';
+    }
+    return 'info';
   };
+
+  if (loading && notifications.length === 0) {
+    return (
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '400px',
+        gap: 2
+      }}>
+        <CircularProgress size={50} />
+        <Typography variant="body2" color="text.secondary">
+          Loading notifications...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3, maxWidth: 600, mx: 'auto', mt: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+        <Button
+          variant="contained"
+          onClick={fetchNotifications}
+          startIcon={<RefreshIcon />}
+          fullWidth
+        >
+          Retry
+        </Button>
+      </Box>
+    );
+  }
 
   return (
-    <>
-      <Tooltip title="Notifications">
-        <IconButton
-          color="inherit"
-          onClick={handleClick}
-          aria-label="notifications"
-        >
-          <Badge badgeContent={unreadCount} color="error">
-            <NotificationsIcon />
-          </Badge>
-        </IconButton>
-      </Tooltip>
-      
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-        PaperProps={{
-          style: {
-            width: '70%',
-            maxHeight: '450px',
-          },
-        }}
-      >
-        <Box sx={{ 
-          px: 2, 
-          py: 1, 
-          bgcolor: 'primary.main', 
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <Typography variant="subtitle1">Notifications</Typography>
-          {notifications.length > 0 && (
-            <Button 
-              size="small" 
-              startIcon={<ClearAllIcon />} 
-              onClick={handleClearAll}
-              sx={{ color: 'white' }}
-            >
-              Clear
-            </Button>
+    <Box sx={{
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1200px',
+      mx: 'auto',
+      width: '100%',
+      minHeight: '100vh',
+      bgcolor: 'background.default'
+    }}>
+      {/* Header Section */}
+      <Box sx={{
+        mb: 4,
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between',
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        gap: 2
+      }}>
+        <Box>
+          <Typography
+            variant="h4"
+            component="h1"
+            fontWeight="bold"
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              mb: 0.5
+            }}
+          >
+            <NotificationsActiveIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+            Notifications
+          </Typography>
+          {totalItems > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {totalItems} total notification{totalItems !== 1 ? 's' : ''}
+            </Typography>
           )}
         </Box>
-        
-        {notifications.length === 0 ? (
-          <MenuItem disabled>
-            <Box sx={{ 
-              width: '100%', 
-              py: 3, 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center' 
-            }}>
-              <NotificationsIcon color="disabled" sx={{ fontSize: 40, mb: 1 }} />
-              <Typography variant="body2">No notifications</Typography>
-            </Box>
-          </MenuItem>
-        ) : (
-          <List sx={{ width: '100%', p: 0 }}>
-            {notifications.map((notification, index) => {
-              const isCancellation = isCancellationNotification(notification);
-              
-              return (
-                <div key={notification.id || index}>
-                  <ListItem 
-                    alignItems="flex-start"
-                    sx={{
-                      bgcolor: isCancellation ? 'rgba(211, 47, 47, 0.04)' : 'inherit',
-                      borderLeft: isCancellation ? '4px solid #d32f2f' : 'none',
-                    }}
-                  >
-                    <ListItemIcon>
-                      {getNotificationIcon(notification)}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="subtitle2">{notification.title}</Typography>
-                          {isCancellation && (
-                            <Chip 
-                              label="Cancelled" 
-                              size="small" 
-                              color="error" 
-                              sx={{ height: 20, fontSize: '0.7rem' }}
-                            />
-                          )}
+
+        <Stack direction="row" spacing={1}>
+          {allNotifications.length > 0 && (
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => setShowDeleteAllDialog(true)}
+              startIcon={<DeleteSweepIcon />}
+              disabled={loading || isDeletingAll}
+              size={isMobile ? 'small' : 'medium'}
+            >
+              {isDeletingAll ? 'Clearing...' : isMobile ? 'Clear' : 'Clear All'}
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            onClick={fetchNotifications}
+            startIcon={<RefreshIcon />}
+            disabled={loading}
+            size={isMobile ? 'small' : 'medium'}
+          >
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </Button>
+        </Stack>
+      </Box>
+
+      {/* Notifications List */}
+      {notifications.length === 0 && totalItems === 0 ? (
+        <Card
+          elevation={0}
+          sx={{
+            textAlign: 'center',
+            py: 8,
+            border: '2px dashed',
+            borderColor: 'divider',
+            bgcolor: 'background.paper'
+          }}
+        >
+          <NotificationsIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No notifications yet
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            You're all caught up! New notifications will appear here.
+          </Typography>
+        </Card>
+      ) : (
+        <>
+          <Stack spacing={2} sx={{ mb: 4 }}>
+            {notifications.map((notification, index) => (
+              <Fade in={true} timeout={300 + (index * 100)} key={notification._id || notification.id || index}>
+                <Card
+                  elevation={2}
+                  sx={{
+                    position: 'relative',
+                    overflow: 'visible',
+                    transition: 'all 0.3s ease',
+                    border: '1px solid',
+                    borderColor: notification.read ? 'divider' : 'primary.light',
+                    bgcolor: notification.read ? 'background.paper' : 'action.hover',
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: 4,
+                      borderColor: 'primary.main'
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: { xs: 2, sm: 3 }, '&:last-child': { pb: { xs: 2, sm: 3 } } }}>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                      {/* Notification Content */}
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Box sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          mb: 1.5,
+                          flexWrap: 'wrap'
+                        }}>
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              fontWeight: notification.read ? 500 : 700,
+                              fontSize: { xs: '1rem', sm: '1.1rem' },
+                              color: 'text.primary',
+                              flex: 1,
+                              minWidth: 0
+                            }}
+                          >
+                            {notification.title || 'Notification'}
+                          </Typography>
+                          <Chip
+                            label={getNotificationColor(notification) === 'warning' ? 'Warning' :
+                              getNotificationColor(notification) === 'error' ? 'Expired' : 'Info'}
+                            color={getNotificationColor(notification)}
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
                         </Box>
-                      }
-                      secondary={
-                        <>
-                          <Typography variant="body2" color="textPrimary" component="span">
-                            {notification.message}
+
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            mb: 2,
+                            lineHeight: 1.6,
+                            whiteSpace: 'pre-line'
+                          }}
+                        >
+                          {notification.message || notification.description || 'No message content'}
+                        </Typography>
+
+                        <Box sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          color: 'text.secondary'
+                        }}>
+                          <AccessTimeIcon sx={{ fontSize: 16 }} />
+                          <Typography variant="caption">
+                            {formatDate(notification.createdAt || notification.timestamp)}
                           </Typography>
-                          <Typography variant="caption" color="textSecondary" component="p">
-                            {formatTime(notification.timestamp)}
-                          </Typography>
-                        </>
-                      }
-                    />
-                  </ListItem>
-                  {index < notifications.length - 1 && <Divider component="li" />}
-                </div>
-              );
-            })}
-          </List>
-        )}
-      </Menu>
-    </>
+                        </Box>
+                      </Box>
+
+                      {/* Delete Button */}
+                      <IconButton
+                        size="small"
+                        onClick={() => handleDelete(notification._id || notification.id)}
+                        disabled={deletingId === (notification._id || notification.id)}
+                        color="error"
+                        sx={{
+                          '&:hover': {
+                            backgroundColor: 'error.light',
+                            color: 'error.contrastText'
+                          }
+                        }}
+                      >
+                        {deletingId === (notification._id || notification.id) ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <DeleteIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Fade>
+            ))}
+          </Stack>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Card elevation={1} sx={{ mt: 3 }}>
+              <CardContent>
+                <Box sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 2
+                }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || loading}
+                    startIcon={<ChevronLeftIcon />}
+                    sx={{ minWidth: 100 }}
+                  >
+                    Previous
+                  </Button>
+
+                  <Box sx={{ textAlign: 'center' }}>
+                    <Typography variant="body1" fontWeight="600">
+                      Page {currentPage} of {totalPages}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}
+                    </Typography>
+                  </Box>
+
+                  <Button
+                    variant="outlined"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages || loading}
+                    endIcon={<ChevronRightIcon />}
+                    sx={{ minWidth: 100 }}
+                  >
+                    Next
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* Delete All Dialog */}
+      <Dialog
+        open={showDeleteAllDialog}
+        onClose={() => !isDeletingAll && setShowDeleteAllDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant="h6" fontWeight="bold">
+            Clear All Notifications
+          </Typography>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography>
+            Are you sure you want to clear all <strong>{totalItems}</strong> notification{totalItems !== 1 ? 's' : ''}? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button
+            onClick={() => setShowDeleteAllDialog(false)}
+            disabled={isDeletingAll}
+            variant="outlined"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAll}
+            color="error"
+            variant="contained"
+            disabled={isDeletingAll}
+            startIcon={isDeletingAll ? <CircularProgress size={20} /> : <DeleteSweepIcon />}
+          >
+            {isDeletingAll ? 'Clearing...' : 'Clear All'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
-};
-
-export default NotificationBell;
-
-
-
-// 'use client';
-
-// import { useState, useEffect } from 'react';
-// import { useSession } from 'next-auth/react';
-// import axios from 'axios';
-
-// // Environment variables
-// const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-// // Notification model class - matches Flutter implementation
-// class NotificationModel {
-//   constructor(title, message, createdAt) {
-//     this.title = title || 'No Title';
-//     this.message = message || 'No Message';
-//     this.createdAt = new Date(createdAt);
-//   }
-
-//   static fromJson(json) {
-//     return new NotificationModel(
-//       json.title,
-//       json.message,
-//       json.createdAt
-//     );
-//   }
-// }
-
-// // API function to fetch notifications - matches Flutter implementation
-// const fetchNotifications = async (vendorId) => {
-//   if (!vendorId) return [];
-  
-//   try {
-//     const response = await axios.get(`${API_URL}/vendor/fetchnotification/${vendorId}`);
-    
-//     if (response.status === 200) {
-//       const data = response.data.notifications;
-//       return data.map(notification => NotificationModel.fromJson(notification));
-//     } else {
-//       throw new Error('Failed to load notifications');
-//     }
-//   } catch (error) {
-//     console.error('Error fetching notifications:', error);
-//     throw error;
-//   }
-// };
-
-// // Format date to match Flutter's DateFormat('dd-MM-yyyy HH:mm')
-// const formatDate = (date) => {
-//   const day = date.getDate().toString().padStart(2, '0');
-//   const month = (date.getMonth() + 1).toString().padStart(2, '0');
-//   const year = date.getFullYear();
-//   const hours = date.getHours().toString().padStart(2, '0');
-//   const minutes = date.getMinutes().toString().padStart(2, '0');
-  
-//   return `${day}-${month}-${year} ${hours}:${minutes}`;
-// };
-
-// const NotificationScreen = () => {
-//   const { data: session } = useSession();
-//   const vendorId = session?.user?.id;
-//   const [notifications, setNotifications] = useState([]);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState(null);
-
-//   useEffect(() => {
-//     const getNotifications = async () => {
-//       try {
-//         setLoading(true);
-//         const data = await fetchNotifications(vendorId);
-//         setNotifications(data);
-//         setError(null);
-//       } catch (err) {
-//         setError('Failed to load notifications');
-//         console.error(err);
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     if (vendorId) {
-//       getNotifications();
-//     } else {
-//       setLoading(false);
-//     }
-//   }, [vendorId]);
-
-//   // Colors to match Flutter implementation
-//   const primaryColor = '#4f46e5'; // Replace with your actual primary color from ColorUtils.primarycolor()
-//   const errorColor = '#ef4444'; // Equivalent to Colors.red
-
-//   return (
-//     <div className="container mx-auto px-4 py-6">
-//       <div className="mb-6">
-//         <h1 className="text-2xl font-bold">Notifications</h1>
-//       </div>
-      
-//       <div className="w-full">
-//         {loading ? (
-//           <div className="flex justify-center items-center py-20">
-//             {/* You could add a proper loader GIF here to match the Flutter asset */}
-//             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-//           </div>
-//         ) : error ? (
-//           <div className="text-center py-10 text-red-500">Error: {error}</div>
-//         ) : notifications.length === 0 ? (
-//           <div className="text-center py-10 text-gray-500">No notifications found.</div>
-//         ) : (
-//           <div className="space-y-4">
-//             {notifications.map((notification, index) => {
-//               const isSlotCancelled = notification.title.includes("Slot Cancelled");
-              
-//               return (
-//                 <div 
-//                   key={index}
-//                   className="p-4 rounded-lg border shadow-sm bg-white"
-//                   style={{ borderColor: isSlotCancelled ? errorColor : primaryColor }}
-//                 >
-//                   <div className="flex justify-between items-start mb-2">
-//                     <div className="font-bold text-sm">
-//                       {notification.title}
-//                     </div>
-//                     <div className="flex items-center">
-//                       <div 
-//                         className="w-4 h-4 rounded-full flex items-center justify-center mr-1"
-//                         style={{ backgroundColor: isSlotCancelled ? errorColor : primaryColor }}
-//                       >
-//                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-//                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-//                         </svg>
-//                       </div>
-//                       <span className="text-xs font-semibold">
-//                         {formatDate(notification.createdAt)}
-//                       </span>
-//                     </div>
-//                   </div>
-                  
-//                   <div className="flex items-start mt-2">
-//                     <div 
-//                       className="w-10 h-10 rounded-full flex items-center justify-center mr-3 flex-shrink-0"
-//                       style={{ backgroundColor: isSlotCancelled ? errorColor : primaryColor }}
-//                     >
-//                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-//                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-//                       </svg>
-//                     </div>
-//                     <p className="text-sm text-gray-800">
-//                       {notification.message}
-//                     </p>
-//                   </div>
-//                 </div>
-//               );
-//             })}
-//           </div>
-//         )}
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default NotificationScreen;
+}
