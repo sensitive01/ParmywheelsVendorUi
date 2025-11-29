@@ -66,7 +66,8 @@ const VehicleBookingTransactions = () => {
 
   const getTotalReceivable = () => {
     return transactions.reduce((total, transaction) => {
-      const amount = parseFloat(transaction.receivable.replace("₹", "")) || 0;
+      // Remove currency symbol and convert to number
+      const amount = parseFloat(transaction.receivable.replace(/[^0-9.-]+/g, '')) || 0;
       return total + amount;
     }, 0);
   };
@@ -98,8 +99,8 @@ const VehicleBookingTransactions = () => {
       const response = await axios.get(url);
 
       if (response.status === 200) {
-        const raw = response.data?.data?.bookings || [];
-        console.log("raw", raw.length)
+        const raw = response.data?.data || [];
+
 
         // Apply client-side filtering if dateFilter is true
         let filtered = raw;
@@ -126,9 +127,9 @@ const VehicleBookingTransactions = () => {
           bookingId: item._id,
           parkingDate: item.parkingDate || "N/A",
           parkingTime: item.parkingTime || "N/A",
-          bookingAmount: `₹${item.amount}`,
-          platformFee: `₹${item.platformfee}`,
-          receivable: `₹${item.receivableAmount}`,
+          bookingAmount: `₹${item.amount || 0}`,
+          platformFee: `₹${item.releasefee || 0}`,
+          receivable: `₹${item.recievableamount || 0}`,
         }));
 
         setTransactions(data);
@@ -286,18 +287,76 @@ const VehicleBookingTransactions = () => {
   };
 
   const columns = [
-    { field: "serialNo", headerName: "S.No", width: 90 },
-    { field: "bookingId", headerName: "Booking ID", flex: 1, minWidth: 200 },
-    { field: "parkingDate", headerName: "Date", flex: 0.6, minWidth: 120 },
-    { field: "parkingTime", headerName: "Time", flex: 0.5, minWidth: 110 },
-    { field: "bookingAmount", headerName: "Amount", flex: 0.6, minWidth: 140 },
-    { field: "platformFee", headerName: "Platform Fee", flex: 0.6, minWidth: 140 },
-    { field: "receivable", headerName: "Receivable", flex: 0.6, minWidth: 140 },
+    {
+      field: "serialNo",
+      headerName: "S.No",
+      width: 90,
+      headerClassName: 'header-bold'
+    },
+    {
+      field: "bookingId",
+      headerName: "Booking ID",
+      flex: 1,
+      minWidth: 200,
+      headerClassName: 'header-bold'
+    },
+    {
+      field: "parkingDate",
+      headerName: "Date",
+      flex: 0.6,
+      minWidth: 120,
+      headerClassName: 'header-bold'
+    },
+    {
+      field: "parkingTime",
+      headerName: "Time",
+      flex: 0.5,
+      minWidth: 110,
+      headerClassName: 'header-bold'
+    },
+    {
+      field: "bookingAmount",
+      headerName: "Amount",
+      flex: 0.6,
+      minWidth: 140,
+      headerClassName: 'header-bold',
+      align: 'right',
+      headerAlign: 'right'
+    },
+    {
+      field: "platformFee",
+      headerName: "Platform Fee",
+      flex: 0.6,
+      minWidth: 140,
+      headerClassName: 'header-bold',
+      align: 'right',
+      headerAlign: 'right'
+    },
+    {
+      field: "receivable",
+      headerName: "Receivable",
+      flex: 0.6,
+      minWidth: 140,
+      headerClassName: 'header-bold',
+      align: 'right',
+      headerAlign: 'right'
+    },
   ];
+
+  // Add this style for the table
+  const styles = {
+    header: {
+      backgroundColor: '#329a73',
+      color: 'white',
+      fontSize: '0.9rem',
+      fontWeight: 'bold',
+      padding: '8px 16px',
+    },
+  };
 
   return (
     <Box sx={{ backgroundColor: "#f4f4f4", minHeight: "100vh", p: 2 }}>
-      <Card sx={{ width: "100%", maxWidth: '100%', mx: 'auto',  boxShadow: 3 }}>
+      <Card sx={{ width: "100%", maxWidth: '100%', mx: 'auto', boxShadow: 3 }}>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h5" component="h1" sx={{ mb: 3, textAlign: 'center' }}>
             Booking Transactions
@@ -372,20 +431,50 @@ const VehicleBookingTransactions = () => {
           ) : transactions.length === 0 ? (
             <Typography sx={{ textAlign: "center", color: "gray" }}>No transactions found.</Typography>
           ) : (
-            <DataGrid
-              rows={transactions}
-              columns={columns}
-              pageSizeOptions={[10, 25, 50, 100]}
-              initialState={{
-                pagination: { paginationModel: { pageSize: 10, page: 0 } },
-              }}
-              autoHeight
-              sx={{
-                "& .MuiDataGrid-columnHeaders": { backgroundColor: "#329a73", color: "black" },
-                mb: 2,
-                borderRadius: 2,
-              }}
-            />
+            <Box sx={{ height: 600, width: '100%' }}>
+              <DataGrid
+                rows={transactions}
+                columns={columns}
+                pageSizeOptions={[10, 25, 50, 100]}
+                initialState={{
+                  pagination: {
+                    paginationModel: {
+                      pageSize: 10,
+                      page: 0
+                    }
+                  },
+                }}
+                autoHeight
+                disableRowSelectionOnClick
+                sx={{
+                  '& .MuiDataGrid-columnHeaders': {
+                    backgroundColor: '#329a73',
+                    color: 'black',
+                    '& .MuiDataGrid-columnHeaderTitle': {
+                      fontWeight: 'bold',
+                    },
+                  },
+                  '& .MuiDataGrid-cell': {
+                    fontSize: '0.875rem',
+                  },
+                  '& .MuiDataGrid-columnHeader': {
+                    padding: '0 16px',
+                  },
+                  '& .MuiDataGrid-columnHeaderTitle': {
+                    fontWeight: 'bold',
+                  },
+                  mb: 2,
+                  borderRadius: 2,
+                  '& .MuiDataGrid-row:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                  },
+                  '& .MuiDataGrid-cell--textRight': {
+                    justifyContent: 'flex-end',
+                    paddingRight: '24px',
+                  },
+                }}
+              />
+            </Box>
           )}
           <Dialog open={dateDialogOpen} onClose={() => setDateDialogOpen(false)}>
             <DialogTitle>Filter Transactions by Date</DialogTitle>
