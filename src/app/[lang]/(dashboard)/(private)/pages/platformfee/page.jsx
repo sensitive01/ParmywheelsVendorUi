@@ -89,7 +89,7 @@ const VehicleBookingTransactions = () => {
     setIsLoading(true);
 
     try {
-      let url = `${NEXT_PUBLIC_API_URL}/vendor/fetchbookingtransaction/${vendorId}`;
+      let url = `${NEXT_PUBLIC_API_URL}/vendor/nonuserbookings/${vendorId}`;
 
       if (dateFilter && startDate && endDate) {
         url += `?startDate=${startDate}&endDate=${endDate}`;
