@@ -773,6 +773,12 @@ const ExitVehicleCalculator = ({
       const data = await response.json()
 
       onSuccess?.(data.message || 'Vehicle exit processed successfully')
+
+      // Refresh the page after a short delay to show the success message
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+
       onClose?.()
     } catch (err) {
       console.error('Error processing exit:', err)

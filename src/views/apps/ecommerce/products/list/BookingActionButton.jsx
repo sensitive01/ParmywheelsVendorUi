@@ -3,14 +3,14 @@
 
 import { useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { 
-  Button, 
-  Menu, 
-  MenuItem, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
+import {
+  Button,
+  Menu,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   TextField,
   Alert,
   Snackbar,
@@ -52,22 +52,22 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     setActionType(action)
     handleClose()
     resetFields()
-    
+
     // Initialize with current date and time in required format
     const now = new Date()
     const day = String(now.getDate()).padStart(2, '0')
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const year = now.getFullYear()
     const formattedDate = `${day}-${month}-${year}`
-    
+
     const hours = String(now.getHours() % 12 || 12).padStart(2, '0')
     const minutes = String(now.getMinutes()).padStart(2, '0')
     const ampm = now.getHours() >= 12 ? 'PM' : 'AM'
     const formattedTime = `${hours}:${minutes} ${ampm}`
-    
+
     setDateInput(formattedDate)
     setTimeInput(formattedTime)
-    
+
     setOpenDialog(true)
   }
 
@@ -96,12 +96,12 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     }
 
     setLoading(true)
-    
+
     try {
       let endpoint = ''
       let options = {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.accessToken}`
         }
@@ -114,7 +114,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
             setLoading(false)
             return
           }
-          
+
           endpoint = `${API_URL}/vendor/approvebooking/${bookingId}`
           options.body = JSON.stringify({
             approvedDate: dateInput,
@@ -140,7 +140,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
             setLoading(false)
             return
           }
-          
+
           endpoint = `${API_URL}/vendor/allowparking/${bookingId}`
           options.body = JSON.stringify({
             parkedDate: dateInput,
@@ -153,7 +153,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
       }
 
       const response = await fetch(endpoint, options)
-      
+
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || 'Failed to update booking status')
@@ -163,6 +163,11 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
       showSnackbar(data.message || 'Status updated successfully')
       handleDialogClose()
       if (onUpdate) onUpdate()
+
+      // Refresh the page after a short delay to show the success message
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
     } catch (error) {
       console.error('Error updating booking status:', error)
       showSnackbar(error.message || 'Failed to update status', 'error')
@@ -204,7 +209,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     switch (actionType) {
       case 'exitVehicle':
         return (
-          <ExitVehicleCalculator 
+          <ExitVehicleCalculator
             bookingId={bookingId}
             vehicleType={bookingDetails?.vehicleType || 'Car'}
             bookType={bookingDetails?.bookType || 'Hourly'}
@@ -256,11 +261,11 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
 
   if (actions.length === 0) {
     return (
-      <Button 
-        variant="outlined" 
+      <Button
+        variant="outlined"
         color={
-          currentStatus?.toLowerCase() === 'completed' ? 'success' : 
-          currentStatus?.toLowerCase() === 'cancelled' ? 'error' : 'default'
+          currentStatus?.toLowerCase() === 'completed' ? 'success' :
+            currentStatus?.toLowerCase() === 'cancelled' ? 'error' : 'default'
         }
         disabled
       >
@@ -280,15 +285,15 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
       >
         {loading ? <CircularProgress size={20} /> : 'Update Status'}
       </Button>
-      
+
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleClose}
       >
         {actions.map((actionItem) => (
-          <MenuItem 
-            key={actionItem.action} 
+          <MenuItem
+            key={actionItem.action}
             onClick={() => handleActionClick(actionItem.action)}
           >
             {actionItem.label}
@@ -296,10 +301,10 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
         ))}
       </Menu>
 
-      <Dialog 
-        open={openDialog} 
-        onClose={handleDialogClose} 
-        maxWidth={actionType === 'exitVehicle' ? 'md' : 'sm'} 
+      <Dialog
+        open={openDialog}
+        onClose={handleDialogClose}
+        maxWidth={actionType === 'exitVehicle' ? 'md' : 'sm'}
         fullWidth
       >
         <DialogTitle>
@@ -311,23 +316,23 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
             'exitVehicle': 'Exit Vehicle'
           }[actionType] || 'Update Booking Status'}
         </DialogTitle>
-        
+
         {renderDialogContent()}
-        
+
         {actionType !== 'exitVehicle' && (
           <DialogActions>
-            <Button 
-              onClick={handleDialogClose} 
+            <Button
+              onClick={handleDialogClose}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSubmit} 
-              variant="contained" 
+            <Button
+              onClick={handleSubmit}
+              variant="contained"
               color={
-                actionType === 'cancel' || actionType === 'cancelApproved' ? 'error' : 
-                actionType === 'approve' ? 'success' : 'primary'
+                actionType === 'cancel' || actionType === 'cancelApproved' ? 'error' :
+                  actionType === 'approve' ? 'success' : 'primary'
               }
               disabled={loading}
             >
@@ -343,9 +348,9 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleSnackbarClose} 
-          severity={snackbar.severity} 
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
           sx={{ width: '100%' }}
         >
           {snackbar.message}

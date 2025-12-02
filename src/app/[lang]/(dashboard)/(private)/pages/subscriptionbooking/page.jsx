@@ -322,6 +322,7 @@ const OrderListTable = ({ orderData }) => {
   const [filteredData, setFilteredData] = useState(data)
   const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('pending')
+  const [sorting, setSorting] = useState([])
   const { lang: locale } = useParams()
   const { data: session } = useSession()
   const router = useRouter()
@@ -529,12 +530,14 @@ const OrderListTable = ({ orderData }) => {
             indeterminate={row.getIsSomeSelected()}
             onChange={row.getToggleSelectedHandler()}
           />
-        )
+        ),
+        enableSorting: false
       },
       {
         id: 'sno',
         header: 'S.No',
-        cell: ({ row }) => <Typography>{row.index + 1}</Typography>
+        cell: ({ row }) => <Typography>{row.index + 1}</Typography>,
+        enableSorting: false
       },
       {
         id: 'customer',
@@ -610,6 +613,11 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'bookingDateTime',
         header: 'Booking Date & Time',
+        accessorFn: (row) => {
+          const dateTime = parseDateTime(row.bookingDate, row.bookingTime);
+          return dateTime ? dateTime.getTime() : 0;
+        },
+        sortingFn: 'basic',
         cell: ({ row }) => {
           const date = formatDateDisplay(row.original.bookingDate)
           const time = formatTimeDisplay(row.original.bookingTime)
@@ -625,6 +633,11 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'parkingEntryDateTime',
         header: 'Parking Entry Date & Time',
+        accessorFn: (row) => {
+          const dateTime = parseDateTime(row.parkedDate, row.parkedTime);
+          return dateTime ? dateTime.getTime() : 0;
+        },
+        sortingFn: 'basic',
         cell: ({ row }) => {
           const date = formatDateDisplay(row.original.parkedDate)
           const time = formatTimeDisplay(row.original.parkedTime)
@@ -640,6 +653,11 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'exitDateTime',
         header: 'Exit Date & Time',
+        accessorFn: (row) => {
+          const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime);
+          return dateTime ? dateTime.getTime() : 0;
+        },
+        sortingFn: 'basic',
         cell: ({ row }) => {
           const status = row.original.status?.toUpperCase()
           const isExited = status === 'COMPLETED' || status === 'CANCELLED'
@@ -905,7 +923,8 @@ const OrderListTable = ({ orderData }) => {
     },
     state: {
       rowSelection,
-      globalFilter
+      globalFilter,
+      sorting
     },
     initialState: {
       pagination: {
@@ -916,6 +935,7 @@ const OrderListTable = ({ orderData }) => {
     globalFilterFn: fuzzyFilter,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -1312,16 +1332,44 @@ const OrderListTable = ({ orderData }) => {
                             {header.isPlaceholder ? null : (
                               <div
                                 className={classnames({
-                                  'flex items-center': header.column.getIsSorted(),
+                                  'flex items-center gap-2': true,
                                   'cursor-pointer select-none': header.column.getCanSort()
                                 })}
                                 onClick={header.column.getToggleSortingHandler()}
+                                style={{
+                                  userSelect: 'none',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (header.column.getCanSort()) {
+                                    e.currentTarget.style.backgroundColor = '#f5f5f5'
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.backgroundColor = 'transparent'
+                                }}
                               >
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {{
-                                  asc: <i className='ri-arrow-up-s-line text-xl' />,
-                                  desc: <i className='ri-arrow-down-s-line text-xl' />
-                                }[header.column.getIsSorted()] ?? null}
+                                <span style={{ flex: 1 }}>
+                                  {flexRender(header.column.columnDef.header, header.getContext())}
+                                </span>
+                                {header.column.getCanSort() && (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    flexDirection: 'column',
+                                    marginLeft: '4px',
+                                    opacity: header.column.getIsSorted() ? 1 : 0.3
+                                  }}>
+                                    {!header.column.getIsSorted() && (
+                                      <i className='ri-arrow-up-down-line' style={{ fontSize: '18px' }} />
+                                    )}
+                                    {header.column.getIsSorted() === 'asc' && (
+                                      <i className='ri-arrow-up-s-line' style={{ fontSize: '20px', color: '#22c55e' }} />
+                                    )}
+                                    {header.column.getIsSorted() === 'desc' && (
+                                      <i className='ri-arrow-down-s-line' style={{ fontSize: '20px', color: '#22c55e' }} />
+                                    )}
+                                  </span>
+                                )}
                               </div>
                             )}
                           </th>

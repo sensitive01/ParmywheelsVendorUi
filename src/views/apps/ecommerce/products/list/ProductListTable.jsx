@@ -188,30 +188,6 @@ const OrderListTable = ({ orderData }) => {
   const handleMenuClose = () => {
     setAnchorEl(null)
   }
-  // Function to calculate duration between two dates
-  const calculateDuration = (startDate, startTime, endDate, endTime) => {
-    if (!startDate || !startTime) return 'N/A';
-
-    try {
-      const startDateTime = parseDateTime(startDate, startTime);
-      const endDateTime = endDate && endTime ? parseDateTime(endDate, endTime) : new Date();
-
-      if (!startDateTime) return 'N/A';
-
-      const diffMs = endDateTime - startDateTime;
-      if (diffMs < 0) return 'N/A';
-
-      const diffSecs = Math.floor(diffMs / 1000);
-      const hours = Math.floor(diffSecs / 3600);
-      const minutes = Math.floor((diffSecs % 3600) / 60);
-      const seconds = diffSecs % 60;
-
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    } catch (e) {
-      console.error("Error calculating duration:", e);
-      return 'N/A';
-    }
-  };
 
   // Function to parse date string to DateTime object
   const parseDateTime = (dateStr, timeStr) => {
@@ -246,6 +222,31 @@ const OrderListTable = ({ orderData }) => {
     } catch (e) {
       console.error("Error parsing date/time:", e);
       return null;
+    }
+  };
+
+  // Function to calculate duration between two dates
+  const calculateDuration = (startDate, startTime, endDate, endTime) => {
+    if (!startDate || !startTime) return 'N/A';
+
+    try {
+      const startDateTime = parseDateTime(startDate, startTime);
+      const endDateTime = endDate && endTime ? parseDateTime(endDate, endTime) : new Date();
+
+      if (!startDateTime) return 'N/A';
+
+      const diffMs = endDateTime - startDateTime;
+      if (diffMs < 0) return 'N/A';
+
+      const diffSecs = Math.floor(diffMs / 1000);
+      const hours = Math.floor(diffSecs / 3600);
+      const minutes = Math.floor((diffSecs % 3600) / 60);
+      const seconds = diffSecs % 60;
+
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    } catch (e) {
+      console.error("Error calculating duration:", e);
+      return 'N/A';
     }
   };
 
@@ -472,14 +473,16 @@ const OrderListTable = ({ orderData }) => {
             indeterminate={row.getIsSomeSelected()}
             onChange={row.getToggleSelectedHandler()}
           />
-        )
+        ),
+        enableSorting: false
       },
       {
         id: 'sno',
         header: 'S.No',
         cell: ({ row }) => (
           <Typography>{row.index + 1}</Typography>
-        )
+        ),
+        enableSorting: false
       },
       {
         id: 'customer',
@@ -554,6 +557,11 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'bookingDateTime',
         header: 'Booking Date & Time',
+        accessorFn: (row) => {
+          const dateTime = parseDateTime(row.bookingDate, row.bookingTime);
+          return dateTime ? dateTime.getTime() : 0;
+        },
+        sortingFn: 'basic',
         cell: ({ row }) => {
           const formatDateDisplay = (dateStr) => {
             if (!dateStr) return 'N/A'
@@ -623,6 +631,11 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'parkingEntryDateTime',
         header: 'Parking Entry Date & Time',
+        accessorFn: (row) => {
+          const dateTime = parseDateTime(row.parkedDate, row.parkedTime);
+          return dateTime ? dateTime.getTime() : 0;
+        },
+        sortingFn: 'basic',
         cell: ({ row }) => {
           const formatDateDisplay = (dateStr) => {
             if (!dateStr) return 'N/A'
@@ -695,6 +708,11 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'exitVehicleDateTime',
         header: 'Parking Exit Date & Time',
+        accessorFn: (row) => {
+          const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime);
+          return dateTime ? dateTime.getTime() : 0;
+        },
+        sortingFn: 'basic',
         cell: ({ row }) => {
           const formatDateDisplay = (dateStr) => {
             console.log("date", dateStr)
@@ -793,9 +811,32 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'duration',
         header: 'Duration',
-        cell: ({ row }) => (
-          <Typography>{row.original.hour || 'N/A'}</Typography>
-        )
+        cell: ({ row }) => {
+          const status = row.original.status?.toUpperCase();
+          const isCompleted = status === 'COMPLETED';
+
+          if (isCompleted) {
+            // Use the hour field if available, otherwise calculate
+            let duration = row.original.hour;
+
+            if (!duration || duration === 'N/A') {
+              duration = calculateDuration(
+                row.original.parkedDate,
+                row.original.parkedTime,
+                row.original.exitvehicledate,
+                row.original.exitvehicletime
+              );
+            }
+
+            return (
+              <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>
+                {duration}
+              </Typography>
+            );
+          }
+
+          return <Typography>N/A</Typography>;
+        }
       },
       {
         id: 'charges',
@@ -824,65 +865,6 @@ const OrderListTable = ({ orderData }) => {
         cell: ({ row }) => (
           <Typography fontWeight={600}>₹{row.original.amount || '0'}</Typography>
         )
-      },
-      {
-        id: 'payableTime',
-        header: 'Payable Time',
-        cell: ({ row }) => {
-          const status = row.original.status?.toUpperCase();
-          const isParked = status === 'PARKED';
-          const isCompleted = status === 'COMPLETED';
-
-          if (isParked) {
-            return (
-              <div className="flex items-center gap-2">
-                <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                <PayableTimeTimer
-                  parkedDate={row.original.parkedDate}
-                  parkedTime={row.original.parkedTime}
-                />
-              </div>
-            );
-          } else if (isCompleted && row.original.hour) {
-            return (
-              <Typography sx={{ fontFamily: 'monospace', color: '#72e128' }}>
-                {row.original.hour}
-              </Typography>
-            );
-          }
-
-          return <Typography>N/A</Typography>;
-        }
-      },
-      {
-        id: 'duration',
-        header: 'Duration',
-        cell: ({ row }) => {
-          const status = row.original.status?.toUpperCase();
-          const isCompleted = status === 'COMPLETED';
-
-          if (isCompleted) {
-            // Use the hour field if available, otherwise calculate
-            let duration = row.original.hour;
-
-            if (!duration || duration === 'N/A') {
-              duration = calculateDuration(
-                row.original.parkedDate,
-                row.original.parkedTime,
-                row.original.exitvehicledate,
-                row.original.exitvehicletime
-              );
-            }
-
-            return (
-              <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>
-                {duration}
-              </Typography>
-            );
-          }
-
-          return <Typography>N/A</Typography>;
-        }
       },
       {
         id: 'status',
@@ -1033,12 +1015,12 @@ const OrderListTable = ({ orderData }) => {
               <head>
                 <title>Bookings Export</title>
                 <style>
-                  body {font - family: Arial, sans-serif; margin: 20px; }
+                  body {font-family: Arial, sans-serif; margin: 20px; }
                   h1 {color: #333; text-align: center; }
-                  table {border - collapse: collapse; width: 100%; margin-top: 20px; font-size: 12px; }
-                  th {background - color: #f2f2f2; position: sticky; top: 0; padding: 8px; text-align: left; }
+                  table {border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 12px; }
+                  th {background-color: #f2f2f2; position: sticky; top: 0; padding: 8px; text-align: left; }
                   td {border: 1px solid #ddd; padding: 6px; text-align: left; }
-                  tr:nth-child(even) {background - color: #f9f9f9; }
+                  tr:nth-child(even) {background-color: #f9f9f9; }
                   .header {display: flex; justify-content: space-between; margin-bottom: 20px; }
                   .date {color: #666; }
                   .status-completed {color: green; }
@@ -1082,16 +1064,14 @@ const OrderListTable = ({ orderData }) => {
                   </tbody>
                 </table>
                 <script>
-          // Wait for content to load before printing
                   window.onload = function() {
                     setTimeout(() => {
                       window.print();
-                      // Close after printing is done
                       window.onafterprint = function () {
                         window.close();
                       };
                     }, 300);
-          };
+                  };
                 </script>
               </body>
             </html>
@@ -1207,16 +1187,44 @@ const OrderListTable = ({ orderData }) => {
                         {header.isPlaceholder ? null : (
                           <div
                             className={classnames({
-                              'flex items-center': header.column.getIsSorted(),
+                              'flex items-center gap-2': true,
                               'cursor-pointer select-none': header.column.getCanSort()
                             })}
                             onClick={header.column.getToggleSortingHandler()}
+                            style={{
+                              userSelect: 'none',
+                              transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                              if (header.column.getCanSort()) {
+                                e.currentTarget.style.backgroundColor = '#f5f5f5'
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent'
+                            }}
                           >
-                            {flexRender(header.column.columnDef.header, header.getContext())}
-                            {{
-                              asc: <i className='ri-arrow-up-s-line text-xl' />,
-                              desc: <i className='ri-arrow-down-s-line text-xl' />
-                            }[header.column.getIsSorted()] ?? null}
+                            <span style={{ flex: 1 }}>
+                              {flexRender(header.column.columnDef.header, header.getContext())}
+                            </span>
+                            {header.column.getCanSort() && (
+                              <span style={{
+                                display: 'inline-flex',
+                                flexDirection: 'column',
+                                marginLeft: '4px',
+                                opacity: header.column.getIsSorted() ? 1 : 0.3
+                              }}>
+                                {!header.column.getIsSorted() && (
+                                  <i className='ri-arrow-up-down-line' style={{ fontSize: '18px' }} />
+                                )}
+                                {header.column.getIsSorted() === 'asc' && (
+                                  <i className='ri-arrow-up-s-line' style={{ fontSize: '20px', color: '#666CFF' }} />
+                                )}
+                                {header.column.getIsSorted() === 'desc' && (
+                                  <i className='ri-arrow-down-s-line' style={{ fontSize: '20px', color: '#666CFF' }} />
+                                )}
+                              </span>
+                            )}
                           </div>
                         )}
                       </th>

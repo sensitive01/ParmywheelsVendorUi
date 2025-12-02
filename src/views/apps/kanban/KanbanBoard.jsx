@@ -26,7 +26,7 @@ const labels = ['Minimum Charges', 'Additional Hour', 'Full Day', 'Monthly'];
 const typesByLabel = {
   'Minimum Charges': ['0 to 1 hour', '0 to 2 hours', '0 to 3 hours', '0 to 4 hours'],
   'Additional Hour': ['Additional 1 hour', 'Additional 2 hours', 'Additional 3 hours', 'Additional 4 hours'],
-  'Full Day': ['Full day'], // Only 'Full day' option regardless of mode
+  'Full Day': ['Full day'],
   'Monthly': ['Monthly'],
 };
 
@@ -108,7 +108,6 @@ const SectionToggle = styled(Box)(({ theme }) => ({
 }));
 
 const getChargeIdForNewEntry = (category, label) => {
-  // Simple mapping to assign single letter IDs like the backend expects
   const idMap = {
     'Car-Minimum Charges': 'A',
     'Car-Additional Hour': 'B',
@@ -125,8 +124,140 @@ const getChargeIdForNewEntry = (category, label) => {
   };
 
   const key = `${category}-${label}`;
-  return idMap[key] || key.substring(0, 1).toUpperCase(); // Fallback to first letter capitalized
+  return idMap[key] || key.substring(0, 1).toUpperCase();
 };
+
+// Memoized ChargeCard with proper comparison
+const ChargeCard = memo(({ category, label, charge, isEditing, onEditToggle, onSave }) => {
+  const [formData, setFormData] = useState({
+    type: charge?.type || '',
+    amount: charge?.amount || ''
+  });
+
+  useEffect(() => {
+    setFormData({
+      type: charge?.type || '',
+      amount: charge?.amount || ''
+    });
+  }, [charge]);
+
+  const typeOptions = typesByLabel[label];
+
+  const handleTypeChange = (e) => {
+    setFormData(prev => ({ ...prev, type: e.target.value }));
+  };
+
+  const handleAmountChange = (e) => {
+    setFormData(prev => ({ ...prev, amount: e.target.value }));
+  };
+
+  const handleCancel = () => {
+    onEditToggle(false);
+    setFormData({
+      type: charge?.type || '',
+      amount: charge?.amount || ''
+    });
+  };
+
+  const handleSaveClick = () => {
+    // Only save if there's an actual change
+    const hasChanged = formData.type !== (charge?.type || '') ||
+      formData.amount !== (charge?.amount || '');
+
+    if (hasChanged && formData.type && formData.amount) {
+      onSave(formData.type, formData.amount);
+    } else if (!formData.type || !formData.amount) {
+      // Show error or handle validation
+      return;
+    } else {
+      // No changes, just close edit mode
+      onEditToggle(false);
+    }
+  };
+
+  return (
+    <Grow in={true} timeout={300}>
+      <StyledCard>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            {label}
+          </Typography>
+          <Fade in={true} timeout={500}>
+            <Box>
+              {isEditing ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Duration</InputLabel>
+                    <Select
+                      value={formData.type}
+                      onChange={handleTypeChange}
+                      label="Duration"
+                      startAdornment={<ClockIcon sx={{ mr: 1 }} />}
+                    >
+                      {typeOptions.map((type) => (
+                        <MenuItem key={type} value={type}>{type}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    fullWidth
+                    label="Amount"
+                    type="number"
+                    value={formData.amount}
+                    onChange={handleAmountChange}
+                    InputProps={{ startAdornment: '₹' }}
+                  />
+                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                    <Button variant="outlined" startIcon={<CloseIcon />} onClick={handleCancel}>
+                      Cancel
+                    </Button>
+                    <Button
+                      variant="contained"
+                      startIcon={<SaveIcon />}
+                      onClick={handleSaveClick}
+                    >
+                      Save
+                    </Button>
+                  </Box>
+                </Box>
+              ) : charge ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <RateDisplay>
+                    <Typography variant="h4" color="primary.main" gutterBottom>
+                      ₹{charge.amount}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <ClockIcon sx={{ mr: 1 }} />
+                      <Typography variant="body1" color="text.secondary">
+                        {charge.type}
+                      </Typography>
+                    </Box>
+                  </RateDisplay>
+                  <Button fullWidth variant="outlined" startIcon={<EditIcon />} onClick={() => onEditToggle(true)}>
+                    Edit Rate
+                  </Button>
+                </Box>
+              ) : (
+                <Button fullWidth variant="contained" startIcon={<AddIcon />} onClick={() => onEditToggle(true)}>
+                  Set Rate
+                </Button>
+              )}
+            </Box>
+          </Fade>
+        </CardContent>
+      </StyledCard>
+    </Grow>
+  );
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  return (
+    prevProps.charge?.type === nextProps.charge?.type &&
+    prevProps.charge?.amount === nextProps.charge?.amount &&
+    prevProps.isEditing === nextProps.isEditing &&
+    prevProps.category === nextProps.category &&
+    prevProps.label === nextProps.label
+  );
+});
 
 const ParkingChargesKanban = () => {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -139,7 +270,6 @@ const ParkingChargesKanban = () => {
   const { data: session } = useSession();
   const [vendorExists, setVendorExists] = useState(false);
 
-  // Enable/disable toggles with default values
   const [enableToggles, setEnableToggles] = useState({
     carEnabled: false,
     bikeEnabled: false,
@@ -155,7 +285,6 @@ const ParkingChargesKanban = () => {
     othersMonthly: false,
   });
 
-  // Full day modes with default values
   const [fullDayModes, setFullDayModes] = useState({
     car: 'Full Day',
     bike: 'Full Day',
@@ -203,7 +332,6 @@ const ParkingChargesKanban = () => {
 
         setCharges(chargesMap);
 
-        // Set enable/disable toggles from backend data
         setEnableToggles({
           carEnabled: vendor.carenable === "true",
           bikeEnabled: vendor.bikeenable === "true",
@@ -219,10 +347,8 @@ const ParkingChargesKanban = () => {
           othersMonthly: vendor.othersmonthly === "true",
         });
 
-        // Get full day modes
         fetchFullDayModes();
       } else {
-        // Vendor doesn't exist in the Parking collection yet
         setVendorExists(false);
       }
     } catch (err) {
@@ -243,16 +369,13 @@ const ParkingChargesKanban = () => {
     try {
       setLoading(true);
 
-      // First, create a default parking entry
       const defaultPayload = {
         vendorid: vendorId,
-        charges: [] // Empty charges
+        charges: []
       };
 
-      // Initialize with default settings
       await axios.post(`${API_URL}/vendor/addparkingcharges`, defaultPayload);
 
-      // Set default toggle states
       const defaultToggles = {
         carEnabled: false,
         bikeEnabled: false,
@@ -268,7 +391,6 @@ const ParkingChargesKanban = () => {
         othersMonthly: false,
       };
 
-      // Update the enable states
       await axios.put(
         `${API_URL}/vendor/updateenable/${vendorId}`,
         defaultToggles
@@ -285,49 +407,6 @@ const ParkingChargesKanban = () => {
       setTimeout(() => setError(''), 5000);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchCharges = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`);
-
-      if (!response.data || !response.data.vendor) {
-        setCharges({});
-        return;
-      }
-
-      const { vendor } = response.data;
-      const chargesMap = {};
-
-      vendor.charges.forEach(charge => {
-        let label;
-        const typeLC = charge.type.toLowerCase();
-
-        if (typeLC.includes('additional')) {
-          label = 'Additional Hour';
-        } else if (typeLC.includes('full day') || typeLC.includes('24 hour')) {
-          label = 'Full Day';
-        } else if (typeLC.includes('monthly')) {
-          label = 'Monthly';
-        } else {
-          label = 'Minimum Charges';
-        }
-
-        const key = `${charge.category}-${label}`;
-        chargesMap[key] = {
-          ...charge,
-          label
-        };
-      });
-
-      setCharges(chargesMap);
-    } catch (err) {
-      console.error('Error fetching charges:', err);
-      if (err.response && err.response.status !== 404) {
-        setError(`Failed to load charges data: ${err.message}`);
-        setTimeout(() => setError(''), 5000);
-      }
     }
   };
 
@@ -373,7 +452,6 @@ const ParkingChargesKanban = () => {
       setError(`Failed to update ${category} ${field}: ${err.message}`);
       setTimeout(() => setError(''), 5000);
 
-      // Revert the toggle state
       setEnableToggles(prev => ({
         ...prev,
         [field]: !prev[field]
@@ -387,21 +465,15 @@ const ParkingChargesKanban = () => {
         await initializeVendor();
       }
 
-      // Fix: Updated the endpoint URL to match the backend route
-      // The backend has "upadatefullday" instead of "updatefullday"
       const endpoint = `upadatefullday${vehicleType}`;
-
-      // Create the proper payload based on vehicle type
       const payload = {};
       payload[`fullday${vehicleType}`] = mode;
 
-      // Make the API call with the corrected endpoint and proper payload
       await axios.put(
         `${API_URL}/vendor/${endpoint}/${vendorId}`,
         payload
       );
 
-      // Update local state
       setFullDayModes(prev => ({
         ...prev,
         [vehicleType]: mode
@@ -416,7 +488,8 @@ const ParkingChargesKanban = () => {
     }
   };
 
-  const handleSave = async (category, label, type, amount) => {
+  // Optimized handleSave - only updates the specific charge
+  const handleSave = useCallback(async (category, label, type, amount) => {
     try {
       if (!type || !amount) {
         throw new Error('Please enter both type and amount');
@@ -426,7 +499,19 @@ const ParkingChargesKanban = () => {
         await initializeVendor();
       }
 
-      const existingCharge = charges[`${category}-${label}`];
+      const key = `${category}-${label}`;
+      const existingCharge = charges[key];
+
+      // Check if data actually changed
+      if (existingCharge?.type === type && existingCharge?.amount === amount) {
+        // No changes, just close edit mode
+        setEditStates(prev => ({
+          ...prev,
+          [key]: false
+        }));
+        return;
+      }
+
       const chargeid = existingCharge?.chargeid || getChargeIdForNewEntry(category, label);
 
       const payload = {
@@ -441,10 +526,10 @@ const ParkingChargesKanban = () => {
 
       await axios.post(`${API_URL}/vendor/addparkingcharges`, payload);
 
-      // Update only the specific charge in the state instead of fetching all
+      // Update ONLY the specific charge that changed
       setCharges(prev => ({
         ...prev,
-        [`${category}-${label}`]: {
+        [key]: {
           type,
           amount,
           category,
@@ -453,9 +538,10 @@ const ParkingChargesKanban = () => {
         }
       }));
 
+      // Close edit mode for this specific card
       setEditStates(prev => ({
         ...prev,
-        [`${category}-${label}`]: false
+        [key]: false
       }));
 
       setSuccess('Charge saved successfully!');
@@ -465,121 +551,14 @@ const ParkingChargesKanban = () => {
       setError(err.response?.data?.message || err.message || 'Failed to save charges');
       setTimeout(() => setError(''), 5000);
     }
-  };
-
-  const ChargeCard = memo(({ category, label, charge, isEditing, onEditToggle, onSave }) => {
-    const [formData, setFormData] = useState({
-      type: charge?.type || '',
-      amount: charge?.amount || ''
-    });
-
-    useEffect(() => {
-      setFormData({
-        type: charge?.type || '',
-        amount: charge?.amount || ''
-      });
-    }, [charge]);
-
-    // Get type options based on label
-    const typeOptions = typesByLabel[label];
-
-    const handleTypeChange = (e) => {
-      setFormData(prev => ({ ...prev, type: e.target.value }));
-    };
-
-    const handleAmountChange = (e) => {
-      setFormData(prev => ({ ...prev, amount: e.target.value }));
-    };
-
-    const handleCancel = () => {
-      onEditToggle(false);
-      setFormData({
-        type: charge?.type || '',
-        amount: charge?.amount || ''
-      });
-    };
-
-    return (
-      <Grow in={true} timeout={300}>
-        <StyledCard>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              {label}
-            </Typography>
-            <Fade in={true} timeout={500}>
-              <Box>
-                {isEditing ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <FormControl fullWidth>
-                      <InputLabel>Duration</InputLabel>
-                      <Select
-                        value={formData.type}
-                        onChange={handleTypeChange}
-                        label="Duration"
-                        startAdornment={<ClockIcon sx={{ mr: 1 }} />}
-                      >
-                        {typeOptions.map((type) => (
-                          <MenuItem key={type} value={type}>{type}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    <TextField
-                      fullWidth
-                      label="Amount"
-                      type="number"
-                      value={formData.amount}
-                      onChange={handleAmountChange}
-                      InputProps={{ startAdornment: '₹' }}
-                    />
-                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                      <Button variant="outlined" startIcon={<CloseIcon />} onClick={handleCancel}>
-                        Cancel
-                      </Button>
-                      <Button
-                        variant="contained"
-                        startIcon={<SaveIcon />}
-                        onClick={() => onSave(formData.type, formData.amount)}
-                      >
-                        Save
-                      </Button>
-                    </Box>
-                  </Box>
-                ) : charge ? (
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                    <RateDisplay>
-                      <Typography variant="h4" color="primary.main" gutterBottom>
-                        ₹{charge.amount}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <ClockIcon sx={{ mr: 1 }} />
-                        <Typography variant="body1" color="text.secondary">
-                          {charge.type}
-                        </Typography>
-                      </Box>
-                    </RateDisplay>
-                    <Button fullWidth variant="outlined" startIcon={<EditIcon />} onClick={() => onEditToggle(true)}>
-                      Edit Rate
-                    </Button>
-                  </Box>
-                ) : (
-                  <Button fullWidth variant="contained" startIcon={<AddIcon />} onClick={() => onEditToggle(true)}>
-                    Set Rate
-                  </Button>
-                )}
-              </Box>
-            </Fade>
-          </CardContent>
-        </StyledCard>
-      </Grow>
-    );
-  });
+  }, [charges, vendorExists, vendorId, API_URL]);
 
   const CategorySection = ({ category }) => {
     const vehicleType = category.toLowerCase();
     const currentMode = fullDayModes[vehicleType];
     const categoryEnabled = enableToggles[`${vehicleType}Enabled`];
 
-    const handleCategoryToggle = async () => {
+    const handleCategoryToggle = useCallback(async () => {
       const field = `${vehicleType}Enabled`;
       const newValue = !enableToggles[field];
 
@@ -589,9 +568,9 @@ const ParkingChargesKanban = () => {
       }));
 
       await updateEnabledVehicles(category, field, newValue);
-    };
+    }, [category, vehicleType, enableToggles]);
 
-    const handleSectionToggle = async (section) => {
+    const handleSectionToggle = useCallback(async (section) => {
       const field = `${vehicleType}${section}`;
       const newValue = !enableToggles[field];
 
@@ -601,7 +580,19 @@ const ParkingChargesKanban = () => {
       }));
 
       await updateEnabledVehicles(category, field, newValue);
-    };
+    }, [category, vehicleType, enableToggles]);
+
+    // Memoized callbacks for ChargeCard
+    const handleEditToggle = useCallback((label, value) => {
+      setEditStates(prev => ({
+        ...prev,
+        [`${category}-${label}`]: value
+      }));
+    }, [category]);
+
+    const handleChargeSave = useCallback((label, type, amount) => {
+      return handleSave(category, label, type, amount);
+    }, [category, handleSave]);
 
     return (
       <Box sx={{ mb: 4 }}>
@@ -652,8 +643,8 @@ const ParkingChargesKanban = () => {
                       label="Minimum Charges"
                       charge={charges[`${category}-Minimum Charges`]}
                       isEditing={!!editStates[`${category}-Minimum Charges`]}
-                      onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Minimum Charges`]: val })), [category])}
-                      onSave={useCallback((type, amount) => handleSave(category, 'Minimum Charges', type, amount), [category])}
+                      onEditToggle={(val) => handleEditToggle('Minimum Charges', val)}
+                      onSave={(type, amount) => handleChargeSave('Minimum Charges', type, amount)}
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
@@ -662,8 +653,8 @@ const ParkingChargesKanban = () => {
                       label="Additional Hour"
                       charge={charges[`${category}-Additional Hour`]}
                       isEditing={!!editStates[`${category}-Additional Hour`]}
-                      onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Additional Hour`]: val })), [category])}
-                      onSave={useCallback((type, amount) => handleSave(category, 'Additional Hour', type, amount), [category])}
+                      onEditToggle={(val) => handleEditToggle('Additional Hour', val)}
+                      onSave={(type, amount) => handleChargeSave('Additional Hour', type, amount)}
                     />
                   </Grid>
                 </Grid>
@@ -709,14 +700,13 @@ const ParkingChargesKanban = () => {
                     </Button>
                   </Box>
                 </Box>
-                {/* Only show one ChargeCard for Full Day regardless of selected mode */}
                 <ChargeCard
                   category={category}
                   label="Full Day"
                   charge={charges[`${category}-Full Day`]}
                   isEditing={!!editStates[`${category}-Full Day`]}
-                  onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Full Day`]: val })), [category])}
-                  onSave={useCallback((type, amount) => handleSave(category, 'Full Day', type, amount), [category])}
+                  onEditToggle={(val) => handleEditToggle('Full Day', val)}
+                  onSave={(type, amount) => handleChargeSave('Full Day', type, amount)}
                 />
               </Box>
             )}
@@ -746,8 +736,8 @@ const ParkingChargesKanban = () => {
                   label="Monthly"
                   charge={charges[`${category}-Monthly`]}
                   isEditing={!!editStates[`${category}-Monthly`]}
-                  onEditToggle={useCallback((val) => setEditStates(prev => ({ ...prev, [`${category}-Monthly`]: val })), [category])}
-                  onSave={useCallback((type, amount) => handleSave(category, 'Monthly', type, amount), [category])}
+                  onEditToggle={(val) => handleEditToggle('Monthly', val)}
+                  onSave={(type, amount) => handleChargeSave('Monthly', type, amount)}
                 />
               </Box>
             )}
