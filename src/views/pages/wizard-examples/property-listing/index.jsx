@@ -374,8 +374,17 @@ export default function ParkingBooking() {
       const formattedBookingDate = formatToDDMMYYYY(new Date().toISOString());
       const formattedBookingTime = formatTimeTo12Hour(new Date().toTimeString().substring(0, 5));
 
-      // Set status to PARKED only for Instant bookings, otherwise PENDING
-      const status = sts === 'Instant' ? 'PARKED' : 'PENDING';
+      // Match Flutter logic: PARKED for Instant and Subscription, PENDING for Schedule
+      const status = (sts === 'Instant' || sts === 'Subscription') ? 'PARKED' : 'PENDING';
+
+      // Calculate subscription end date if Subscription booking
+      let subscriptionEndDate = '';
+      if (sts === 'Subscription') {
+        const startDate = new Date(parkingDate);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 30); // Add 30 days
+        subscriptionEndDate = formatToDDMMYYYY(endDate.toISOString()) + ' ' + formatTimeTo12Hour(parkingTime);
+      }
 
       const payload = {
         vendorId,
@@ -387,18 +396,34 @@ export default function ParkingBooking() {
         vehicleNumber,
         bookingDate: formattedBookingDate,
         bookingTime: formattedBookingTime,
+
+        // Set approvedDate and approvedTime for Instant and Subscription
+        approvedDate: (sts === 'Instant' || sts === 'Subscription') ? formattedDate : '',
+        approvedTime: (sts === 'Instant' || sts === 'Subscription') ? formattedTime : '',
+
         parkedDate: formattedDate,
         parkedTime: formattedTime,
         parkingDate: formattedDate,
         parkingTime: formattedTime,
-        tenditivecheckout: tentativeCheckout ? formatToDDMMYYYY(tentativeCheckout.split('T')[0]) + ' ' + formatTimeTo12Hour(tentativeCheckout.split('T')[1]) : '',
+
+        tenditivecheckout: tentativeCheckout
+          ? formatToDDMMYYYY(tentativeCheckout.split('T')[0]) + ' ' + formatTimeTo12Hour(tentativeCheckout.split('T')[1])
+          : '',
+
         subsctiptiontype: sts === 'Subscription' ? subscriptionType : '',
-        status, // Using the status determined above
+        subsctiptionenddate: subscriptionEndDate, // Add subscription end date
+
+        status, // Using the corrected status logic
         sts,
-        bookType: sts === 'Subscription' ? '' : bookType
+        bookType: sts === 'Subscription' ? '' : bookType,
+        cancelledStatus: '', // Add this field to match Flutter
+        hour: '', // Add this field to match Flutter (you can calculate hours for hourly bookings)
+        amount: '' // You might want to calculate amount based on bookType and vehicleType
       };
 
-      const response = await axios.post(`${API_URL}/vendor/createbooking`, payload);
+      console.log('Booking Payload:', payload); // Debug log
+
+      const response = await axios.post(`${API_URL}/vendor/vendorcreatebooking`, payload);
 
       showNotification('New Booking Created', {
         body: `${vehicleType} booking for ${vehicleNumber} created successfully`,
@@ -425,6 +450,7 @@ export default function ParkingBooking() {
         setSts('Instant');
         setPersonName('');
         setMobileNumber('');
+        setCarType('');
         setBookType('Hourly');
         setIs24Hours(false);
         setTentativeCheckout('');
@@ -433,9 +459,10 @@ export default function ParkingBooking() {
         router.push('/apps/ecommerce/products/list');
       }, 1000);
     } catch (error) {
+      console.error('Booking error:', error); // Add error logging
       setAlert({
         show: true,
-        message: 'Failed to create booking. Please try again.',
+        message: error.response?.data?.message || 'Failed to create booking. Please try again.',
         type: 'error'
       });
     } finally {

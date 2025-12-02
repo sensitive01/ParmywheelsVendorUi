@@ -56,8 +56,12 @@ const BankDetails = () => {
           setConfirmAccountNumber(bankData.confirmaccountnumber || '')
           setAccountHolderName(bankData.accountholdername || '')
           setIfscCode(bankData.ifsccode || '')
-          if (bankData.passbookImage) {
-            setImagePreview(bankData.passbookImage)
+          if (bankData.bankpassbookimage) {
+            // Check if the URL is already a full URL or needs the base URL
+            const imageUrl = bankData.bankpassbookimage.startsWith('http')
+              ? bankData.bankpassbookimage
+              : `${API_URL}${bankData.bankpassbookimage}`;
+            setImagePreview(imageUrl);
           }
         }
       } catch (error) {
@@ -119,24 +123,32 @@ const BankDetails = () => {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0]
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setNotification({
-          open: true,
-          message: 'Image size should be less than 2MB',
-          type: 'error'
-        })
-        return
-      }
+    if (!file) return
 
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(reader.result)
-      }
-      reader.readAsDataURL(file)
-      setPassbookImage(file)
+    // ✅ Create a new file WITH SAME NAME
+    const renamedFile = new File([file], file.name, {
+      type: file.type,
+      lastModified: file.lastModified
+    })
+
+    if (renamedFile.size > 2 * 1024 * 1024) {
+      setNotification({
+        open: true,
+        message: 'Image size should be less than 2MB',
+        type: 'error'
+      })
+      return
     }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result)
+    }
+    reader.readAsDataURL(renamedFile)
+
+    setPassbookImage(renamedFile)
   }
+
 
   const handleRemoveImage = () => {
     setPassbookImage(null)
@@ -147,11 +159,12 @@ const BankDetails = () => {
     e.preventDefault()
 
     if (!validateForm()) return
+
     if (!vendorId) {
       setNotification({
         open: true,
-        message: 'You must be logged in to update bank details',
-        type: 'error'
+        message: 'You must be logged in',
+        type: 'error',
       })
       return
     }
@@ -161,48 +174,45 @@ const BankDetails = () => {
       setIsUploading(true)
 
       const formData = new FormData()
-      formData.append('vendorId', vendorId)
-      formData.append('accountnumber', accountNumber)
-      formData.append('confirmaccountnumber', confirmAccountNumber)
-      formData.append('accountholdername', accountHolderName)
-      formData.append('ifsccode', ifscCode)
+      formData.append("vendorId", vendorId)
+      formData.append("accountnumber", accountNumber)
+      formData.append("confirmaccountnumber", confirmAccountNumber)
+      formData.append("accountholdername", accountHolderName)
+      formData.append("ifsccode", ifscCode)
 
       if (passbookImage) {
-        formData.append('passbookImage', passbookImage)
+        // ✅ CORRECT FIELD NAME
+        formData.append("bankpassbookimage", passbookImage)
       }
 
       const response = await axios.post(`${API_URL}/vendor/bankdetails`, formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          "Content-Type": "multipart/form-data",
         }
       })
 
-      // Reset image state after successful upload
-      if (passbookImage) {
-        setPassbookImage(null)
-        setImagePreview('')
-      }
-
       setNotification({
         open: true,
-        message: response.data.message || 'Bank details saved successfully',
-        type: 'success'
+        message: response.data?.message || "Saved successfully",
+        type: "success",
       })
 
-      // Exit edit mode after successful save
       setIsEditMode(false)
+      setPassbookImage(null)
+
     } catch (error) {
-      console.error('Error saving bank details:', error)
+      console.error(error)
       setNotification({
         open: true,
-        message: error.response?.data?.message || 'Failed to save bank details',
-        type: 'error'
+        message: error.response?.data?.message || "Upload failed",
+        type: "error"
       })
     } finally {
       setLoading(false)
       setIsUploading(false)
     }
   }
+
 
   const closeNotification = () => {
     setNotification({ ...notification, open: false })

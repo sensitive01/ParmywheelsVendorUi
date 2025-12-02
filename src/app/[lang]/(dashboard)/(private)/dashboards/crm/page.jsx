@@ -2,6 +2,7 @@
 
 // MUI Imports
 import Grid from '@mui/material/Grid2'
+import { Typography, Button, Menu, MenuItem } from '@mui/material'
 
 // Components Imports
 import Award from '@views/dashboards/crm/Award'
@@ -9,21 +10,11 @@ import CardStatVertical from '@components/card-statistics/Vertical'
 import StackedBarChart from '@views/dashboards/crm/StackedBarChart'
 import DonutChart from '@views/dashboards/crm/DonutChart'
 import OrganicSessions from '@views/dashboards/crm/OrganicSessions'
-import ProjectTimeline from '@views/dashboards/crm/ProjectTimeline'
-import WeeklyOverview from '@views/dashboards/crm/WeeklyOverview'
-import SocialNetworkVisits from '@views/dashboards/crm/SocialNetworkVisits'
-import MonthlyBudget from '@views/dashboards/crm/MonthlyBudget'
-import MeetingSchedule from '@views/dashboards/crm/MeetingSchedule'
-import ExternalLinks from '@views/dashboards/crm/ExternalLinks'
-import PaymentHistory from '@views/dashboards/crm/PaymentHistory'
-import SalesInCountries from '@views/dashboards/crm/SalesInCountries'
-import UserTable from '@views/dashboards/crm/UserTable'
 
 // Third-party Imports
 import { useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { Typography, Button, Menu, MenuItem } from '@mui/material'
 
 const DashboardCRM = () => {
   // State for booking counts
@@ -36,6 +27,7 @@ const DashboardCRM = () => {
     Subscriptions: 0
   })
 
+  const [totalAmount, setTotalAmount] = useState(0)
   const [loading, setLoading] = useState(true)
   const { data: session } = useSession()
   const vendorId = session?.user?.id
@@ -53,12 +45,15 @@ const DashboardCRM = () => {
       }
 
       try {
-        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`, {
-          headers: {
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache'
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`,
+          {
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache'
+            }
           }
-        })
+        )
 
         const bookings = response.data.bookings
         setBookings(Array.isArray(bookings) ? bookings : [])
@@ -73,15 +68,22 @@ const DashboardCRM = () => {
             Subscriptions: 0
           }
 
+          let total = 0
+
           bookings.forEach(booking => {
             const status = booking.status?.trim().toLowerCase()
             const normalizedKey =
-              status === 'completed' ? 'COMPLETED' :
-                status === 'pending' ? 'Pending' :
-                  status === 'approved' ? 'Approved' :
-                    status === 'cancelled' ? 'Cancelled' :
-                      status === 'parked' ? 'Parked' :
-                        null
+              status === 'completed'
+                ? 'COMPLETED'
+                : status === 'pending'
+                  ? 'Pending'
+                  : status === 'approved'
+                    ? 'Approved'
+                    : status === 'cancelled'
+                      ? 'Cancelled'
+                      : status === 'parked'
+                        ? 'Parked'
+                        : null
 
             if (normalizedKey && counts[normalizedKey] !== undefined) {
               counts[normalizedKey] += 1
@@ -91,9 +93,13 @@ const DashboardCRM = () => {
             if (booking.sts === 'Subscription') {
               counts.Subscriptions += 1
             }
+
+            // Calculate total amount
+            total += Number(booking.amount) || 0
           })
 
           setStatusCounts(counts)
+          setTotalAmount(total)
         }
       } catch (error) {
         console.error('Error fetching bookings:', error)
@@ -111,20 +117,43 @@ const DashboardCRM = () => {
   const exportToCSV = () => {
     if (!bookings || bookings.length === 0) return handleDownloadClose()
 
-    const headers = ['Booking ID', 'Booking Date', 'Parking Date', 'Parking Time', 'Amount', 'Status', 'Type']
+    const headers = [
+      'Booking ID',
+      'Booking Date',
+      'Parking Date',
+      'Parking Time',
+      'Exit Date',
+      'Exit Time',
+      'Duration (Hours)',
+      'Amount',
+      'Status',
+      'Type'
+    ]
     const rows = bookings.map(b => [
       b._id ?? '',
       b.bookingDate ?? '',
       b.parkingDate ?? '',
       b.parkingTime ?? '',
+      b.exitvehicledate ?? '',
+      b.exitvehicletime ?? '',
+      b.hour ?? '',
       b.amount ?? '',
       b.status ?? '',
       b.sts ?? ''
     ])
 
-    let csvContent = 'data:text/csv;charset=utf-8,'
-      + headers.join(',') + '\n'
-      + rows.map(r => r.map(v => String(v).replaceAll('"', '""')).map(v => /[,"]/.test(v) ? '"' + v + '"' : v).join(',')).join('\n')
+    let csvContent =
+      'data:text/csv;charset=utf-8,' +
+      headers.join(',') +
+      '\n' +
+      rows
+        .map(r =>
+          r
+            .map(v => String(v).replaceAll('"', '""'))
+            .map(v => (/[,"]/.test(v) ? '"' + v + '"' : v))
+            .join(',')
+        )
+        .join('\n')
 
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
@@ -153,7 +182,18 @@ const DashboardCRM = () => {
     if (!bookings || bookings.length === 0) return handleDownloadClose()
     const XLSX = await loadXLSX()
 
-    const header = ['Booking ID', 'Booking Date', 'Parking Date', 'Parking Time', 'Amount', 'Status', 'Type']
+    const header = [
+      'Booking ID',
+      'Booking Date',
+      'Parking Date',
+      'Parking Time',
+      'Exit Date',
+      'Exit Time',
+      'Duration (Hours)',
+      'Amount',
+      'Status',
+      'Type'
+    ]
     const groups = {
       Pending: [],
       Approved: [],
@@ -165,13 +205,30 @@ const DashboardCRM = () => {
 
     bookings.forEach(b => {
       const raw = (b.status || '').toString().trim().toLowerCase()
-      const key = raw === 'completed' ? 'COMPLETED'
-        : raw === 'pending' ? 'Pending'
-          : raw === 'approved' ? 'Approved'
-            : raw === 'cancelled' ? 'Cancelled'
-              : raw === 'parked' ? 'Parked'
-                : null
-      const row = [b._id ?? '', b.bookingDate ?? '', b.parkingDate ?? '', b.parkingTime ?? '', b.amount ?? '', b.status ?? '', b.sts ?? '']
+      const key =
+        raw === 'completed'
+          ? 'COMPLETED'
+          : raw === 'pending'
+            ? 'Pending'
+            : raw === 'approved'
+              ? 'Approved'
+              : raw === 'cancelled'
+                ? 'Cancelled'
+                : raw === 'parked'
+                  ? 'Parked'
+                  : null
+      const row = [
+        b._id ?? '',
+        b.bookingDate ?? '',
+        b.parkingDate ?? '',
+        b.parkingTime ?? '',
+        b.exitvehicledate ?? '',
+        b.exitvehicletime ?? '',
+        b.hour ?? '',
+        b.amount ?? '',
+        b.status ?? '',
+        b.sts ?? ''
+      ]
       if (key && groups[key]) groups[key].push(row)
       if (b.sts === 'Subscription') groups['Subscriptions'].push(row)
     })
@@ -188,8 +245,6 @@ const DashboardCRM = () => {
   }
 
   const exportSummaryToCSV = () => {
-    // Build a summary matching dashboard tiles
-    const totalAmount = (bookings || []).reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
     const totalBookings = (bookings || []).length
 
     const rows = [
@@ -201,10 +256,19 @@ const DashboardCRM = () => {
       ['Completed Bookings', String(statusCounts.COMPLETED)],
       ['Subscriptions', String(statusCounts.Subscriptions)],
       ['Total Bookings', String(totalBookings)],
-      ['Total Amount', String(totalAmount)]
+      ['Total Amount (INR)', String(totalAmount)]
     ]
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(r => r.map(v => String(v).replaceAll('"', '""')).map(v => /[,"]/.test(v) ? '"' + v + '"' : v).join(',')).join('\n')
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      rows
+        .map(r =>
+          r
+            .map(v => String(v).replaceAll('"', '""'))
+            .map(v => (/[,"]/.test(v) ? '"' + v + '"' : v))
+            .join(',')
+        )
+        .join('\n')
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
@@ -226,6 +290,7 @@ const DashboardCRM = () => {
 
   return (
     <Grid container spacing={6}>
+      {/* Download Report Button */}
       <Grid size={{ xs: 12 }}>
         <div className='flex items-center justify-end gap-2'>
           <Button variant='contained' size='small' onClick={handleDownloadClick}>
@@ -238,10 +303,23 @@ const DashboardCRM = () => {
           </Menu>
         </div>
       </Grid>
+
+      {/* First Row: Award Card + Total Amount (Main Card) */}
       <Grid size={{ xs: 12, md: 4 }}>
         <Award />
       </Grid>
-      <Grid size={{ xs: 12, md: 2, sm: 3 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+        <CardStatVertical
+          stats={`₹${totalAmount.toLocaleString('en-IN')}`}
+          title='Total Amount'
+          trendNumber='45%'
+          avatarColor='success'
+          avatarIcon='ri-money-rupee-circle-line'
+          avatarSkin='light'
+          chipColor='secondary'
+        />
+      </Grid>
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <CardStatVertical
           stats={String(statusCounts.Pending)}
           title='Pending Bookings'
@@ -252,7 +330,7 @@ const DashboardCRM = () => {
           chipColor='secondary'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <CardStatVertical
           stats={String(statusCounts.COMPLETED)}
           title='Completed Bookings'
@@ -263,7 +341,7 @@ const DashboardCRM = () => {
           chipColor='secondary'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <CardStatVertical
           stats={String(statusCounts.Approved)}
           title='Approved Bookings'
@@ -274,7 +352,9 @@ const DashboardCRM = () => {
           chipColor='secondary'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+
+      {/* Second Row: More Stats */}
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <CardStatVertical
           stats={String(statusCounts.Cancelled)}
           title='Cancelled Bookings'
@@ -285,7 +365,7 @@ const DashboardCRM = () => {
           chipColor='secondary'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <CardStatVertical
           stats={String(statusCounts.Parked)}
           title='Parked Bookings'
@@ -296,7 +376,7 @@ const DashboardCRM = () => {
           chipColor='secondary'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <CardStatVertical
           stats={String(statusCounts.Subscriptions)}
           title='Subscriptions'
@@ -307,39 +387,17 @@ const DashboardCRM = () => {
           chipColor='secondary'
         />
       </Grid>
-      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+
+      {/* Third Row: Charts */}
+      <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <StackedBarChart />
       </Grid>
-      <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+      {/* <Grid size={{ xs: 12, sm: 6, md: 2 }}>
         <DonutChart />
-      </Grid>
+      </Grid> */}
       <Grid size={{ xs: 12, md: 4 }}>
         <OrganicSessions />
       </Grid>
-      {/* <Grid size={{ xs: 12, md: 8 }}>
-        <ProjectTimeline />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <WeeklyOverview />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <SocialNetworkVisits />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <MonthlyBudget />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <MeetingSchedule />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <ExternalLinks />
-      </Grid>
-      <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-        <PaymentHistory />
-      </Grid>
-      <Grid size={{ xs: 12, md: 4 }}>
-        <SalesInCountries />
-      </Grid> */}
     </Grid>
   )
 }
