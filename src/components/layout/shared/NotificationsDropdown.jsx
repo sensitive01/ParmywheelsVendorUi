@@ -68,7 +68,8 @@ const getAvatar = params => {
 
 const NotificationDropdown = ({ notifications = [] }) => {
   // Use a subset of notifications for the dropdown (latest 5)
-  const previewNotifications = notifications.slice(0, 5);
+  const previewNotifications = notifications.slice(0, 5)
+
   // States
   const [open, setOpen] = useState(false)
   const [notificationsState, setNotificationsState] = useState(notifications)
@@ -179,12 +180,7 @@ const NotificationDropdown = ({ notifications = [] }) => {
                       )}
                     </Typography>
                     <div className='flex items-center gap-2'>
-                      <Button
-                        size='small'
-                        variant='text'
-                        onClick={markAllAsRead}
-                        disabled={!hasUnreadNotifications}
-                      >
+                      <Button size='small' variant='text' onClick={markAllAsRead} disabled={!hasUnreadNotifications}>
                         Mark all as read
                       </Button>
                     </div>
@@ -207,7 +203,11 @@ const NotificationDropdown = ({ notifications = [] }) => {
                             >
                               <div className='flex-shrink-0 mt-0.5'>
                                 {notification.avatarIcon ? (
-                                  <CustomAvatar color={notification.avatarColor} skin={notification.avatarSkin} size='sm'>
+                                  <CustomAvatar
+                                    color={notification.avatarColor}
+                                    skin={notification.avatarSkin}
+                                    size='sm'
+                                  >
                                     <i className={notification.avatarIcon} />
                                   </CustomAvatar>
                                 ) : notification.avatarImage ? (
@@ -217,7 +217,11 @@ const NotificationDropdown = ({ notifications = [] }) => {
                                     className='is-8 bs-8'
                                   />
                                 ) : (
-                                  <CustomAvatar color={notification.avatarColor} skin={notification.avatarSkin} size='sm'>
+                                  <CustomAvatar
+                                    color={notification.avatarColor}
+                                    skin={notification.avatarSkin}
+                                    size='sm'
+                                  >
                                     {notification.avatarText || getInitials(notification.title || '')}
                                   </CustomAvatar>
                                 )}
@@ -262,44 +266,22 @@ const NotificationDropdown = ({ notifications = [] }) => {
                             </div>
                           ))}
                         </>
-                              })}
-                      style={{
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}
-                            >
-                      {notification.subtitle || notification.message}
-                    </Typography>
+                      ) : (
+                        <div className='flex flex-col items-center justify-center p-4 text-center'>
+                          <i className='tabler-bell-off text-[2rem] text-textDisabled mb-2' />
+                          <Typography variant='body2' className='text-textSecondary'>
+                            No new notifications
+                          </Typography>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollWrapper>
                 </div>
-                {!notification.read && (
-                  <div className='flex-shrink-0 mt-2'>
-                    <div className='w-2 h-2 rounded-full bg-error' />
-                  </div>
-                )}
-                <i
-                  className='ri-close-line text-xl invisible group-hover:visible text-textSecondary'
-                  onClick={e => handleRemoveNotification(e, index)}
-                />
-              </div>
-              ))
-              ) : (
-              <div className='flex flex-col items-center justify-center p-4 text-center'>
-                <i className='tabler-bell-off text-[2rem] text-textDisabled mb-2' />
-                <Typography variant='body2' className='text-textSecondary'>
-                  No new notifications
-                </Typography>
-              </div>
-                    )}
-            </div>
-          </div>
               </ClickAwayListener>
-    </Paper >
-          </Fade >
+            </Paper>
+          </Fade>
         )}
-      </Popper >
+      </Popper>
     </>
   )
 }

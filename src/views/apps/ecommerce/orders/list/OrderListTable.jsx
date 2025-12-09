@@ -123,20 +123,20 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
 
     // Parse date in DD-MM-YYYY format
     const [day, month, year] = parkedDate.split('-')
-    
+
     // Parse time - handle both "05:55 PM" and "5:55 pm" formats
     const timeStr = parkedTime.trim()
     const isPM = timeStr.toUpperCase().includes('PM')
     const isAM = timeStr.toUpperCase().includes('AM')
-    
+
     let hours, minutes
-    
+
     if (isPM || isAM) {
       const [timePart] = timeStr.split(' ')
       const parts = timePart.split(':')
       hours = parseInt(parts[0])
       minutes = parseInt(parts[1]) || 0
-      
+
       if (isPM && hours !== 12) {
         hours += 12
       } else if (isAM && hours === 12) {
@@ -207,20 +207,20 @@ const OrderListTable = ({ orderData }) => {
     try {
       // Parse date (DD-MM-YYYY format)
       const [day, month, year] = dateStr.split('-');
-      
+
       // Parse time - handle both formats
       const timeStrTrim = timeStr.trim()
       const isPM = timeStrTrim.toUpperCase().includes('PM')
       const isAM = timeStrTrim.toUpperCase().includes('AM')
-      
+
       let hours, minutes
-      
+
       if (isPM || isAM) {
         const [timePart] = timeStrTrim.split(' ')
         const parts = timePart.split(':')
         hours = parseInt(parts[0])
         minutes = parseInt(parts[1]) || 0
-        
+
         if (isPM && hours !== 12) {
           hours += 12
         } else if (isAM && hours === 12) {
@@ -425,27 +425,27 @@ const OrderListTable = ({ orderData }) => {
   // FORMAT TIME DISPLAY FUNCTION
   const formatTimeDisplay = (timeStr) => {
     if (!timeStr) return 'N/A';
-    
+
     try {
       const timeStrTrim = timeStr.trim()
       const isPM = timeStrTrim.toUpperCase().includes('PM')
       const isAM = timeStrTrim.toUpperCase().includes('AM')
-      
+
       if (isPM || isAM) {
         // Already in 12-hour format, just standardize it
         const [timePart, period] = timeStrTrim.split(' ')
         const [hours, minutes] = timePart.split(':')
         return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')} ${period.toUpperCase()}`
       }
-      
+
       // If in 24-hour format, convert to 12-hour
       const parts = timeStrTrim.split(':')
       let hours = parseInt(parts[0])
       const minutes = parts[1] || '00'
-      
+
       const period = hours >= 12 ? 'PM' : 'AM'
       hours = hours % 12 || 12
-      
+
       return `${hours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')} ${period}`
     } catch (e) {
       console.error("Time formatting error:", e, timeStr);
@@ -613,7 +613,7 @@ const OrderListTable = ({ orderData }) => {
           if (isCompleted) {
             // Use the hour field if available, otherwise calculate
             let duration = row.original.hour;
-            
+
             if (!duration || duration === 'N/A') {
               duration = calculateDuration(
                 row.original.parkedDate,

@@ -87,12 +87,10 @@ const ExitVehicleCalculator = ({
   const vendorId = session?.user?.id
 
   const [loading, setLoading] = useState(false)
-  const [fetchingCharges, setFetchingCharges] = useState(true)
   const [fetchingBookingDetails, setFetchingBookingDetails] = useState(false)
   const [hours, setHours] = useState(0) // For billing calculation
   const [formattedDuration, setFormattedDuration] = useState('00:00:00') // For display
   const [amount, setAmount] = useState(0)
-  const [chargesData, setChargesData] = useState(null)
   const [error, setError] = useState('')
   const [calculationDetails, setCalculationDetails] = useState(null)
   const [bookingData, setBookingData] = useState(bookingDetails || null)
@@ -171,6 +169,11 @@ const ExitVehicleCalculator = ({
       if (data.data.otp && !isVendorBooking) {
         console.log('Received OTP from API:', data.data.otp)
         setBackendOtp(data.data.otp)
+      }
+
+      // NEW: Set the base amount if available
+      if (data.data.baseAmount !== undefined && data.data.baseAmount !== null) {
+        setAmount(data.data.baseAmount)
       }
 
       return data.data
@@ -422,256 +425,67 @@ const ExitVehicleCalculator = ({
     if (bookingData?.parkedDate && bookingData?.parkedTime && fullDayModes) {
       const result = calculateDuration()
 
-      if (chargesData) {
-        calculateAmount(result.duration, chargesData, result.method)
-      }
-    }
-  }, [bookingData, chargesData, is24Hours, fullDayModes, vehicleType, isSubscription])
+      // Fetch payable amount directly from vendor API
+      const fetchPayableAmount = async () => {
+        try {
+          const headers = { 'Content-Type': 'application/json' }
 
-  // Add real-time updates for hourly bookings
+          if (session?.accessToken) {
+            headers['Authorization'] = `Bearer ${session.accessToken}`
+          }
+
+          const resp = await fetch(`${API_URL}/vendor/fet/${bookingId}`, { headers })
+
+          if (!resp.ok) return
+          const data = await resp.json()
+
+          if (data && data.success && data.payableAmount) {
+            const serverAmount = Number(data.payableAmount)
+
+            if (!isNaN(serverAmount)) {
+              setAmount(serverAmount)
+
+              // Just use the server provided duration hours directly
+              if (data.durationHours) {
+                const sHours = Number(data.durationHours)
+
+                if (!isNaN(sHours)) {
+                  setHours(sHours)
+                }
+              }
+
+              // Clear complex calculation details as user requested basic view
+              setCalculationDetails(null)
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch payable amount:', e)
+          setError('Failed to fetch amount from server')
+        }
+      }
+
+      fetchPayableAmount()
+    }
+  }, [bookingData, is24Hours, fullDayModes, vehicleType, isSubscription, bookingId, hours, session?.accessToken])
+
+  // Real-time updates for timer only (no local amount calc)
   useEffect(() => {
-    if (!is24Hours && !isSubscription && bookingData?.parkedDate && bookingData?.parkedTime && chargesData) {
+    if (!is24Hours && !isSubscription && bookingData?.parkedDate && bookingData?.parkedTime) {
       const timer = setInterval(() => {
         // Update formatted duration
         const newFormattedDuration = calculateElapsedTime(bookingData.parkedDate, bookingData.parkedTime)
 
         setFormattedDuration(newFormattedDuration)
-
-        // Recalculate billing hours and amount
-        const parkingDate = bookingData.parkedDate
-        const parkingTime = bookingData.parkedTime
-
-        try {
-          const [day, month, year] = parkingDate.split('-').map(Number)
-          let [time, period] = parkingTime.split(' ')
-          let [hours, minutes] = time.split(':').map(Number)
-
-          if (period === 'PM' && hours < 12) {
-            hours += 12
-          } else if (period === 'AM' && hours === 12) {
-            hours = 0
-          }
-
-          const parkingDateTime = new Date(year, month - 1, day, hours, minutes)
-          const currentDateTime = new Date()
-          const diffMs = currentDateTime - parkingDateTime
-          const diffHours = Math.ceil(diffMs / (1000 * 60 * 60))
-          const calculatedHours = Math.max(1, diffHours)
-
-          if (calculatedHours !== hours) {
-            setHours(calculatedHours)
-            calculateAmount(calculatedHours, chargesData)
-          }
-        } catch (err) {
-          console.error('Error in timer update:', err)
-        }
       }, 1000)
 
       return () => clearInterval(timer)
     }
-  }, [bookingData, chargesData, is24Hours, isSubscription, hours])
-
-  useEffect(() => {
-    const fetchCharges = async () => {
-      try {
-        if (!vendorId) {
-          console.log('Waiting for vendorId...')
-
-          return
-        }
-
-        setFetchingCharges(true)
-        setError('')
-
-        console.log(`Fetching charges for vendor: ${vendorId}`)
-        const response = await fetch(`${API_URL}/vendor/getchargesdata/${vendorId}`)
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch charges data')
-        }
-
-        const data = await response.json()
-
-        console.log('Received charges data:', data)
-
-        if (!data?.vendor?.charges) {
-          throw new Error('Invalid charges data format')
-        }
-
-        setChargesData(data.vendor)
-      } catch (err) {
-        console.error('Error fetching charges:', err)
-        setError(err.message || 'Failed to fetch parking charges data')
-      } finally {
-        setFetchingCharges(false)
-      }
-    }
-
-    fetchCharges()
-  }, [vendorId])
-
-  const calculateAmount = (hoursValue, charges = chargesData, calculationMethod = null) => {
-    if (!charges || !charges.charges || !charges.charges.length) {
-      console.warn('No charges data available')
-
-      return
-    }
-
-    try {
-      const effectiveVehicleType = bookingData?.vehicleType || vehicleType
-
-      console.log('Calculating amount for:', {
-        hoursValue,
-        vehicleType: effectiveVehicleType,
-        is24Hours,
-        calculationMethod,
-        isSubscription
-      })
-
-      const relevantCharges = charges.charges.filter(
-        charge => charge.category.toLowerCase() === effectiveVehicleType.toLowerCase()
-      )
-
-      if (relevantCharges.length === 0) {
-        throw new Error(`No charges found for ${effectiveVehicleType}`)
-      }
-
-      console.log('Relevant charges:', relevantCharges)
-
-      let calculatedAmount = 0
-      let details = {}
-
-      if (isSubscription) {
-        // For subscription, we only use the monthly rate
-        const monthlyCharge = relevantCharges.find(charge => charge.type.toLowerCase().includes('monthly'))
-
-        if (!monthlyCharge) {
-          throw new Error(`Monthly charge not found for ${effectiveVehicleType}`)
-        }
-
-        calculatedAmount = Number(monthlyCharge.amount)
-
-        details = {
-          rateType: 'Monthly Subscription',
-          baseRate: Number(monthlyCharge.amount),
-          calculation: `${monthlyCharge.amount} (monthly rate) = ${calculatedAmount}`,
-          isSubscription: true
-        }
-
-        console.log('Subscription calculation details:', details)
-      } else if (is24Hours) {
-        const fullDayCharge = relevantCharges.find(
-          charge => charge.type.toLowerCase().includes('full day') || charge.type.toLowerCase().includes('24 hour')
-        )
-
-        if (!fullDayCharge) {
-          throw new Error(`Full day charge not found for ${effectiveVehicleType}`)
-        }
-
-        const days = hoursValue
-
-        calculatedAmount = Number(fullDayCharge.amount) * days
-
-        const vehicleTypeKey = effectiveVehicleType.toLowerCase()
-        const fullDayMode = fullDayModes[vehicleTypeKey] || 'Full Day'
-
-        details = {
-          rateType: 'Full day',
-          baseRate: Number(fullDayCharge.amount),
-          days: days,
-          fullDayMode: fullDayMode,
-          calculation: `${fullDayCharge.amount} × ${days} day(s) = ${calculatedAmount}`,
-          calculationMethod: calculationMethod,
-          isSubscription: false
-        }
-
-        console.log('Full day calculation details:', details)
-      } else {
-        // FIXED: Updated base charge search to handle "0 to 2 hours" pattern
-        const baseCharge = relevantCharges.find(charge => {
-          const type = charge.type.toLowerCase().trim()
-
-          return (
-            type.includes('0 to 1') ||
-            type.includes('0 to 2') || // Added this line
-            type.includes('first hour') ||
-            type.includes('minimum') ||
-            type.includes('base') ||
-            type.match(/^0\s+to\s+\d+/)
-          ) // Matches "0 to X" patterns
-        })
-
-        const additionalCharge = relevantCharges.find(
-          charge => charge.type.toLowerCase().includes('additional') || charge.type.toLowerCase().includes('extra hour')
-        )
-
-        if (!baseCharge) {
-          console.error(
-            'Available charge types:',
-            relevantCharges.map(c => c.type)
-          )
-          throw new Error(
-            `Base charge not found for ${effectiveVehicleType}. Available types: ${relevantCharges.map(c => c.type).join(', ')}`
-          )
-        }
-
-        calculatedAmount = Number(baseCharge.amount)
-
-        // Determine how many hours the base charge covers
-        let baseCoverageHours = 1 // default
-        const baseType = baseCharge.type.toLowerCase()
-
-        // Check if base charge covers multiple hours (like "0 to 2 hours")
-        const hoursMatch = baseType.match(/0\s+to\s+(\d+)/)
-
-        if (hoursMatch) {
-          baseCoverageHours = parseInt(hoursMatch[1])
-        }
-
-        console.log(`Base charge covers ${baseCoverageHours} hour(s)`)
-
-        const additionalRate = additionalCharge ? Number(additionalCharge.amount) : Number(baseCharge.amount)
-
-        // Only add additional charges if hours exceed base coverage
-        if (hoursValue > baseCoverageHours) {
-          calculatedAmount += additionalRate * (hoursValue - baseCoverageHours)
-        }
-
-        details = {
-          rateType: 'Hourly',
-          baseRate: Number(baseCharge.amount),
-          baseCoverageHours: baseCoverageHours,
-          additionalRate: additionalRate,
-          totalHours: hoursValue,
-          calculation:
-            hoursValue > baseCoverageHours
-              ? `${baseCharge.amount} (first ${baseCoverageHours} hour${baseCoverageHours > 1 ? 's' : ''}) + ${additionalRate} × ${hoursValue - baseCoverageHours} (additional hours) = ${calculatedAmount}`
-              : `${baseCharge.amount} (first ${baseCoverageHours} hour${baseCoverageHours > 1 ? 's' : ''}) = ${calculatedAmount}`,
-          calculationMethod: calculationMethod,
-          isSubscription: false
-        }
-
-        console.log('Hourly calculation details:', details)
-      }
-
-      setAmount(calculatedAmount)
-      setCalculationDetails(details)
-      setError('')
-    } catch (err) {
-      console.error('Error calculating amount:', err)
-      setError(err.message || 'Failed to calculate amount')
-      setAmount(0)
-    }
-  }
+  }, [bookingData, is24Hours, isSubscription])
 
   const handleHoursChange = e => {
     const value = Math.max(1, parseInt(e.target.value) || 1)
 
     setHours(value)
-
-    if (chargesData) {
-      calculateAmount(value, chargesData)
-    }
   }
 
   const formatDate = dateStr => {
@@ -788,7 +602,7 @@ const ExitVehicleCalculator = ({
     }
   }
 
-  const isLoading = fetchingCharges || fetchingBookingDetails || loading
+  const isLoading = fetchingBookingDetails || loading
   const otpValidated = isVendorBooking || (backendOtp && otp.length === 3 && backendOtp.endsWith(otp))
 
   return (
@@ -821,11 +635,7 @@ const ExitVehicleCalculator = ({
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
             <CircularProgress />
             <Typography variant='body2' sx={{ ml: 2 }}>
-              {fetchingBookingDetails
-                ? 'Loading booking details...'
-                : fetchingCharges
-                  ? 'Loading charges data...'
-                  : 'Processing...'}
+              {fetchingBookingDetails ? 'Loading booking details...' : 'Processing...'}
             </Typography>
           </Box>
         ) : (
@@ -907,138 +717,6 @@ const ExitVehicleCalculator = ({
                 </Grid>
               )}
             </Grid>
-
-            {calculationDetails && (
-              <Card sx={{ mt: 3, backgroundColor: '#f9f9f9' }}>
-                <CardContent>
-                  <Typography variant='subtitle1' gutterBottom>
-                    Calculation Details
-                  </Typography>
-                  <Divider sx={{ mb: 2 }} />
-                  <Stack spacing={1}>
-                    <Typography variant='body2'>
-                      <strong>Rate Type:</strong> {calculationDetails.rateType}
-                    </Typography>
-
-                    {isSubscription ? (
-                      <>
-                        <Typography variant='body2'>
-                          <strong>Monthly Rate:</strong> ₹{calculationDetails.baseRate}
-                        </Typography>
-                        <Divider sx={{ my: 1 }} />
-                        <Typography variant='body2'>
-                          <strong>Calculation:</strong> {calculationDetails.calculation}
-                        </Typography>
-                      </>
-                    ) : is24Hours ? (
-                      <>
-                        <Typography variant='body2'>
-                          <strong>Full Day Rate:</strong> ₹{calculationDetails.baseRate}
-                        </Typography>
-                        <Typography variant='body2'>
-                          <strong>Number of Days:</strong> {calculationDetails.days}
-                        </Typography>
-                        {calculationDetails.fullDayMode && (
-                          <Typography variant='body2'>
-                            <strong>Full Day Mode:</strong> {calculationDetails.fullDayMode}
-                          </Typography>
-                        )}
-
-                        {calculationDetails.calculationMethod && (
-                          <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
-                            <Typography variant='body2' fontWeight='medium'>
-                              Calculation Mode: {calculationDetails.calculationMethod.methodName}
-                            </Typography>
-                            <Typography variant='body2' fontSize='0.875rem' sx={{ mt: 0.5 }}>
-                              {calculationDetails.calculationMethod.description}
-                            </Typography>
-
-                            {calculationDetails.calculationMethod.methodName === 'Full Day' && (
-                              <>
-                                <Typography variant='body2' fontSize='0.875rem' sx={{ mt: 1 }}>
-                                  Parking day: {formatDateObject(calculationDetails.calculationMethod.parkingDay)}
-                                </Typography>
-                                <Typography variant='body2' fontSize='0.875rem'>
-                                  Current day: {formatDateObject(calculationDetails.calculationMethod.currentDay)}
-                                </Typography>
-                                <Typography variant='body2' fontSize='0.875rem'>
-                                  Calendar days (inclusive): {calculationDetails.calculationMethod.diffDays}
-                                </Typography>
-                              </>
-                            )}
-
-                            {calculationDetails.calculationMethod.methodName === '24 Hours' && (
-                              <>
-                                <Typography variant='body2' fontSize='0.875rem' sx={{ mt: 1 }}>
-                                  Parking time: {formatDateObject(calculationDetails.calculationMethod.parkingDateTime)}{' '}
-                                  {formatTimeObject(calculationDetails.calculationMethod.parkingDateTime)}
-                                </Typography>
-                                <Typography variant='body2' fontSize='0.875rem'>
-                                  Current time: {formatDateObject(calculationDetails.calculationMethod.currentDateTime)}{' '}
-                                  {formatTimeObject(calculationDetails.calculationMethod.currentDateTime)}
-                                </Typography>
-                                <Typography variant='body2' fontSize='0.875rem'>
-                                  Elapsed hours: {calculationDetails.calculationMethod.diffHours.toFixed(2)}
-                                </Typography>
-                                <Typography variant='body2' fontSize='0.875rem'>
-                                  24-hour periods: {calculationDetails.calculationMethod.days}
-                                </Typography>
-                              </>
-                            )}
-                          </Box>
-                        )}
-                        <Divider sx={{ my: 1 }} />
-                        <Typography variant='body2'>
-                          <strong>Calculation:</strong> {calculationDetails.calculation}
-                        </Typography>
-                      </>
-                    ) : (
-                      <>
-                        <Typography variant='body2'>
-                          <strong>
-                            Base Rate ({calculationDetails.baseCoverageHours} hour
-                            {calculationDetails.baseCoverageHours > 1 ? 's' : ''}):
-                          </strong>{' '}
-                          ₹{calculationDetails.baseRate}
-                        </Typography>
-                        <Typography variant='body2'>
-                          <strong>Additional Hour Rate:</strong> ₹{calculationDetails.additionalRate}
-                        </Typography>
-                        <Typography variant='body2'>
-                          <strong>Total Hours:</strong> {calculationDetails.totalHours}
-                        </Typography>
-
-                        {calculationDetails.calculationMethod && (
-                          <Box sx={{ mt: 1, p: 1, bgcolor: '#f0f0f0', borderRadius: 1 }}>
-                            <Typography variant='body2' fontWeight='medium'>
-                              Calculation Mode: {calculationDetails.calculationMethod.methodName}
-                            </Typography>
-                            <Typography variant='body2' fontSize='0.875rem' sx={{ mt: 0.5 }}>
-                              {calculationDetails.calculationMethod.description}
-                            </Typography>
-                            <Typography variant='body2' fontSize='0.875rem' sx={{ mt: 1 }}>
-                              Parking time: {formatDateObject(calculationDetails.calculationMethod.parkingDateTime)}{' '}
-                              {formatTimeObject(calculationDetails.calculationMethod.parkingDateTime)}
-                            </Typography>
-                            <Typography variant='body2' fontSize='0.875rem'>
-                              Current time: {formatDateObject(calculationDetails.calculationMethod.currentDateTime)}{' '}
-                              {formatTimeObject(calculationDetails.calculationMethod.currentDateTime)}
-                            </Typography>
-                            <Typography variant='body2' fontSize='0.875rem'>
-                              Elapsed hours: {calculationDetails.calculationMethod.diffHours}
-                            </Typography>
-                          </Box>
-                        )}
-                        <Divider sx={{ my: 1 }} />
-                        <Typography variant='body2'>
-                          <strong>Calculation:</strong> {calculationDetails.calculation}
-                        </Typography>
-                      </>
-                    )}
-                  </Stack>
-                </CardContent>
-              </Card>
-            )}
 
             <Box sx={{ mt: 3, mb: 2 }}>
               <Typography variant='h6' color='primary' gutterBottom>
