@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-   "build": "NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
@@ -91,6 +91,7 @@
     "@iconify/utils": "2.2.1",
     "autoprefixer": "10.4.20",
     "consola": "3.3.0",
+    "cross-env": "^10.1.0",
     "dotenv-cli": "7.4.4",
     "eslint": "8.57.1",
     "eslint-config-next": "15.1.2",
