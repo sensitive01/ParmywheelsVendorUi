@@ -2,8 +2,10 @@
 
 // React Imports
 import { useState, useEffect, useMemo } from 'react'
+
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+
 import { useSession } from 'next-auth/react'
 
 // MUI Imports
@@ -25,29 +27,31 @@ import Grid from '@mui/material/Grid'
 
 // Payable Time Timer Component
 const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
-  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const [elapsedTime, setElapsedTime] = useState('00:00:00')
 
   useEffect(() => {
-    if (!parkedDate || !parkedTime) return;
+    if (!parkedDate || !parkedTime) return
 
     const calculateElapsedTime = () => {
       try {
         // Parse the parked date and time
-        const [day, month, year] = parkedDate.split('-');
-        let [hours, minutes] = parkedTime.split(':');
-        let period = 'AM';
+        const [day, month, year] = parkedDate.split('-')
+        let [hours, minutes] = parkedTime.split(':')
+        let period = 'AM'
 
         // Handle 12-hour format with AM/PM if present
         if (parkedTime.includes(' ')) {
-          const parts = parkedTime.split(' ');
-          [hours, minutes] = parts[0].split(':');
-          period = parts[1].toUpperCase();
+          const parts = parkedTime.split(' ')
+
+          ;[hours, minutes] = parts[0].split(':')
+          period = parts[1].toUpperCase()
         }
 
         // Convert to 24-hour format
-        let hours24 = parseInt(hours, 10);
-        if (period === 'PM' && hours24 < 12) hours24 += 12;
-        if (period === 'AM' && hours24 === 12) hours24 = 0;
+        let hours24 = parseInt(hours, 10)
+
+        if (period === 'PM' && hours24 < 12) hours24 += 12
+        if (period === 'AM' && hours24 === 12) hours24 = 0
 
         const parkedDateTime = new Date(
           parseInt(year, 10),
@@ -55,42 +59,43 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
           parseInt(day, 10),
           hours24,
           parseInt(minutes, 10)
-        );
+        )
 
-        const now = new Date();
-        const diffMs = now - parkedDateTime;
+        const now = new Date()
+        const diffMs = now - parkedDateTime
 
-        if (diffMs < 0) return '00:00:00';
+        if (diffMs < 0) return '00:00:00'
 
         // Convert to hours, minutes, seconds
-        const totalSeconds = Math.floor(diffMs / 1000);
-        const hoursElapsed = Math.floor(totalSeconds / 3600);
-        const minutesElapsed = Math.floor((totalSeconds % 3600) / 60);
-        const secondsElapsed = totalSeconds % 60;
+        const totalSeconds = Math.floor(diffMs / 1000)
+        const hoursElapsed = Math.floor(totalSeconds / 3600)
+        const minutesElapsed = Math.floor((totalSeconds % 3600) / 60)
+        const secondsElapsed = totalSeconds % 60
 
         // Format as HH:MM:SS
         const formattedTime = [
           hoursElapsed.toString().padStart(2, '0'),
           minutesElapsed.toString().padStart(2, '0'),
           secondsElapsed.toString().padStart(2, '0')
-        ].join(':');
+        ].join(':')
 
-        setElapsedTime(formattedTime);
+        setElapsedTime(formattedTime)
       } catch (error) {
-        console.error('Error calculating elapsed time:', error);
-        return '00:00:00';
+        console.error('Error calculating elapsed time:', error)
+
+        return '00:00:00'
       }
-    };
+    }
 
     // Update immediately
-    calculateElapsedTime();
+    calculateElapsedTime()
 
     // Then update every second
-    const interval = setInterval(calculateElapsedTime, 1000);
+    const interval = setInterval(calculateElapsedTime, 1000)
 
     // Cleanup interval on component unmount
-    return () => clearInterval(interval);
-  }, [parkedDate, parkedTime]);
+    return () => clearInterval(interval)
+  }, [parkedDate, parkedTime])
 
   return (
     <Typography
@@ -103,8 +108,8 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
     >
       {elapsedTime}
     </Typography>
-  );
-};
+  )
+}
 
 // Third-party Imports
 import classnames from 'classnames'
@@ -140,7 +145,7 @@ export const stsChipColor = {
   instant: { color: '#ff4d49', text: 'Instant' },
   subscription: { color: '#72e128', text: 'Subscription' },
   schedule: { color: '#fdb528', text: 'Scheduled' }
-};
+}
 
 export const statusChipColor = {
   completed: { color: 'success' },
@@ -148,11 +153,13 @@ export const statusChipColor = {
   parked: { color: '#666CFF' },
   cancelled: { color: 'error' },
   approved: { color: 'info' }
-};
+}
 
 const fuzzyFilter = (row, columnId, value, addMeta) => {
   const itemRank = rankItem(row.getValue(columnId), value)
+
   addMeta({ itemRank })
+
   return itemRank.passed
 }
 
@@ -174,35 +181,38 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
   return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
 }
 
-const parseBookingDate = (dateStr) => {
+const parseBookingDate = dateStr => {
   if (!dateStr) return null
 
   try {
     if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
       return new Date(dateStr)
-    }
-    else if (dateStr.includes('-')) {
+    } else if (dateStr.includes('-')) {
       const [day, month, year] = dateStr.split('-').map(Number)
+
       return new Date(year, month - 1, day)
     }
 
     return null
   } catch (e) {
-    console.error("Error parsing date:", e, dateStr)
+    console.error('Error parsing date:', e, dateStr)
+
     return null
   }
 }
 
 // Helper function to normalize values for search
-const pick = (v) => {
-  if (v === null || v === undefined) return '';
-  return v.toString().toLowerCase().trim();
-};
+const pick = v => {
+  if (v === null || v === undefined) return ''
+
+  return v.toString().toLowerCase().trim()
+}
 
 const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts) => {
   if (sts?.toLowerCase() !== 'subscription') return null
 
   const startDate = parseBookingDate(bookingDate)
+
   if (!startDate) return null
 
   const currentDate = new Date()
@@ -223,15 +233,17 @@ const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts) => {
   }
 
   const endDate = new Date(startDate)
+
   endDate.setDate(startDate.getDate() + durationInDays)
 
   if (currentDate > endDate) return { days: 0, expired: true }
 
   const daysLeft = Math.floor((endDate - currentDate) / (1000 * 60 * 60 * 24))
+
   return { days: daysLeft, expired: false }
 }
 
-const formatTimeDisplay = (timeStr) => {
+const formatTimeDisplay = timeStr => {
   if (!timeStr) return ''
 
   if (timeStr.includes('AM') || timeStr.includes('PM')) {
@@ -242,13 +254,14 @@ const formatTimeDisplay = (timeStr) => {
     const [hours, minutes] = timeStr.split(':').map(Number)
     const period = hours >= 12 ? 'PM' : 'AM'
     const hours12 = hours % 12 || 12
+
     return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`
   } catch (e) {
     return timeStr
   }
 }
 
-const formatDateDisplay = (dateStr) => {
+const formatDateDisplay = dateStr => {
   if (!dateStr) return 'N/A'
 
   try {
@@ -258,9 +271,9 @@ const formatDateDisplay = (dateStr) => {
         month: 'short',
         year: 'numeric'
       })
-    }
-    else if (dateStr.includes('-')) {
+    } else if (dateStr.includes('-')) {
       const [day, month, year] = dateStr.split('-')
+
       return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
         day: 'numeric',
         month: 'short',
@@ -270,44 +283,54 @@ const formatDateDisplay = (dateStr) => {
 
     return dateStr
   } catch (e) {
-    console.error("Date parsing error:", e, dateStr)
+    console.error('Date parsing error:', e, dateStr)
+
     return dateStr
   }
 }
 
-const calculateTotalAmount = (amount) => {
-  if (!amount) return 'N/A';
-  const amountNum = parseFloat(amount);
-  if (isNaN(amountNum)) return 'N/A';
+const calculateTotalAmount = amount => {
+  if (!amount) return 'N/A'
+  const amountNum = parseFloat(amount)
 
-  const handlingFee = 5;
-  const gst = amountNum * 0.18;
-  const total = amountNum + handlingFee + gst;
+  if (isNaN(amountNum)) return 'N/A'
 
-  return total.toFixed(2);
-};
+  const handlingFee = 5
+  const gst = amountNum * 0.18
+  const total = amountNum + handlingFee + gst
+
+  return total.toFixed(2)
+}
 
 const columnHelper = createColumnHelper()
 
 // Stats Card Component
 const StatsCard = ({ icon, count, label, iconColor }) => (
-  <Card sx={{
-    boxShadow: 1,
-    '&:hover': { boxShadow: 2 }
-  }}>
+  <Card
+    sx={{
+      boxShadow: 1,
+      '&:hover': { boxShadow: 2 }
+    }}
+  >
     <CardContent sx={{ p: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <Box>
-        <Typography variant="h4" fontWeight="bold">{count}</Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{label}</Typography>
+        <Typography variant='h4' fontWeight='bold'>
+          {count}
+        </Typography>
+        <Typography variant='body2' color='text.secondary' sx={{ mt: 0.5 }}>
+          {label}
+        </Typography>
       </Box>
-      <Box sx={{
-        backgroundColor: '#f3f4f6',
-        borderRadius: '50%',
-        p: 1.5,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      <Box
+        sx={{
+          backgroundColor: '#f3f4f6',
+          borderRadius: '50%',
+          p: 1.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
         <i className={icon} style={{ fontSize: '22px', color: iconColor }}></i>
       </Box>
     </CardContent>
@@ -330,7 +353,7 @@ const OrderListTable = ({ orderData }) => {
   const [anchorEl, setAnchorEl] = useState(null)
   const open = Boolean(anchorEl)
 
-  const handleMenuClick = (event) => {
+  const handleMenuClick = event => {
     setAnchorEl(event.currentTarget)
   }
 
@@ -339,7 +362,7 @@ const OrderListTable = ({ orderData }) => {
   }
 
   const fetchData = async () => {
-    if (!vendorId) return;
+    if (!vendorId) return
 
     try {
       setLoading(true)
@@ -353,16 +376,19 @@ const OrderListTable = ({ orderData }) => {
       const result = await response.json()
 
       if (result && result.bookings) {
-        const subscriptionBookings = result.bookings.filter(booking =>
-          booking.sts?.toLowerCase() === 'subscription' &&
-          ["pending", "approved", "cancelled", "parked", "completed"]
-            .includes(booking.status.toLowerCase())
+        const subscriptionBookings = result.bookings.filter(
+          booking =>
+            booking.sts?.toLowerCase() === 'subscription' &&
+            ['pending', 'approved', 'cancelled', 'parked', 'completed'].includes(booking.status.toLowerCase())
         )
+
         const sorted = [...subscriptionBookings].sort((a, b) => {
           const ad = a.createdAt ? new Date(a.createdAt) : 0
           const bd = b.createdAt ? new Date(b.createdAt) : 0
+
           return bd - ad
         })
+
         setData(sorted)
         setFilteredData(sorted)
       } else {
@@ -370,7 +396,7 @@ const OrderListTable = ({ orderData }) => {
         setFilteredData([])
       }
     } catch (error) {
-      console.error("Error fetching bookings:", error)
+      console.error('Error fetching bookings:', error)
       setError(error.message)
     } finally {
       setLoading(false)
@@ -384,7 +410,7 @@ const OrderListTable = ({ orderData }) => {
       approved: data.filter(item => item.status?.toLowerCase() === 'approved').length,
       cancelled: data.filter(item => item.status?.toLowerCase() === 'cancelled').length,
       parked: data.filter(item => item.status?.toLowerCase() === 'parked').length,
-      completed: data.filter(item => item.status?.toLowerCase() === 'completed').length,
+      completed: data.filter(item => item.status?.toLowerCase() === 'completed').length
     }
   }
 
@@ -392,109 +418,119 @@ const OrderListTable = ({ orderData }) => {
 
   useEffect(() => {
     if (statusFilter === 'all') {
-      setFilteredData(data);
+      setFilteredData(data)
     } else {
-      setFilteredData(data.filter(item => item.status.toLowerCase() === statusFilter));
+      setFilteredData(data.filter(item => item.status.toLowerCase() === statusFilter))
     }
-  }, [statusFilter, data]);
+  }, [statusFilter, data])
 
   useEffect(() => {
     fetchData()
   }, [vendorId])
 
   const parseDateTime = (dateStr, timeStr) => {
-    if (!dateStr || !timeStr) return null;
+    if (!dateStr || !timeStr) return null
+
     try {
-      let y, m, d;
+      let y, m, d
+
       if (dateStr.includes('-')) {
-        const parts = dateStr.split('-');
+        const parts = dateStr.split('-')
+
         if (parts[0].length === 4) {
-          [y, m, d] = parts.map(Number);
+          ;[y, m, d] = parts.map(Number)
         } else {
-          [d, m, y] = parts.map(Number);
+          ;[d, m, y] = parts.map(Number)
         }
       } else {
-        return null;
+        return null
       }
 
-      const raw = String(timeStr).trim();
-      let hh = 0;
-      let mm = 0;
+      const raw = String(timeStr).trim()
+      let hh = 0
+      let mm = 0
 
-      const ampm = raw.match(/^(\d{1,2})(?::(\d{1,2}|NaN))?\s*(AM|PM)$/i);
+      const ampm = raw.match(/^(\d{1,2})(?::(\d{1,2}|NaN))?\s*(AM|PM)$/i)
+
       if (ampm) {
-        hh = Number(ampm[1]);
-        mm = Number(ampm[2]);
-        if (Number.isNaN(hh)) return null;
-        if (Number.isNaN(mm)) mm = 0;
-        const isPM = ampm[3].toUpperCase() === 'PM';
-        if (isPM && hh !== 12) hh += 12;
-        if (!isPM && hh === 12) hh = 0;
-        return new Date(y, (m - 1), d, hh, mm, 0, 0);
+        hh = Number(ampm[1])
+        mm = Number(ampm[2])
+        if (Number.isNaN(hh)) return null
+        if (Number.isNaN(mm)) mm = 0
+        const isPM = ampm[3].toUpperCase() === 'PM'
+
+        if (isPM && hh !== 12) hh += 12
+        if (!isPM && hh === 12) hh = 0
+
+        return new Date(y, m - 1, d, hh, mm, 0, 0)
       }
 
-      const parts = raw.split(':');
-      hh = Number(parts[0]);
-      mm = parts.length > 1 ? Number(parts[1]) : 0;
-      if (Number.isNaN(hh)) return null;
-      if (Number.isNaN(mm)) mm = 0;
+      const parts = raw.split(':')
 
-      return new Date(y, (m - 1), d, hh, mm, 0, 0);
+      hh = Number(parts[0])
+      mm = parts.length > 1 ? Number(parts[1]) : 0
+      if (Number.isNaN(hh)) return null
+      if (Number.isNaN(mm)) mm = 0
+
+      return new Date(y, m - 1, d, hh, mm, 0, 0)
     } catch (_) {
-      return null;
+      return null
     }
-  };
+  }
 
   const calculateDuration = (startDate, startTime, endDate, endTime) => {
-    const start = parseDateTime(startDate, startTime);
-    const end = parseDateTime(endDate, endTime);
-    if (!start || !end) return 'N/A';
-    const diffMs = end - start;
-    if (diffMs <= 0) return 'N/A';
+    const start = parseDateTime(startDate, startTime)
+    const end = parseDateTime(endDate, endTime)
 
-    const totalSeconds = Math.floor(diffMs / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
+    if (!start || !end) return 'N/A'
+    const diffMs = end - start
 
-    const pad = n => n.toString().padStart(2, '0');
-    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  };
+    if (diffMs <= 0) return 'N/A'
+
+    const totalSeconds = Math.floor(diffMs / 1000)
+    const hours = Math.floor(totalSeconds / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+
+    const pad = n => n.toString().padStart(2, '0')
+
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
+  }
 
   // IMPROVED SEARCH FUNCTIONALITY
   useEffect(() => {
-    const q = (globalFilter || '').toString().toLowerCase().trim();
+    const q = (globalFilter || '').toString().toLowerCase().trim()
 
     if (!q) {
       // No search query - filter by status only
       if (statusFilter === 'all') {
-        setFilteredData([...data]);
+        setFilteredData([...data])
       } else {
-        setFilteredData(data.filter(item =>
-          item.status?.toLowerCase() === statusFilter.toLowerCase()
-        ));
+        setFilteredData(data.filter(item => item.status?.toLowerCase() === statusFilter.toLowerCase()))
       }
-      return;
+
+      return
     }
 
     // First filter by status
-    let results = statusFilter === 'all'
-      ? [...data]
-      : data.filter(item => item.status?.toLowerCase() === statusFilter.toLowerCase());
+    let results =
+      statusFilter === 'all'
+        ? [...data]
+        : data.filter(item => item.status?.toLowerCase() === statusFilter.toLowerCase())
 
     // Then filter by search query
     results = results.filter(item => {
       // Normalize and search in multiple fields
-      const vehicleNumber = pick(item.vehicleNumber);
-      const personName = pick(item.personName);
-      const mobileNumber = pick(item.mobileNumber);
-      const vehicleType = pick(item.vehicleType);
-      const vendorName = pick(item.vendorName);
-      const bookingId = pick(item.bookingId || item._id);
-      const subscriptionType = pick(item.subsctiptiontype);
+      const vehicleNumber = pick(item.vehicleNumber)
+      const personName = pick(item.personName)
+      const mobileNumber = pick(item.mobileNumber)
+      const vehicleType = pick(item.vehicleType)
+      const vendorName = pick(item.vendorName)
+      const bookingId = pick(item.bookingId || item._id)
+      const subscriptionType = pick(item.subsctiptiontype)
 
       // Remove # from vehicle number for comparison
-      const cleanVehicleNumber = vehicleNumber.replace('#', '');
+      const cleanVehicleNumber = vehicleNumber.replace('#', '')
 
       // Check if query matches any field
       return (
@@ -506,11 +542,11 @@ const OrderListTable = ({ orderData }) => {
         vendorName.includes(q) ||
         bookingId.includes(q) ||
         subscriptionType.includes(q)
-      );
-    });
+      )
+    })
 
-    setFilteredData(results);
-  }, [globalFilter, data, statusFilter]);
+    setFilteredData(results)
+  }, [globalFilter, data, statusFilter])
 
   const columns = useMemo(
     () => [
@@ -543,17 +579,13 @@ const OrderListTable = ({ orderData }) => {
         id: 'customer',
         header: 'Customer',
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
+          <div className='flex items-center gap-3'>
             <CustomAvatar skin='light' color='primary'>
               {getInitials(row.original.personName || 'N/A')}
             </CustomAvatar>
-            <div className="flex flex-col">
-              <Typography className="font-medium">
-                {row.original.personName || 'Unknown'}
-              </Typography>
-              <Typography variant="body2">
-                {row.original.mobileNumber || 'N/A'}
-              </Typography>
+            <div className='flex flex-col'>
+              <Typography className='font-medium'>{row.original.personName || 'Unknown'}</Typography>
+              <Typography variant='body2'>{row.original.mobileNumber || 'N/A'}</Typography>
             </div>
           </div>
         )
@@ -563,6 +595,7 @@ const OrderListTable = ({ orderData }) => {
         header: 'Vehicle Type',
         cell: ({ row }) => {
           const vehicleType = row.original.vehicleType?.toLowerCase()
+
           const vehicleIcons = {
             car: { icon: 'ri-car-fill', color: '#ff4d49' },
             bike: { icon: 'ri-motorbike-fill', color: '#72e128' },
@@ -593,6 +626,7 @@ const OrderListTable = ({ orderData }) => {
         header: 'Subscription Type',
         cell: ({ row }) => {
           const subscriptionType = row.original.subsctiptiontype || 'Monthly'
+
           const subscriptionIcons = {
             weekly: { icon: 'ri-calendar-2-line', color: '#fdb528' },
             monthly: { icon: 'ri-calendar-check-line', color: '#72e128' },
@@ -613,9 +647,10 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'bookingDateTime',
         header: 'Booking Date & Time',
-        accessorFn: (row) => {
-          const dateTime = parseDateTime(row.bookingDate, row.bookingTime);
-          return dateTime ? dateTime.getTime() : 0;
+        accessorFn: row => {
+          const dateTime = parseDateTime(row.bookingDate, row.bookingTime)
+
+          return dateTime ? dateTime.getTime() : 0
         },
         sortingFn: 'basic',
         cell: ({ row }) => {
@@ -624,7 +659,7 @@ const OrderListTable = ({ orderData }) => {
 
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
               {`${date}, ${time}`}
             </Typography>
           )
@@ -633,9 +668,10 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'parkingEntryDateTime',
         header: 'Parking Entry Date & Time',
-        accessorFn: (row) => {
-          const dateTime = parseDateTime(row.parkedDate, row.parkedTime);
-          return dateTime ? dateTime.getTime() : 0;
+        accessorFn: row => {
+          const dateTime = parseDateTime(row.parkedDate, row.parkedTime)
+
+          return dateTime ? dateTime.getTime() : 0
         },
         sortingFn: 'basic',
         cell: ({ row }) => {
@@ -644,7 +680,7 @@ const OrderListTable = ({ orderData }) => {
 
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
               {`${date}, ${time}`}
             </Typography>
           )
@@ -653,9 +689,10 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'exitDateTime',
         header: 'Exit Date & Time',
-        accessorFn: (row) => {
-          const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime);
-          return dateTime ? dateTime.getTime() : 0;
+        accessorFn: row => {
+          const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime)
+
+          return dateTime ? dateTime.getTime() : 0
         },
         sortingFn: 'basic',
         cell: ({ row }) => {
@@ -665,7 +702,7 @@ const OrderListTable = ({ orderData }) => {
           if (!isExited || !row.original.exitvehicledate || !row.original.exitvehicletime) {
             return (
               <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
-                <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+                <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
                 N/A
               </Typography>
             )
@@ -676,7 +713,7 @@ const OrderListTable = ({ orderData }) => {
 
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
               {`${date}, ${time}`}
             </Typography>
           )
@@ -692,34 +729,32 @@ const OrderListTable = ({ orderData }) => {
 
           // If not completed or parked, show N/A
           if (!isCompleted && !isParked) {
-            return (
-              <Typography sx={{ color: 'text.secondary' }}>N/A</Typography>
-            )
+            return <Typography sx={{ color: 'text.secondary' }}>N/A</Typography>
           }
 
           // For parked vehicles, show live timer
           if (isParked) {
             return (
-              <div className="flex items-center gap-2">
-                <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                <PayableTimeTimer
-                  parkedDate={row.original.parkedDate}
-                  parkedTime={row.original.parkedTime}
-                />
+              <div className='flex items-center gap-2'>
+                <i className='ri-time-line' style={{ fontSize: '16px', color: '#666CFF' }}></i>
+                <PayableTimeTimer parkedDate={row.original.parkedDate} parkedTime={row.original.parkedTime} />
               </div>
             )
           }
 
           // For completed bookings, show the stored hour or calculate it
           const hourField = row.original.hour
+
           if (hourField && hourField !== '00:00:00' && hourField.trim() !== '') {
             return (
-              <Typography sx={{
-                fontWeight: 500,
-                color: '#72e128',
-                fontFamily: 'monospace',
-                fontSize: '0.875rem'
-              }}>
+              <Typography
+                sx={{
+                  fontWeight: 500,
+                  color: '#72e128',
+                  fontFamily: 'monospace',
+                  fontSize: '0.875rem'
+                }}
+              >
                 {hourField}
               </Typography>
             )
@@ -734,18 +769,19 @@ const OrderListTable = ({ orderData }) => {
           )
 
           return (
-            <Typography sx={{
-              fontWeight: 500,
-              color: calculated !== 'N/A' ? '#72e128' : 'text.secondary',
-              fontFamily: 'monospace',
-              fontSize: '0.875rem'
-            }}>
+            <Typography
+              sx={{
+                fontWeight: 500,
+                color: calculated !== 'N/A' ? '#72e128' : 'text.secondary',
+                fontFamily: 'monospace',
+                fontSize: '0.875rem'
+              }}
+            >
               {calculated}
             </Typography>
           )
         }
-      }
-      ,
+      },
       {
         id: 'charges',
         header: 'Charges',
@@ -780,6 +816,7 @@ const OrderListTable = ({ orderData }) => {
         header: 'Subscription Left',
         cell: ({ row }) => {
           const dateToUse = row.original.parkingDate || row.original.bookingDate
+
           const subscriptionStatus = calculateSubscriptionDaysLeft(
             dateToUse,
             row.original.subsctiptiontype,
@@ -787,37 +824,44 @@ const OrderListTable = ({ orderData }) => {
           )
 
           if (!subscriptionStatus) {
-            return <Typography variant="body2" sx={{ color: '#666' }}>N/A</Typography>
+            return (
+              <Typography variant='body2' sx={{ color: '#666' }}>
+                N/A
+              </Typography>
+            )
           }
 
           if (subscriptionStatus.expired) {
             return (
-              <Typography sx={{
-                color: '#ff4d49',
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <i className="ri-time-line" style={{ fontSize: '16px', color: '#ff4d49' }}></i>
+              <Typography
+                sx={{
+                  color: '#ff4d49',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <i className='ri-time-line' style={{ fontSize: '16px', color: '#ff4d49' }}></i>
                 Expired
               </Typography>
             )
           }
 
           const daysLeft = subscriptionStatus.days
-          const color = daysLeft === 0 ? '#ff4d49' :
-            daysLeft <= 3 ? '#fdb528' : '#72e128'
+          const color = daysLeft === 0 ? '#ff4d49' : daysLeft <= 3 ? '#fdb528' : '#72e128'
 
           return (
-            <Typography sx={{
-              color,
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}>
-              <i className="ri-time-line" style={{ fontSize: '16px', color }}></i>
+            <Typography
+              sx={{
+                color,
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}
+            >
+              <i className='ri-time-line' style={{ fontSize: '16px', color }}></i>
               {`${daysLeft} day${daysLeft !== 1 ? 's' : ''}`}
             </Typography>
           )
@@ -833,81 +877,32 @@ const OrderListTable = ({ orderData }) => {
           return (
             <Chip
               label={row.original.status || 'N/A'}
-              variant="tonal"
-              size="small"
-              sx={chipData.color.startsWith('#') ? {
-                backgroundColor: chipData.color,
-                color: 'white'
-              } : {}}
+              variant='tonal'
+              size='small'
+              sx={
+                chipData.color.startsWith('#')
+                  ? {
+                      backgroundColor: chipData.color,
+                      color: 'white'
+                    }
+                  : {}
+              }
               color={!chipData.color.startsWith('#') ? chipData.color : undefined}
             />
           )
         }
       },
       {
-        id: 'action',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <div className='flex items-center'>
-            <OptionMenu
-              iconButtonProps={{ size: 'medium' }}
-              iconClassName='text-[22px]'
-              options={[
-                {
-                  text: 'View',
-                  icon: 'ri-eye-line',
-                  menuItemProps: {
-                    onClick: () => {
-                      const selectedId = row.original._id
-                      if (selectedId) {
-                        router.push(`/apps/ecommerce/orders/details/${selectedId}`)
-                      }
-                    }
-                  }
-                },
-                {
-                  text: 'Delete',
-                  icon: 'ri-delete-bin-7-line',
-                  menuItemProps: {
-                    onClick: async () => {
-                      try {
-                        const selectedId = row.original._id
-                        if (!selectedId) return
-
-                        const isConfirmed = window.confirm("Are you sure you want to delete this booking?")
-                        if (!isConfirmed) return
-
-                        const response = await fetch(`${API_URL}/vendor/deletebooking/${selectedId}`, {
-                          method: 'DELETE'
-                        })
-
-                        if (!response.ok) {
-                          throw new Error('Failed to delete booking')
-                        }
-
-                        setData(prev => prev.filter(booking => booking._id !== selectedId))
-                        setFilteredData(prev => prev.filter(booking => booking._id !== selectedId))
-                      } catch (error) {
-                        console.error('Error deleting booking:', error)
-                      }
-                    }
-                  }
-                }
-              ]}
-            />
-          </div>
-        ),
-        enableSorting: false
-      },
-      {
         id: 'statusAction',
         header: 'Change Status',
         cell: ({ row }) => (
-          <BookingActionButton
-            bookingId={row.original._id}
-            currentStatus={row.original.status}
-            onUpdate={fetchData}
-          />
+          <div style={{ pointerEvents: 'none', opacity: 0.6 }}>
+            <BookingActionButton
+              bookingId={row.original._id}
+              currentStatus={row.original.status}
+              onUpdate={fetchData}
+            />
+          </div>
         ),
         enableSorting: false
       }
@@ -945,8 +940,8 @@ const OrderListTable = ({ orderData }) => {
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   })
 
-  const handleExport = (type) => {
-    const exportData = filteredData;
+  const handleExport = type => {
+    const exportData = filteredData
 
     const exportColumns = [
       { key: 'vehicleNumber', label: 'Vehicle Number' },
@@ -968,33 +963,33 @@ const OrderListTable = ({ orderData }) => {
       { key: 'total', label: 'Total' },
       { key: 'subscriptionLeft', label: 'Subscription Left' },
       { key: 'status', label: 'Status' }
-    ];
+    ]
 
     if (type === 'excel') {
-      const headers = exportColumns.map(col => col.label);
-      const csvRows = [];
+      const headers = exportColumns.map(col => col.label)
+      const csvRows = []
 
-      csvRows.push(headers.join(','));
+      csvRows.push(headers.join(','))
 
       exportData.forEach(row => {
         const daysLeft = calculateSubscriptionDaysLeft(
           row.parkingDate || row.bookingDate,
           row.subsctiptiontype,
           row.sts
-        );
+        )
 
         const daysLeftText = daysLeft?.expired
           ? 'Expired'
           : daysLeft
             ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}`
-            : 'N/A';
+            : 'N/A'
 
-        const duration = row.hour || 'N/A';
+        const duration = row.hour || 'N/A'
 
-        const amount = parseFloat(row.amount) || 0;
-        const handlingFee = 5;
-        const gst = amount * 0.18;
-        const total = amount + handlingFee + gst;
+        const amount = parseFloat(row.amount) || 0
+        const handlingFee = 5
+        const gst = amount * 0.18
+        const total = amount + handlingFee + gst
 
         const values = [
           `"${(row.vehicleNumber || 'N/A').toString().replace(/"/g, '""')}"`,
@@ -1016,24 +1011,24 @@ const OrderListTable = ({ orderData }) => {
           `"₹${total.toFixed(2)}"`,
           `"${daysLeftText.toString().replace(/"/g, '""')}"`,
           `"${(row.status || 'N/A').toString().replace(/"/g, '""')}"`
-        ];
+        ]
 
-        csvRows.push(values.join(','));
-      });
+        csvRows.push(values.join(','))
+      })
 
-      const csvContent = csvRows.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'Subscription_Bookings.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const csvContent = csvRows.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
 
+      link.setAttribute('href', url)
+      link.setAttribute('download', 'Subscription_Bookings.csv')
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } else if (type === 'pdf') {
-      const headers = exportColumns.map(col => col.label);
+      const headers = exportColumns.map(col => col.label)
 
       const htmlContent = `
         <html>
@@ -1049,11 +1044,11 @@ const OrderListTable = ({ orderData }) => {
               .warning { color: #fdb528; }
               .good { color: #72e128; }
               @media print {
-                @page { 
-                  size: landscape; 
+                @page {
+                  size: landscape;
                   margin: 10mm;
                 }
-                table { 
+                table {
                   font-size: 8pt;
                   width: 100% !important;
                 }
@@ -1072,33 +1067,27 @@ const OrderListTable = ({ orderData }) => {
                 </tr>
               </thead>
               <tbody>
-                ${exportData.map(row => {
-        const daysLeft = calculateSubscriptionDaysLeft(
-          row.parkingDate || row.bookingDate,
-          row.subsctiptiontype,
-          row.sts
-        );
-        const daysLeftClass = daysLeft?.expired
-          ? 'expired'
-          : daysLeft?.days <= 3
-            ? 'warning'
-            : 'good';
+                ${exportData
+                  .map(row => {
+                    const daysLeft = calculateSubscriptionDaysLeft(
+                      row.parkingDate || row.bookingDate,
+                      row.subsctiptiontype,
+                      row.sts
+                    )
 
-        const duration = row.status?.toLowerCase() === 'completed'
-          ? calculateDuration(
-            row.parkedDate,
-            row.parkedTime,
-            row.exitvehicledate,
-            row.exitvehicletime
-          )
-          : 'N/A';
+                    const daysLeftClass = daysLeft?.expired ? 'expired' : daysLeft?.days <= 3 ? 'warning' : 'good'
 
-        const amount = parseFloat(row.amount) || 0;
-        const handlingFee = 5;
-        const gst = amount * 0.18;
-        const total = amount + handlingFee + gst;
+                    const duration =
+                      row.status?.toLowerCase() === 'completed'
+                        ? calculateDuration(row.parkedDate, row.parkedTime, row.exitvehicledate, row.exitvehicletime)
+                        : 'N/A'
 
-        return `
+                    const amount = parseFloat(row.amount) || 0
+                    const handlingFee = 5
+                    const gst = amount * 0.18
+                    const total = amount + handlingFee + gst
+
+                    return `
                     <tr>
                       <td>${row.vehicleNumber || 'N/A'}</td>
                       <td>${row.vendorName || 'My Parking Place'}</td>
@@ -1122,8 +1111,9 @@ const OrderListTable = ({ orderData }) => {
                       </td>
                       <td>${row.status || 'N/A'}</td>
                     </tr>
-                  `;
-      }).join('')}
+                  `
+                  })
+                  .join('')}
               </tbody>
             </table>
             <script>
@@ -1138,59 +1128,40 @@ const OrderListTable = ({ orderData }) => {
             </script>
           </body>
         </html>
-      `;
+      `
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.open();
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      const printWindow = window.open('', '_blank')
+
+      printWindow.document.open()
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
     }
 
-    handleMenuClose();
-  };
+    handleMenuClose()
+  }
 
   return (
-    <Box sx={{ backgroundColor: "#f5f5f5", minHeight: "100vh", p: 3 }}>
+    <Box sx={{ backgroundColor: '#f5f5f5', minHeight: '100vh', p: 3 }}>
       {/* Stats Cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={2.4}>
-          <StatsCard
-            icon="ri-time-line"
-            count={statusCounts.pending}
-            label="Pending"
-            iconColor="#94a3b8"
-          />
+          <StatsCard icon='ri-time-line' count={statusCounts.pending} label='Pending' iconColor='#94a3b8' />
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <StatsCard icon='ri-thumb-up-line' count={statusCounts.approved} label='Approved' iconColor='#22c55e' />
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <StatsCard icon='ri-close-circle-line' count={statusCounts.cancelled} label='Cancelled' iconColor='#ef4444' />
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <StatsCard icon='ri-parking-box-line' count={statusCounts.parked} label='Parked' iconColor='#8b5cf6' />
         </Grid>
         <Grid item xs={12} sm={6} md={2.4}>
           <StatsCard
-            icon="ri-thumb-up-line"
-            count={statusCounts.approved}
-            label="Approved"
-            iconColor="#22c55e"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <StatsCard
-            icon="ri-close-circle-line"
-            count={statusCounts.cancelled}
-            label="Cancelled"
-            iconColor="#ef4444"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <StatsCard
-            icon="ri-parking-box-line"
-            count={statusCounts.parked}
-            label="Parked"
-            iconColor="#8b5cf6"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={2.4}>
-          <StatsCard
-            icon="ri-checkbox-circle-line"
+            icon='ri-checkbox-circle-line'
             count={statusCounts.completed}
-            label="Completed"
-            iconColor="#10b981"
+            label='Completed'
+            iconColor='#10b981'
           />
         </Grid>
       </Grid>
@@ -1199,7 +1170,7 @@ const OrderListTable = ({ orderData }) => {
       <Card sx={{ boxShadow: 2 }}>
         <CardContent sx={{ p: 3 }}>
           {/* Booking Management Header */}
-          <Typography variant="h5" fontWeight="600" sx={{ mb: 3 }}>
+          <Typography variant='h5' fontWeight='600' sx={{ mb: 3 }}>
             Subscription Management
           </Typography>
 
@@ -1248,7 +1219,7 @@ const OrderListTable = ({ orderData }) => {
           {/* Status Tabs - Separate Row */}
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
             <Box sx={{ display: 'flex', gap: 0 }}>
-              {['pending', 'approved', 'parked', 'completed', 'cancelled', 'all'].map((status) => (
+              {['pending', 'approved', 'parked', 'completed', 'cancelled', 'all'].map(status => (
                 <Button
                   key={status}
                   onClick={() => setStatusFilter(status)}
@@ -1273,11 +1244,7 @@ const OrderListTable = ({ orderData }) => {
           </Box>
 
           {/* Download Menu */}
-          <Menu
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleMenuClose}
-          >
+          <Menu anchorEl={anchorEl} open={open} onClose={handleMenuClose}>
             <MenuItem onClick={() => handleExport('excel')} sx={{ gap: 2 }}>
               <i className='ri-file-excel-2-line' /> Export to Excel
             </MenuItem>
@@ -1289,8 +1256,8 @@ const OrderListTable = ({ orderData }) => {
           {/* Alert/Info Message */}
           {!loading && !error && table.getFilteredRowModel().rows.length === 0 && (
             <Alert
-              icon={<i className="ri-information-line" style={{ fontSize: '20px' }} />}
-              severity="info"
+              icon={<i className='ri-information-line' style={{ fontSize: '20px' }} />}
+              severity='info'
               sx={{
                 mb: 3,
                 backgroundColor: '#e0f2fe',
@@ -1314,7 +1281,7 @@ const OrderListTable = ({ orderData }) => {
 
           {/* Error State */}
           {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
+            <Alert severity='error' sx={{ mb: 3 }}>
               {error}
             </Alert>
           )}
@@ -1340,12 +1307,12 @@ const OrderListTable = ({ orderData }) => {
                                   userSelect: 'none',
                                   transition: 'all 0.2s ease'
                                 }}
-                                onMouseEnter={(e) => {
+                                onMouseEnter={e => {
                                   if (header.column.getCanSort()) {
                                     e.currentTarget.style.backgroundColor = '#f5f5f5'
                                   }
                                 }}
-                                onMouseLeave={(e) => {
+                                onMouseLeave={e => {
                                   e.currentTarget.style.backgroundColor = 'transparent'
                                 }}
                               >
@@ -1353,20 +1320,28 @@ const OrderListTable = ({ orderData }) => {
                                   {flexRender(header.column.columnDef.header, header.getContext())}
                                 </span>
                                 {header.column.getCanSort() && (
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    flexDirection: 'column',
-                                    marginLeft: '4px',
-                                    opacity: header.column.getIsSorted() ? 1 : 0.3
-                                  }}>
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      flexDirection: 'column',
+                                      marginLeft: '4px',
+                                      opacity: header.column.getIsSorted() ? 1 : 0.3
+                                    }}
+                                  >
                                     {!header.column.getIsSorted() && (
                                       <i className='ri-arrow-up-down-line' style={{ fontSize: '18px' }} />
                                     )}
                                     {header.column.getIsSorted() === 'asc' && (
-                                      <i className='ri-arrow-up-s-line' style={{ fontSize: '20px', color: '#22c55e' }} />
+                                      <i
+                                        className='ri-arrow-up-s-line'
+                                        style={{ fontSize: '20px', color: '#22c55e' }}
+                                      />
                                     )}
                                     {header.column.getIsSorted() === 'desc' && (
-                                      <i className='ri-arrow-down-s-line' style={{ fontSize: '20px', color: '#22c55e' }} />
+                                      <i
+                                        className='ri-arrow-down-s-line'
+                                        style={{ fontSize: '20px', color: '#22c55e' }}
+                                      />
                                     )}
                                   </span>
                                 )}

@@ -2,6 +2,7 @@
 
 // React Imports
 import { useEffect, useState, useCallback } from 'react'
+
 import { useSession } from 'next-auth/react'
 import axios from 'axios'
 
@@ -12,6 +13,8 @@ import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Typography from '@mui/material/Typography'
 import TableContainer from '@mui/material/TableContainer'
+import IconButton from '@mui/material/IconButton'
+import Tooltip from '@mui/material/Tooltip' // Import Tooltip for better UI
 import Table from '@mui/material/Table'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
@@ -21,7 +24,14 @@ import Paper from '@mui/material/Paper'
 
 // Redux Imports
 import { useDispatch, useSelector } from 'react-redux'
-import { setFetchedEvents, filterCalendarLabel, filterAllCalendarLabels } from '@/redux-store/slices/calendar'
+
+import {
+  setFetchedEvents,
+  filterCalendarLabel,
+  filterAllCalendarLabels,
+  selectedEvent,
+  deleteEvent
+} from '@/redux-store/slices/calendar'
 
 // Component Imports
 import Calendar from './Calendar'
@@ -32,7 +42,7 @@ import AddEventSidebar from './AddEventSidebar'
 const calendarsColor = {
   Marketing: 'primary',
   Sales: 'error',
-  Product: 'success',
+  Product: 'success'
 }
 
 const AppCalendar = () => {
@@ -58,85 +68,153 @@ const AppCalendar = () => {
 
   // Fetch meetings for table
   const fetchMeetings = useCallback(async () => {
-    if (!vendorId) return;
+    if (!vendorId) return
 
-    setMeetingsLoading(true);
+    setMeetingsLoading(true)
 
     try {
-      const response = await axios.get(`${API_URL}/vendor/fetchmeeting/${vendorId}`);
-      console.log('Fetched meetings for table:', response.data);
+      const response = await axios.get(`${API_URL}/vendor/fetchmeeting/${vendorId}`)
+
+      console.log('Fetched meetings for table:', response.data)
+
       if (response.data?.meetings) {
-        setMeetings(response.data.meetings);
+        setMeetings(response.data.meetings)
       }
     } catch (error) {
-      console.error('Error fetching meetings:', error);
+      console.error('Error fetching meetings:', error)
     } finally {
-      setMeetingsLoading(false);
+      setMeetingsLoading(false)
     }
-  }, [vendorId, API_URL]);
-
+  }, [vendorId, API_URL])
 
   const fetchCalendarMeetings = useCallback(async () => {
     try {
       if (!vendorId) {
-        console.warn("Vendor ID not available yet.");
-        return;
+        console.warn('Vendor ID not available yet.')
+
+        return
       }
 
-      console.log("Fetching meetings for vendor:", vendorId);
-      const response = await axios.get(`${API_URL}/vendor/fetchmeeting/${vendorId}`);
+      console.log('Fetching meetings for vendor:', vendorId)
+      const response = await axios.get(`${API_URL}/vendor/fetchmeeting/${vendorId}`)
 
       if (response.data.meetings) {
-        const events = response.data.meetings.map(meeting => {
-          // Parse the date from DD/MM/YYYY HH:mm format
-          const [datePart, timePart] = meeting.callbackTime.split(' ');
-          const [day, month, year] = datePart.split('/');
-          const [hours, minutes] = timePart ? timePart.split(':') : ['00', '00'];
+        const events = response.data.meetings
+          .map(meeting => {
+            // Parse the date from DD/MM/YYYY HH:mm format
+            const [datePart, timePart] = meeting.callbackTime.split(' ')
+            const [day, month, year] = datePart.split('/')
+            const [hours, minutes] = timePart ? timePart.split(':') : ['00', '00']
 
-          // Create a proper Date object (month is 0-indexed in JavaScript)
-          const startTime = new Date(year, month - 1, day, hours, minutes);
+            // Create a proper Date object (month is 0-indexed in JavaScript)
+            const startTime = new Date(year, month - 1, day, hours, minutes)
 
-          // Validate the date
-          if (isNaN(startTime.getTime())) {
-            console.error('Invalid date for meeting:', meeting);
-            return null;
-          }
+            // Validate the date
+            if (isNaN(startTime.getTime())) {
+              console.error('Invalid date for meeting:', meeting)
 
-          const eventDetails = {
-            id: meeting._id,
-            title: meeting.name,
-            start: startTime,  // Use the Date object directly
-            end: new Date(startTime.getTime() + 60 * 60 * 1000), // 1 hour later
-            allDay: false,
-            extendedProps: {
-              calendar: meeting.department || "ETC",
-              email: meeting.email,
-              mobile: meeting.mobile,
-              description: meeting.businessURL || "",
-              vendorId: meeting.vendorId
+              return null
             }
-          };
 
-          console.log("Processed Event:", eventDetails);
-          return eventDetails;
-        }).filter(Boolean); // Filter out any null events from invalid dates
+            const eventDetails = {
+              id: meeting._id,
+              title: meeting.name,
+              start: startTime, // Use the Date object directly
+              end: new Date(startTime.getTime() + 60 * 60 * 1000), // 1 hour later
+              allDay: false,
+              extendedProps: {
+                calendar: meeting.department || 'ETC',
+                email: meeting.email,
+                mobile: meeting.mobile,
+                description: meeting.businessURL || '',
+                vendorId: meeting.vendorId
+              }
+            }
 
-        console.log("Dispatching events to Redux:", events);
-        dispatch(setFetchedEvents(events));
+            console.log('Processed Event:', eventDetails)
+
+            return eventDetails
+          })
+          .filter(Boolean) // Filter out any null events from invalid dates
+
+        console.log('Dispatching events to Redux:', events)
+        dispatch(setFetchedEvents(events))
       }
     } catch (error) {
-      console.error("Error fetching meetings:", error);
+      console.error('Error fetching meetings:', error)
     }
-  }, [vendorId, API_URL, dispatch]);
+  }, [vendorId, API_URL, dispatch])
+
+  // Optimistic update helper
+  const handleOptimisticDelete = useCallback(
+    id => {
+      // Remove from Redux (Calendar)
+      dispatch(deleteEvent(id))
+
+      // Remove from Local State (Table)
+      setMeetings(prev => prev.filter(m => m._id !== id))
+    },
+    [dispatch]
+  )
 
   // Function to refresh data after creating a new meeting
   const handleMeetingCreated = useCallback(async () => {
-    console.log('Refreshing data after meeting creation...');
-    await Promise.all([
-      fetchCalendarMeetings(),
-      fetchMeetings()
-    ]);
-  }, [fetchCalendarMeetings, fetchMeetings]);
+    console.log('Refreshing data after meeting creation...')
+    await Promise.all([fetchCalendarMeetings(), fetchMeetings()])
+  }, [fetchCalendarMeetings, fetchMeetings])
+
+  // Handle Edit Meeting from Table
+  const handleEditMeeting = meeting => {
+    // Convert table meeting format to calendar event format expected by AddEventSidebar
+    const [datePart, timePart] = meeting.callbackTime.split(' ')
+    const [day, month, year] = datePart.split('/')
+    const [hours, minutes] = timePart ? timePart.split(':') : ['00', '00']
+    const startTime = new Date(year, month - 1, day, hours, minutes)
+
+    const eventDetails = {
+      id: meeting._id,
+      title: meeting.name,
+      start: startTime,
+      end: new Date(startTime.getTime() + 60 * 60 * 1000), // Default 1 hour duration
+      allDay: false,
+      extendedProps: {
+        calendar: meeting.department,
+        email: meeting.email,
+        mobile: meeting.mobile,
+        description: meeting.businessURL,
+        vendorId: meeting.vendorId
+      }
+    }
+
+    dispatch(selectedEvent(eventDetails))
+    handleAddEventSidebarToggle()
+  }
+
+  // Handle Delete Meeting from Table
+  const handleDeleteMeeting = async id => {
+    if (!window.confirm('Are you sure you want to delete this meeting?')) return
+
+    // Optimistic Update
+    handleOptimisticDelete(id)
+
+    try {
+      const response = await axios.delete(`${API_URL}/vendor/deletemeeting/${id}`)
+
+      if (response.status === 200) {
+        // alert('Meeting deleted successfully!')
+        // No need to alert if instant, or maybe a toast?
+        // Refresh to ensure server sync
+        handleMeetingCreated()
+      } else {
+        alert('Failed to delete meeting')
+        handleMeetingCreated() // Revert/Refresh
+      }
+    } catch (error) {
+      console.error('Error deleting meeting:', error)
+      alert('Something went wrong!')
+      handleMeetingCreated() // Revert/Refresh
+    }
+  }
 
   const renderMeetings = () => {
     if (meetingsLoading) {
@@ -144,52 +222,81 @@ const AppCalendar = () => {
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
           <CircularProgress size={30} />
         </Box>
-      );
+      )
     }
 
     if (!meetings || meetings.length === 0) {
-      return <Alert severity="info" sx={{ mt: 2 }}>No meeting requests found</Alert>;
+      return (
+        <Alert severity='info' sx={{ mt: 2 }}>
+          No meeting requests found
+        </Alert>
+      )
     }
 
     return (
       <Box sx={{ mt: 2 }}>
-        <Typography variant="h6" sx={{ mb: 2 }}>Meeting Requests</Typography>
+        <Typography variant='h6' sx={{ mb: 2 }}>
+          Meeting Requests
+        </Typography>
         <TableContainer component={Paper}>
-          <Table size="small">
+          <Table size='small'>
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell><strong>Name</strong></TableCell>
-                <TableCell><strong>Email</strong></TableCell>
-                <TableCell><strong>Mobile</strong></TableCell>
-                <TableCell><strong>Time</strong></TableCell>
+                <TableCell>
+                  <strong>Name</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Email</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Mobile</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Time</strong>
+                </TableCell>
+                <TableCell>
+                  <strong>Actions</strong>
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {meetings.map((meeting) => (
+              {meetings.map(meeting => (
                 <TableRow key={meeting._id}>
                   <TableCell>{meeting.name || 'N/A'}</TableCell>
                   <TableCell>{meeting.email || 'N/A'}</TableCell>
                   <TableCell>{meeting.mobile || 'N/A'}</TableCell>
                   <TableCell>{meeting.callbackTime || 'N/A'}</TableCell>
+                  <TableCell>
+                    <Tooltip title='Edit'>
+                      <IconButton onClick={() => handleEditMeeting(meeting)} size='small'>
+                        <i className='bi bi-pencil-square' style={{ fontSize: '1.2rem', color: '#7367f0' }}></i>
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title='Delete'>
+                      <IconButton onClick={() => handleDeleteMeeting(meeting._id)} size='small'>
+                        <i className='bi bi-trash' style={{ fontSize: '1.2rem', color: '#ff4c51' }}></i>
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
       </Box>
-    );
+    )
   }
 
   // Initial data fetch
   useEffect(() => {
     if (vendorId) {
-      console.log('Initial data fetch for vendorId:', vendorId);
-      fetchCalendarMeetings();
-      fetchMeetings();
+      console.log('Initial data fetch for vendorId:', vendorId)
+      fetchCalendarMeetings()
+      fetchMeetings()
     }
-  }, [vendorId, fetchCalendarMeetings, fetchMeetings]);
+  }, [vendorId, fetchCalendarMeetings, fetchMeetings])
 
-  const handleDateClick = (info) => {
+  const handleDateClick = info => {
     setSelectedDate(new Date(info.dateStr))
     handleAddEventSidebarToggle()
   }
@@ -228,6 +335,7 @@ const AppCalendar = () => {
         handleAddEventSidebarToggle={handleAddEventSidebarToggle}
         selectedDate={selectedDate}
         onMeetingCreated={handleMeetingCreated}
+        onMeetingDeleted={handleOptimisticDelete}
       />
     </>
   )

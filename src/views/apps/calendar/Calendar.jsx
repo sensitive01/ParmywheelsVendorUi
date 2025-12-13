@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
 
-
 // MUI Imports
 import { useTheme } from '@mui/material/styles'
 import 'bootstrap-icons/font/bootstrap-icons.css'
@@ -45,9 +44,9 @@ const Calendar = props => {
 
   useEffect(() => {
     if (!events.length) {
-      console.warn("No events fetched yet. Check API response.");
+      console.warn('No events fetched yet. Check API response.')
     } else {
-      console.log("Fetched Events:", events); // ✅ Debugging
+      console.log('Fetched Events:', events) // ✅ Debugging
     }
 
     if (calendarRef.current && !calendarRef.current.getApi()) {
@@ -55,21 +54,19 @@ const Calendar = props => {
     }
   }, [events])
 
-
-
-  const parseDateString = (dateString) => {
-    if (!dateString) return null;
-    if (dateString instanceof Date) return dateString;  // Return Date objects as-is
+  const parseDateString = dateString => {
+    if (!dateString) return null
+    if (dateString instanceof Date) return dateString // Return Date objects as-is
 
     // If it's a string that's already in ISO format
-    const date = new Date(dateString);
-    if (!isNaN(date.getTime())) return date;
+    const date = new Date(dateString)
+    if (!isNaN(date.getTime())) return date
 
-    return null; // Return null for invalid dates
-  };
+    return null // Return null for invalid dates
+  }
 
   // Debug: Log the raw events before processing
-  console.log('Raw events from Redux:', events);
+  console.log('Raw events from Redux:', events)
 
   // Process events to ensure dates are in correct format
   const processedEvents = events.map(event => {
@@ -78,10 +75,10 @@ const Calendar = props => {
       start: parseDateString(event.start) || event.start,
       end: parseDateString(event.end) || event.end,
       extendedProps: {
-        ...event.extendedProps,
+        ...event.extendedProps
         // Add any additional processing for extended props if needed
       }
-    };
+    }
 
     // Debug: Log each processed event
     console.log('Processed event:', {
@@ -91,13 +88,13 @@ const Calendar = props => {
       end: processedEvent.end,
       allDay: processedEvent.allDay,
       extendedProps: processedEvent.extendedProps
-    });
+    })
 
-    return processedEvent;
-  });
+    return processedEvent
+  })
 
   // Debug: Log the final processed events array
-  console.log('Processed events array:', processedEvents);
+  console.log('Processed events array:', processedEvents)
 
   // FullCalendar Options
   const calendarOptions = {
@@ -132,9 +129,9 @@ const Calendar = props => {
           html: `
             <div>
               <strong>${event.title}</strong><br>
-              <small>Email: ${event.extendedProps.email || "N/A"}</small><br>
-              <small>Mobile: ${event.extendedProps.mobile || "N/A"}</small><br>
-              <small>Description: ${event.extendedProps.description || "N/A"}</small>
+              <small>Email: ${event.extendedProps.email || 'N/A'}</small><br>
+              <small>Mobile: ${event.extendedProps.mobile || 'N/A'}</small><br>
+              <small>Description: ${event.extendedProps.description || 'N/A'}</small>
             </div>
           `
         }
@@ -146,12 +143,24 @@ const Calendar = props => {
     eventClassNames({ event: calendarEvent }) {
       const colorName = calendarsColor[calendarEvent.extendedProps.calendar]
 
-
       return [`event-bg-${colorName}`]
     },
     eventClick({ event: clickedEvent, jsEvent }) {
       jsEvent.preventDefault()
-      dispatch(selectedEvent(clickedEvent))
+
+      // ✅ Extract plain object to avoid circular reference issues in Redux
+      const eventDetails = {
+        id: clickedEvent.id,
+        title: clickedEvent.title,
+        start: clickedEvent.start,
+        end: clickedEvent.end,
+        allDay: clickedEvent.allDay,
+        extendedProps: clickedEvent.extendedProps
+      }
+
+      console.log('Clicked Event Details:', eventDetails)
+
+      dispatch(selectedEvent(eventDetails))
       handleAddEventSidebarToggle()
     },
     customButtons: {
@@ -166,11 +175,11 @@ const Calendar = props => {
       const ev = {
         ...blankEvent,
         start: info.dateStr, // ✅ Use the clicked date
-        end: info.dateStr,   // ✅ Ensure the end date is also set
+        end: info.dateStr, // ✅ Ensure the end date is also set
         allDay: true
       }
 
-      console.log("Clicked Date:", info.dateStr) // ✅ Debugging
+      console.log('Clicked Date:', info.dateStr) // ✅ Debugging
       dispatch(selectedEvent(ev))
       handleAddEventSidebarToggle()
     },
@@ -185,7 +194,6 @@ const Calendar = props => {
     ref: calendarRef,
     direction: theme.direction
   }
-
 
   return <FullCalendar {...calendarOptions} />
 }

@@ -1,7 +1,5 @@
+import { useState, useEffect } from 'react'
 
-
-
-import { useState } from 'react'
 import { useSession } from 'next-auth/react'
 
 // MUI Imports
@@ -21,6 +19,9 @@ import {
 // Third-party Imports
 import { useForm } from 'react-hook-form'
 import PerfectScrollbar from 'react-perfect-scrollbar'
+import { useSelector, useDispatch } from 'react-redux'
+
+import { selectedEvent } from '@/redux-store/slices/calendar'
 
 // Styled Component Imports
 import AppReactDatepicker from '@/libs/styles/AppReactDatepicker'
@@ -30,7 +31,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 const AddEventSidebar = props => {
   // Props
-  const { addEventSidebarOpen, handleAddEventSidebarToggle } = props
+  const { addEventSidebarOpen, handleAddEventSidebarToggle, onMeetingCreated } = props
 
   // Session for vendor details
   const { data: session } = useSession()
@@ -46,29 +47,60 @@ const AddEventSidebar = props => {
     callbackTime: new Date()
   })
 
+  const dispatch = useDispatch()
+  const calendarStore = useSelector(state => state.calendarReducer)
+  const { selectedEvent: eventToEdit } = calendarStore
+
+  useEffect(() => {
+    if (eventToEdit) {
+      setMeetingDetails({
+        name: eventToEdit.title || '',
+        department: eventToEdit.extendedProps?.calendar || '',
+        email: eventToEdit.extendedProps?.email || '',
+        mobile: eventToEdit.extendedProps?.mobile || '',
+        businessURL: eventToEdit.extendedProps?.description || '',
+        callbackTime: eventToEdit.start ? new Date(eventToEdit.start) : new Date()
+      })
+    } else {
+      setMeetingDetails({
+        name: '',
+        department: '',
+        email: '',
+        mobile: '',
+        businessURL: '',
+        callbackTime: new Date()
+      })
+    }
+  }, [eventToEdit])
+
   // React Hook Form
   const {
     handleSubmit,
     setError,
+    clearErrors,
     formState: { errors }
   } = useForm()
 
   // Format date to dd/MM/yyyy HH:mm
-  const formatDate = (date) => {
+  const formatDate = date => {
     const pad = num => num.toString().padStart(2, '0')
+
     return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} ${pad(date.getHours())}:${pad(date.getMinutes())}`
   }
 
   // Validate mobile number
-  const validateMobile = (mobile) => {
+  const validateMobile = mobile => {
     const regex = /^\d{10}$/
+
     return regex.test(mobile)
   }
 
   // Handle form submission
+  // Handle form submission
   const onSubmit = async () => {
     if (!vendorId) {
       alert('Vendor not logged in')
+
       return
     }
 
@@ -78,8 +110,11 @@ const AddEventSidebar = props => {
         type: 'manual',
         message: 'Mobile number must be exactly 10 digits'
       })
+
       return
     }
+
+    clearErrors('mobile')
 
     const meetingData = {
       name: meetingDetails.name,
@@ -92,8 +127,14 @@ const AddEventSidebar = props => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/vendor/createmeeting`, {
-        method: 'POST',
+      const isUpdate = !!eventToEdit?.id
+
+      const url = isUpdate ? `${API_URL}/vendor/updatemeeting/${eventToEdit.id}` : `${API_URL}/vendor/createmeeting`
+
+      const method = isUpdate ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(meetingData)
       })
@@ -101,13 +142,37 @@ const AddEventSidebar = props => {
       const result = await response.json()
 
       if (response.ok) {
-        alert('Meeting created successfully!')
+        alert(isUpdate ? 'Meeting updated successfully!' : 'Meeting created successfully!')
+        if (onMeetingCreated) onMeetingCreated()
         handleAddEventSidebarToggle()
       } else {
-        alert(result.message || 'Failed to create meeting')
+        alert(result.message || (isUpdate ? 'Failed to update meeting' : 'Failed to create meeting'))
       }
     } catch (error) {
-      console.error('Error creating meeting:', error)
+      console.error('Error saving meeting:', error)
+      alert('Something went wrong!')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!eventToEdit?.id) return
+
+    if (!window.confirm('Are you sure you want to delete this meeting?')) return
+
+    try {
+      const response = await fetch(`${API_URL}/vendor/deletemeeting/${eventToEdit.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        alert('Meeting deleted successfully!')
+        if (onMeetingCreated) onMeetingCreated()
+        handleAddEventSidebarToggle()
+      } else {
+        alert('Failed to delete meeting')
+      }
+    } catch (error) {
+      console.error('Error deleting meeting:', error)
       alert('Something went wrong!')
     }
   }
@@ -121,7 +186,7 @@ const AddEventSidebar = props => {
       sx={{ '& .MuiDrawer-paper': { width: ['100%', 400] } }}
     >
       <Box className='flex justify-between items-center sidebar-header pli-5 plb-4 border-be'>
-        <Typography variant='h5'>Schedule a Meeting</Typography>
+        <Typography variant='h5'>{eventToEdit?.id ? 'Update Meeting' : 'Schedule a Meeting'}</Typography>
         <IconButton size='small' onClick={handleAddEventSidebarToggle}>
           <i className='ri-close-line text-2xl' />
         </IconButton>
@@ -165,7 +230,9 @@ const AddEventSidebar = props => {
                 value={meetingDetails.mobile}
                 onChange={e => {
                   const value = e.target.value.replace(/\D/g, '').slice(0, 10)
+
                   setMeetingDetails({ ...meetingDetails, mobile: value })
+                  if (value.length === 10) clearErrors('mobile')
                 }}
                 error={!!errors.mobile}
                 helperText={errors.mobile?.message}
@@ -183,16 +250,23 @@ const AddEventSidebar = props => {
               <AppReactDatepicker
                 selected={meetingDetails.callbackTime}
                 showTimeSelect
-                timeFormat="HH:mm"
+                timeFormat='HH:mm'
                 timeIntervals={15}
                 dateFormat='dd/MM/yyyy HH:mm'
                 customInput={<TextField fullWidth label='Callback Time' />}
                 onChange={date => setMeetingDetails({ ...meetingDetails, callbackTime: date })}
               />
             </div>
-            <Button type='submit' variant='contained' fullWidth>
-              Schedule Meeting
-            </Button>
+            <div className='flex gap-4'>
+              <Button type='submit' variant='contained' fullWidth>
+                {eventToEdit?.id ? 'Update' : 'Schedule'}
+              </Button>
+              {eventToEdit?.id && (
+                <Button variant='outlined' color='error' fullWidth onClick={handleDelete}>
+                  Delete
+                </Button>
+              )}
+            </div>
           </form>
         </Box>
       </PerfectScrollbar>

@@ -89,7 +89,7 @@ export const calendarSlice = createSlice({
       // Apply the selected filters to events
       state.events = state.selectedCalendars.length > 0
         ? filterEventsUsingCheckbox(state.filteredEvents, state.selectedCalendars)
-        : state.filteredEvents;
+        : [];
     },
 
     // Action to filter all calendar labels (either show all or none)
