@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from 'react'
-
 
 // MUI Imports
 import Grid from '@mui/material/Grid'
@@ -19,12 +17,18 @@ const TableFilters = ({ setData, bookingData }) => {
 
   useEffect(() => {
     const filteredData = bookingData?.filter(booking => {
+      // Globally exclude subscription bookings
+      const sts = booking.sts?.toString().toLowerCase().trim() || ''
+      const type = booking.subsctiptiontype?.toString().toLowerCase().trim() || ''
+
+      if (sts === 'subscription' || ['weekly', 'monthly', 'yearly'].includes(type)) return false
+
       if (vehicleType && booking.vehicleType !== vehicleType) return false
       if (sts && booking.sts !== sts) return false
       if (status && booking.status !== status) return false
       if (bookingDate && booking.bookingDate !== bookingDate) return false
-      
-return true
+
+      return true
     })
 
     setData(filteredData ?? [])
@@ -52,15 +56,9 @@ return true
         <Grid item xs={12} sm={3}>
           <FormControl fullWidth>
             <InputLabel id='sts-select'>STS</InputLabel>
-            <Select
-              fullWidth
-              value={sts}
-              onChange={e => setSts(e.target.value)}
-              labelId='sts-select'
-            >
+            <Select fullWidth value={sts} onChange={e => setSts(e.target.value)} labelId='sts-select'>
               <MenuItem value=''>Select STS</MenuItem>
               <MenuItem value='Instant'>Instant</MenuItem>
-              <MenuItem value='Subscription'>Subscription</MenuItem>
               <MenuItem value='Schedule'>Schedule</MenuItem>
             </Select>
           </FormControl>
@@ -68,12 +66,7 @@ return true
         <Grid item xs={12} sm={3}>
           <FormControl fullWidth>
             <InputLabel id='status-select'>Status</InputLabel>
-            <Select
-              fullWidth
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-              labelId='status-select'
-            >
+            <Select fullWidth value={status} onChange={e => setStatus(e.target.value)} labelId='status-select'>
               <MenuItem value=''>Select Status</MenuItem>
               <MenuItem value='Pending'>Pending</MenuItem>
               <MenuItem value='Approved'>Approved</MenuItem>
@@ -97,6 +90,5 @@ return true
     </CardContent>
   )
 }
-
 
 export default TableFilters

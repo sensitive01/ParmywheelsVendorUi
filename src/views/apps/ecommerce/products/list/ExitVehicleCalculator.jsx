@@ -103,6 +103,12 @@ const ExitVehicleCalculator = ({
     others: 'Full Day'
   })
 
+  // GST and Tax State
+  const [gstPercentage, setGstPercentage] = useState(0)
+  const [handlingFee, setHandlingFee] = useState(0)
+  const [gstAmount, setGstAmount] = useState(0)
+  const [totalWithTaxes, setTotalWithTaxes] = useState(0)
+
   const [isVendorBooking, setIsVendorBooking] = useState(false)
   const is24Hours = bookingData?.bookType === '24 Hours' || bookType === '24 Hours'
   const isSubscription = bookingData?.sts === 'Subscription'
@@ -212,6 +218,23 @@ const ExitVehicleCalculator = ({
     }
   }
 
+  const fetchGstData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/vendor/getgstfee`)
+
+      if (response.ok) {
+        const data = await response.json()
+
+        if (Array.isArray(data) && data.length > 0) {
+          setGstPercentage(parseFloat(data[0].gst || '0'))
+          setHandlingFee(parseFloat(data[0].handlingfee || '0'))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch GST fees:', error)
+    }
+  }
+
   useEffect(() => {
     const getBookingDetails = async () => {
       if (bookingDetails) {
@@ -276,6 +299,7 @@ const ExitVehicleCalculator = ({
   useEffect(() => {
     if (vendorId) {
       fetchFullDayModes()
+      fetchGstData()
     }
   }, [vendorId])
 
@@ -468,6 +492,30 @@ const ExitVehicleCalculator = ({
     }
   }, [bookingData, is24Hours, fullDayModes, vehicleType, isSubscription, bookingId, hours, session?.accessToken])
 
+  // Recalculate totals when amount, gst, or handling fee changes
+  useEffect(() => {
+    if (amount >= 0) {
+      const roundedParkingCharge = Math.ceil(amount)
+      const calculatedGst = Math.ceil((roundedParkingCharge * gstPercentage) / 100)
+      const roundedHandling = Math.ceil(handlingFee)
+
+      // Use a consistent logic whether user or vendor booking for display,
+      // but logic might differ in what we *charge*.
+      // The Flutter code implies taxes are added if userid is not empty (Customer booking).
+      // For vendor booking, usually taxes might be skipped or inclusive.
+      // Let's assume we display taxes only for non-Vendor bookings based on Flutter logic:
+      // "if (widget.userid.isNotEmpty) ... show GST/Handling"
+
+      if (!isVendorBooking) {
+        setGstAmount(calculatedGst)
+        setTotalWithTaxes(roundedParkingCharge + calculatedGst + roundedHandling)
+      } else {
+        setGstAmount(0)
+        setTotalWithTaxes(roundedParkingCharge)
+      }
+    }
+  }, [amount, gstPercentage, handlingFee, isVendorBooking])
+
   // Real-time updates for timer only (no local amount calc)
   useEffect(() => {
     if (!is24Hours && !isSubscription && bookingData?.parkedDate && bookingData?.parkedTime) {
@@ -560,22 +608,32 @@ const ExitVehicleCalculator = ({
         otp: isVendorBooking ? null : backendOtp
       })
 
-      // In the handleSubmit function, update the fetch call's body to use formattedDuration
+      // Prepare body according to Flutter logic
+      const roundedParkingCharge = Math.ceil(amount)
+
+      const body = {
+        amount: roundedParkingCharge,
+        duration: formattedDuration,
+        hour: formattedDuration,
+        is24Hours,
+        isSubscription,
+        vendorId,
+        otp: isVendorBooking ? null : backendOtp
+      }
+
+      if (!isVendorBooking) {
+        body.gstamout = gstAmount
+        body.handlingfee = Math.ceil(handlingFee)
+        body.totalamout = totalWithTaxes
+      }
+
       const response = await fetch(`${API_URL}/vendor/exitvehicle/${bookingId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session?.accessToken}`
         },
-        body: JSON.stringify({
-          amount,
-          duration: formattedDuration,
-          hour: formattedDuration, // Changed from hour: hours
-          is24Hours,
-          isSubscription,
-          vendorId,
-          otp: isVendorBooking ? null : backendOtp
-        })
+        body: JSON.stringify(body)
       })
 
       if (!response.ok) {
@@ -719,12 +777,47 @@ const ExitVehicleCalculator = ({
             </Grid>
 
             <Box sx={{ mt: 3, mb: 2 }}>
-              <Typography variant='h6' color='primary' gutterBottom>
-                Final Amount
-              </Typography>
-              <Typography variant='h4' fontWeight='bold'>
-                ₹{amount.toFixed(2)}
-              </Typography>
+              <Grid container spacing={1}>
+                <Grid item xs={6}>
+                  <Typography variant='body2'>Parking Charges:</Typography>
+                </Grid>
+                <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                  <Typography variant='body2'>₹{Math.ceil(amount).toFixed(2)}</Typography>
+                </Grid>
+
+                {!isVendorBooking && (
+                  <>
+                    <Grid item xs={6}>
+                      <Typography variant='body2'>Handling Fee:</Typography>
+                    </Grid>
+                    <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                      <Typography variant='body2'>₹{Math.ceil(handlingFee).toFixed(2)}</Typography>
+                    </Grid>
+
+                    <Grid item xs={6}>
+                      <Typography variant='body2'>GST ({gstPercentage}%):</Typography>
+                    </Grid>
+                    <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                      <Typography variant='body2'>₹{gstAmount.toFixed(2)}</Typography>
+                    </Grid>
+                  </>
+                )}
+
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 1 }} />
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Typography variant='h6' color='primary'>
+                    Payable Amount:
+                  </Typography>
+                </Grid>
+                <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                  <Typography variant='h6' fontWeight='bold' color='primary'>
+                    ₹{(!isVendorBooking ? totalWithTaxes : Math.ceil(amount)).toFixed(2)}
+                  </Typography>
+                </Grid>
+              </Grid>
             </Box>
           </>
         )}

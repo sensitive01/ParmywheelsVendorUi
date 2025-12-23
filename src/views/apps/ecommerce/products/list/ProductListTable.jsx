@@ -2,8 +2,10 @@
 
 // React Imports
 import { useState, useEffect, useMemo } from 'react'
+
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+
 import { useSession } from 'next-auth/react'
 
 // MUI Imports
@@ -20,6 +22,7 @@ import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
 import { Menu, MenuItem, Tabs, Tab, Box } from '@mui/material'
+
 // Third-party Imports
 import classnames from 'classnames'
 import { rankItem } from '@tanstack/match-sorter-utils'
@@ -54,7 +57,7 @@ export const stsChipColor = {
   instant: { color: '#ff4d49', text: 'Instant' },
   subscription: { color: '#72e128', text: 'Subscription' },
   schedule: { color: '#fdb528', text: 'Schedule' }
-};
+}
 
 export const statusChipColor = {
   completed: { color: 'success' },
@@ -62,11 +65,13 @@ export const statusChipColor = {
   parked: { color: '#666CFF' },
   cancelled: { color: 'error' },
   approved: { color: 'info' }
-};
+}
 
 const fuzzyFilter = (row, columnId, value, addMeta) => {
   const itemRank = rankItem(row.getValue(columnId), value)
+
   addMeta({ itemRank })
+
   return itemRank.passed
 }
 
@@ -94,10 +99,11 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
   useEffect(() => {
     if (!parkedDate || !parkedTime) {
       setElapsedTime('00:00:00')
+
       return
     }
 
-    const formatWithLeadingZero = (num) => String(num).padStart(2, '0')
+    const formatWithLeadingZero = num => String(num).padStart(2, '0')
 
     try {
       const [day, month, year] = parkedDate.split('-')
@@ -113,14 +119,7 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
         }
       }
 
-      const parkingStartTime = new Date(
-        parseInt(year),
-        parseInt(month) - 1,
-        parseInt(day),
-        hours,
-        minutes || 0,
-        0
-      )
+      const parkingStartTime = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hours, minutes || 0, 0)
 
       const updateElapsedTime = () => {
         const now = new Date()
@@ -128,6 +127,7 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
 
         if (diffMs < 0) {
           setElapsedTime('00:00:00')
+
           return
         }
 
@@ -148,22 +148,25 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
 
       // Update every second
       const timer = setInterval(updateElapsedTime, 1000)
-      return () => clearInterval(timer)
 
+      return () => clearInterval(timer)
     } catch (error) {
       console.error('Error in PayableTimeTimer:', error)
       setElapsedTime('00:00:00')
     }
   }, [parkedDate, parkedTime])
 
-  return (
-    <Typography sx={{ fontFamily: 'monospace', fontWeight: 500 }}>
-      {elapsedTime}
-    </Typography>
-  )
+  return <Typography sx={{ fontFamily: 'monospace', fontWeight: 500 }}>{elapsedTime}</Typography>
 }
 
 const columnHelper = createColumnHelper()
+
+const isSubscription = item => {
+  const sts = item.sts?.toString().toLowerCase().trim() || ''
+  const type = item.subsctiptiontype?.toString().toLowerCase().trim() || ''
+
+  return sts === 'subscription' || ['weekly', 'monthly', 'yearly'].includes(type)
+}
 
 const OrderListTable = ({ orderData }) => {
   const [rowSelection, setRowSelection] = useState({})
@@ -181,7 +184,7 @@ const OrderListTable = ({ orderData }) => {
   const [anchorEl, setAnchorEl] = useState(null)
   const open = Boolean(anchorEl)
 
-  const handleMenuClick = (event) => {
+  const handleMenuClick = event => {
     setAnchorEl(event.currentTarget)
   }
 
@@ -191,64 +194,71 @@ const OrderListTable = ({ orderData }) => {
 
   // Function to parse date string to DateTime object
   const parseDateTime = (dateStr, timeStr) => {
-    if (!dateStr || !timeStr) return null;
+    if (!dateStr || !timeStr) return null
 
     try {
       // Check if date is in YYYY-MM-DD format
-      let dateParts;
+      let dateParts
+
       if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
-        const [year, month, day] = dateStr.split('-');
-        dateParts = { day, month, year };
+        const [year, month, day] = dateStr.split('-')
+
+        dateParts = { day, month, year }
       }
+
       // Otherwise assume DD-MM-YYYY format
       else if (dateStr.includes('-')) {
-        const [day, month, year] = dateStr.split('-');
-        dateParts = { day, month, year };
+        const [day, month, year] = dateStr.split('-')
+
+        dateParts = { day, month, year }
       } else {
-        return null;
+        return null
       }
 
       // Parse time
-      const [timePart, ampm] = timeStr.split(' ');
-      let [hours, minutes] = timePart.split(':').map(Number);
+      const [timePart, ampm] = timeStr.split(' ')
+      let [hours, minutes] = timePart.split(':').map(Number)
 
       if (ampm && ampm.toUpperCase() === 'PM' && hours !== 12) {
-        hours += 12;
+        hours += 12
       } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
-        hours = 0;
+        hours = 0
       }
 
-      return new Date(`${dateParts.year}-${dateParts.month}-${dateParts.day}T${hours}:${minutes}:00`);
+      return new Date(`${dateParts.year}-${dateParts.month}-${dateParts.day}T${hours}:${minutes}:00`)
     } catch (e) {
-      console.error("Error parsing date/time:", e);
-      return null;
+      console.error('Error parsing date/time:', e)
+
+      return null
     }
-  };
+  }
 
   // Function to calculate duration between two dates
   const calculateDuration = (startDate, startTime, endDate, endTime) => {
-    if (!startDate || !startTime) return 'N/A';
+    if (!startDate || !startTime) return 'N/A'
 
     try {
-      const startDateTime = parseDateTime(startDate, startTime);
-      const endDateTime = endDate && endTime ? parseDateTime(endDate, endTime) : new Date();
+      const startDateTime = parseDateTime(startDate, startTime)
+      const endDateTime = endDate && endTime ? parseDateTime(endDate, endTime) : new Date()
 
-      if (!startDateTime) return 'N/A';
+      if (!startDateTime) return 'N/A'
 
-      const diffMs = endDateTime - startDateTime;
-      if (diffMs < 0) return 'N/A';
+      const diffMs = endDateTime - startDateTime
 
-      const diffSecs = Math.floor(diffMs / 1000);
-      const hours = Math.floor(diffSecs / 3600);
-      const minutes = Math.floor((diffSecs % 3600) / 60);
-      const seconds = diffSecs % 60;
+      if (diffMs < 0) return 'N/A'
 
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      const diffSecs = Math.floor(diffMs / 1000)
+      const hours = Math.floor(diffSecs / 3600)
+      const minutes = Math.floor((diffSecs % 3600) / 60)
+      const seconds = diffSecs % 60
+
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
     } catch (e) {
-      console.error("Error calculating duration:", e);
-      return 'N/A';
+      console.error('Error calculating duration:', e)
+
+      return 'N/A'
     }
-  };
+  }
 
   // Function to update booking status to Cancelled
   const updateBookingStatus = async (bookingId, status) => {
@@ -256,204 +266,214 @@ const OrderListTable = ({ orderData }) => {
       const response = await fetch(`${API_URL}/vendor/updatebookingstatus/${bookingId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ status })
-      });
-      console.log("exit vechicle ", response)
+      })
+
+      console.log('exit vechicle ', response)
 
       if (!response.ok) {
-        throw new Error('Failed to update booking status');
+        throw new Error('Failed to update booking status')
       }
 
-      return true;
+      return true
     } catch (error) {
-      console.error('Error updating booking status:', error);
-      return false;
+      console.error('Error updating booking status:', error)
+
+      return false
     }
-  };
+  }
 
   // Function to check and update pending bookings
-  const checkAndUpdatePendingBookings = async (bookings) => {
-    const now = new Date();
+  const checkAndUpdatePendingBookings = async bookings => {
+    const now = new Date()
 
     for (const booking of bookings) {
       try {
         // Skip if booking is not pending
         if (booking.status.toLowerCase() !== 'pending') {
-          continue;
+          continue
         }
 
         // Parse scheduled date and time
-        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
-        if (!scheduledDateTime) continue;
+        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime)
+
+        if (!scheduledDateTime) continue
 
         // Check if scheduled time has passed by more than 10 minutes
-        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000)
 
         if (now > tenMinutesAfter) {
-          const success = await updateBookingStatus(booking._id, 'Cancelled');
+          const success = await updateBookingStatus(booking._id, 'Cancelled')
+
           if (success) {
-            console.log(`Booking ${booking._id} has been cancelled.`);
+            console.log(`Booking ${booking._id} has been cancelled.`)
           }
         }
       } catch (e) {
-        console.error(`Error processing booking ${booking._id}:`, e);
+        console.error(`Error processing booking ${booking._id}:`, e)
       }
     }
-  };
+  }
 
   // Function to check and update approved bookings
-  const checkAndUpdateApprovedBookings = async (bookings) => {
-    const now = new Date();
+  const checkAndUpdateApprovedBookings = async bookings => {
+    const now = new Date()
 
     for (const booking of bookings) {
       try {
         // Skip if booking is not approved
         if (booking.status.toLowerCase() !== 'approved') {
-          continue;
+          continue
         }
 
         // Parse scheduled date and time
-        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
-        if (!scheduledDateTime) continue;
+        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime)
+
+        if (!scheduledDateTime) continue
 
         // Check if scheduled time has passed by more than 10 minutes
-        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000)
 
         if (now > tenMinutesAfter) {
-          const success = await updateBookingStatus(booking._id, 'Cancelled');
+          const success = await updateBookingStatus(booking._id, 'Cancelled')
+
           if (success) {
-            console.log(`Booking ${booking._id} has been cancelled (10 minutes past the scheduled time).`);
+            console.log(`Booking ${booking._id} has been cancelled (10 minutes past the scheduled time).`)
           }
         }
       } catch (e) {
-        console.error(`Error processing booking ${booking._id}:`, e);
+        console.error(`Error processing booking ${booking._id}:`, e)
       }
     }
-  };
+  }
 
   // Function to refresh booking list
   const refreshBookingList = async () => {
     try {
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`);
-      const result = await response.json();
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+      const result = await response.json()
 
       if (result && result.bookings) {
-        const filteredBookings = result.bookings.filter(booking =>
-          ["pending", "approved", "cancelled", "parked", "completed"]
-            .includes(booking.status.toLowerCase())
-        );
+        const filteredBookings = result.bookings.filter(
+          booking =>
+            ['pending', 'approved', 'cancelled', 'parked', 'completed'].includes(booking.status.toLowerCase()) &&
+            !isSubscription(booking)
+        )
 
         // Sort bookings by creation date (latest first)
         const sortedBookings = filteredBookings.sort((a, b) => {
           // First try to use createdAt field if it exists
           if (a.createdAt && b.createdAt) {
-            return new Date(b.createdAt) - new Date(a.createdAt);
+            return new Date(b.createdAt) - new Date(a.createdAt)
           }
 
           // Fall back to booking date and time if createdAt doesn't exist
           try {
-            const dateA = parseDateTime(a.bookingDate, a.bookingTime);
-            const dateB = parseDateTime(b.bookingDate, b.bookingTime);
+            const dateA = parseDateTime(a.bookingDate, a.bookingTime)
+            const dateB = parseDateTime(b.bookingDate, b.bookingTime)
 
-            return (dateB || 0) - (dateA || 0);
+            return (dateB || 0) - (dateA || 0)
           } catch (e) {
             // If all else fails, sort by ID if available (assuming newer IDs are larger)
             if (a._id && b._id) {
-              return b._id.localeCompare(a._id);
+              return b._id.localeCompare(a._id)
             }
-            return 0;
-          }
-        });
 
-        setData(sortedBookings);
-        setFilteredData(sortedBookings);
-        return sortedBookings;
+            return 0
+          }
+        })
+
+        setData(sortedBookings)
+        setFilteredData(sortedBookings)
+
+        return sortedBookings
       }
-      return [];
+
+      return []
     } catch (error) {
-      console.error('Error refreshing booking list:', error);
-      return [];
+      console.error('Error refreshing booking list:', error)
+
+      return []
     }
-  };
+  }
 
   useEffect(() => {
     if (orderData) {
-      setData(orderData)
+      const filteredOrderData = orderData.filter(item => !isSubscription(item))
+
+      setData(filteredOrderData)
+
       // Apply pending filter by default
-      const pendingData = orderData.filter(item =>
-        item?.status?.toString().toLowerCase() === 'pending'
-      )
+      const pendingData = filteredOrderData.filter(item => item?.status?.toString().toLowerCase() === 'pending')
+
       setFilteredData(pendingData)
       setLoading(false)
     }
   }, [orderData])
 
   const fetchData = async () => {
-    if (!vendorId) return;
+    if (!vendorId) return
 
     try {
-      setLoading(true);
-      setError(null);
+      setLoading(true)
+      setError(null)
 
       // First fetch the current bookings
-      const currentBookings = await refreshBookingList();
+      const currentBookings = await refreshBookingList()
 
       // Then check and update pending bookings
-      await checkAndUpdatePendingBookings(currentBookings);
+      await checkAndUpdatePendingBookings(currentBookings)
 
       // Then check and update approved bookings
-      await checkAndUpdateApprovedBookings(currentBookings);
+      await checkAndUpdateApprovedBookings(currentBookings)
 
       // Finally refresh the list to get updated statuses
-      await refreshBookingList();
+      await refreshBookingList()
     } catch (error) {
-      console.error("Error fetching bookings:", error);
-      setError(error.message);
+      console.error('Error fetching bookings:', error)
+      setError(error.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   useEffect(() => {
-    fetchData();
+    fetchData()
 
     // Set up interval to check bookings every minute
     const intervalId = setInterval(() => {
-      fetchData();
-    }, 60000); // Check every minute
+      fetchData()
+    }, 60000) // Check every minute
 
-    return () => clearInterval(intervalId);
-  }, [vendorId]);
+    return () => clearInterval(intervalId)
+  }, [vendorId])
 
   // Filter data when globalFilter or statusFilter changes
   useEffect(() => {
-    const q = (globalFilter || '').toString().toLowerCase().trim();
-    let result = [...data];
+    const q = (globalFilter || '').toString().toLowerCase().trim()
+    let result = [...data].filter(item => !isSubscription(item))
 
     // Apply status filter (case-insensitive comparison)
     if (statusFilter && statusFilter.toLowerCase() !== 'all') {
-      const filterStatus = statusFilter.toLowerCase();
-      result = result.filter(item =>
-        item.status && item.status.toString().toLowerCase() === filterStatus
-      );
+      const filterStatus = statusFilter.toLowerCase()
+
+      result = result.filter(item => item.status && item.status.toString().toLowerCase() === filterStatus)
     }
 
     // Apply search filter if search term exists
     if (q) {
-      const searchFields = ['mobileNumber', 'personName', 'vehicleNumber', 'bookingId'];
+      const searchFields = ['mobileNumber', 'personName', 'vehicleNumber', 'bookingId']
 
       result = result.filter(item => {
         // Search in specified fields (case-insensitive)
-        return searchFields.some(field =>
-          item[field]?.toString().toLowerCase().includes(q)
-        );
-      });
+        return searchFields.some(field => item[field]?.toString().toLowerCase().includes(q))
+      })
     }
 
-    setFilteredData(result);
-  }, [globalFilter, statusFilter, data]);
+    setFilteredData(result)
+  }, [globalFilter, statusFilter, data])
 
   const columns = useMemo(
     () => [
@@ -479,24 +499,18 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'sno',
         header: 'S.No',
-        cell: ({ row }) => (
-          <Typography>{row.index + 1}</Typography>
-        ),
+        cell: ({ row }) => <Typography>{row.index + 1}</Typography>,
         enableSorting: false
       },
       {
         id: 'customer',
         header: 'Customer',
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
-            <CustomAvatar src="/images/avatars/1.png" skin='light' size={34} />
-            <div className="flex flex-col">
-              <Typography className="font-medium">
-                {row.original.personName || 'Unknown'}
-              </Typography>
-              <Typography variant="body2">
-                {row.original.mobileNumber || 'N/A'}
-              </Typography>
+          <div className='flex items-center gap-3'>
+            <CustomAvatar src='/images/avatars/1.png' skin='light' size={34} />
+            <div className='flex flex-col'>
+              <Typography className='font-medium'>{row.original.personName || 'Unknown'}</Typography>
+              <Typography variant='body2'>{row.original.mobileNumber || 'N/A'}</Typography>
             </div>
           </div>
         )
@@ -506,6 +520,7 @@ const OrderListTable = ({ orderData }) => {
         header: 'Vehicle Type',
         cell: ({ row }) => {
           const vehicleType = row.original.vehicleType?.toLowerCase()
+
           const vehicleIcons = {
             car: { icon: 'ri-car-fill', color: '#ff4d49' },
             bike: { icon: 'ri-motorbike-fill', color: '#72e128' },
@@ -548,7 +563,7 @@ const OrderListTable = ({ orderData }) => {
                 gap: 1
               }}
             >
-              <i className="ri-circle-fill" style={{ fontSize: '10px', color: chipData.color }}></i>
+              <i className='ri-circle-fill' style={{ fontSize: '10px', color: chipData.color }}></i>
               {chipData.text}
             </Typography>
           )
@@ -557,166 +572,16 @@ const OrderListTable = ({ orderData }) => {
       {
         id: 'bookingDateTime',
         header: 'Booking Date & Time',
-        accessorFn: (row) => {
-          const dateTime = parseDateTime(row.bookingDate, row.bookingTime);
-          return dateTime ? dateTime.getTime() : 0;
+        accessorFn: row => {
+          const dateTime = parseDateTime(row.bookingDate, row.bookingTime)
+
+          return dateTime ? dateTime.getTime() : 0
         },
         sortingFn: 'basic',
         cell: ({ row }) => {
-          const formatDateDisplay = (dateStr) => {
+          const formatDateDisplay = dateStr => {
             if (!dateStr) return 'N/A'
 
-            try {
-              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
-                return new Date(dateStr).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              }
-              else if (dateStr.includes('-')) {
-                const [day, month, year] = dateStr.split('-')
-                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              }
-
-              return dateStr
-            } catch (e) {
-              console.error("Date parsing error:", e, dateStr)
-              return dateStr
-            }
-          }
-          const formatTimeDisplay = (timeStr) => {
-            if (!timeStr) return 'N/A'
-
-            const raw = String(timeStr).trim()
-            if (/NaN/i.test(raw)) return 'N/A'
-
-            // If already AM/PM, validate structure
-            if (/(AM|PM)/i.test(raw)) {
-              const match = raw.match(/^(\d{1,2}):(\d{1,2})\s*(AM|PM)$/i)
-              if (!match) return 'N/A'
-              const h = Number(match[1])
-              const m = Number(match[2])
-              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
-              const hours12 = ((h - 1) % 12) + 1
-              return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
-            }
-
-            // Handle 24h format HH:mm
-            try {
-              const [hStr, mStr] = raw.split(':')
-              const h = Number(hStr)
-              const m = Number(mStr)
-              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
-              const period = h >= 12 ? 'PM' : 'AM'
-              const hours12 = (h % 12) || 12
-              return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
-            } catch (e) {
-              return 'N/A'
-            }
-          }
-
-          return (
-            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
-              {`${formatDateDisplay(row.original.bookingDate)}, ${formatTimeDisplay(row.original.bookingTime || 'N/A')}`}
-            </Typography>
-          )
-        }
-      },
-      {
-        id: 'parkingEntryDateTime',
-        header: 'Parking Entry Date & Time',
-        accessorFn: (row) => {
-          const dateTime = parseDateTime(row.parkedDate, row.parkedTime);
-          return dateTime ? dateTime.getTime() : 0;
-        },
-        sortingFn: 'basic',
-        cell: ({ row }) => {
-          const formatDateDisplay = (dateStr) => {
-            if (!dateStr) return 'N/A'
-
-            try {
-              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
-                return new Date(dateStr).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              }
-              else if (dateStr.includes('-')) {
-                const [day, month, year] = dateStr.split('-')
-                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              }
-
-              return dateStr
-            } catch (e) {
-              console.error("Date parsing error:", e, dateStr)
-              return dateStr
-            }
-          }
-          const formatTimeDisplay = (timeStr) => {
-            console.log("str", timeStr)
-            if (!timeStr) return 'N/A'
-
-            const raw = String(timeStr).trim()
-            if (/NaN/i.test(raw)) return 'N/A'
-
-            // If already AM/PM, validate structure
-            if (/(AM|PM)/i.test(raw)) {
-              const match = raw.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(AM|PM)$/i)
-              if (!match) return 'N/A'
-              const h = Number(match[1])
-              const m = Number(match[2])
-              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
-              const hours12 = ((h - 1) % 12) + 1
-              return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
-            }
-
-            // Handle 24h format HH:mm[:ss]
-            try {
-              const parts = raw.split(':')
-              const h = Number(parts[0])
-              let m = parts.length > 1 ? Number(parts[1]) : 0
-              if (Number.isNaN(h)) return 'N/A'
-              if (Number.isNaN(m)) m = 0
-              const period = h >= 12 ? 'PM' : 'AM'
-              const hours12 = (h % 12) || 12
-              return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
-            } catch (e) {
-              return 'N/A'
-            }
-          }
-
-          return (
-            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
-              {`${formatDateDisplay(row.original.parkedDate)}, ${formatTimeDisplay(row.original.parkedTime || 'N/A')}`}
-            </Typography>
-          )
-        }
-      },
-
-      {
-        id: 'exitVehicleDateTime',
-        header: 'Parking Exit Date & Time',
-        accessorFn: (row) => {
-          const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime);
-          return dateTime ? dateTime.getTime() : 0;
-        },
-        sortingFn: 'basic',
-        cell: ({ row }) => {
-          const formatDateDisplay = (dateStr) => {
-            console.log("date", dateStr)
-            if (!dateStr) return 'N/A'
             try {
               if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
                 return new Date(dateStr).toLocaleDateString('en-US', {
@@ -726,43 +591,53 @@ const OrderListTable = ({ orderData }) => {
                 })
               } else if (dateStr.includes('-')) {
                 const [day, month, year] = dateStr.split('-')
+
                 return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric'
                 })
               }
+
               return dateStr
             } catch (e) {
-              console.error("Date parsing error:", e, dateStr)
+              console.error('Date parsing error:', e, dateStr)
+
               return dateStr
             }
           }
-          const formatTimeDisplay = (timeStr) => {
+
+          const formatTimeDisplay = timeStr => {
             if (!timeStr) return 'N/A'
 
             const raw = String(timeStr).trim()
 
-            // AM/PM with optional minutes (e.g., '7 AM', '7:NaN AM', '07:05 PM')
-            const ampmMatch = raw.match(/^(\d{1,2})(?::(\d{1,2}|NaN))?\s*(AM|PM)$/i)
-            if (ampmMatch) {
-              let h = Number(ampmMatch[1])
-              let m = Number(ampmMatch[2])
-              if (Number.isNaN(h)) return 'N/A'
-              if (Number.isNaN(m)) m = 0
+            if (/NaN/i.test(raw)) return 'N/A'
+
+            // If already AM/PM, validate structure
+            if (/(AM|PM)/i.test(raw)) {
+              const match = raw.match(/^(\d{1,2}):(\d{1,2})\s*(AM|PM)$/i)
+
+              if (!match) return 'N/A'
+              const h = Number(match[1])
+              const m = Number(match[2])
+
+              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
               const hours12 = ((h - 1) % 12) + 1
-              return `${hours12}:${m.toString().padStart(2, '0')} ${ampmMatch[3].toUpperCase()}`
+
+              return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
             }
 
-            // 24h time HH[:mm[:ss]]
+            // Handle 24h format HH:mm
             try {
-              const parts = raw.split(':')
-              const h = Number(parts[0])
-              let m = parts.length > 1 ? Number(parts[1]) : 0
-              if (Number.isNaN(h)) return 'N/A'
-              if (Number.isNaN(m)) m = 0
+              const [hStr, mStr] = raw.split(':')
+              const h = Number(hStr)
+              const m = Number(mStr)
+
+              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
               const period = h >= 12 ? 'PM' : 'AM'
-              const hours12 = (h % 12) || 12
+              const hours12 = h % 12 || 12
+
               return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
             } catch (e) {
               return 'N/A'
@@ -771,7 +646,176 @@ const OrderListTable = ({ orderData }) => {
 
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
+              {`${formatDateDisplay(row.original.bookingDate)}, ${formatTimeDisplay(row.original.bookingTime || 'N/A')}`}
+            </Typography>
+          )
+        }
+      },
+      {
+        id: 'parkingEntryDateTime',
+        header: 'Parking Entry Date & Time',
+        accessorFn: row => {
+          const dateTime = parseDateTime(row.parkedDate, row.parkedTime)
+
+          return dateTime ? dateTime.getTime() : 0
+        },
+        sortingFn: 'basic',
+        cell: ({ row }) => {
+          const formatDateDisplay = dateStr => {
+            if (!dateStr) return 'N/A'
+
+            try {
+              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+                return new Date(dateStr).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })
+              } else if (dateStr.includes('-')) {
+                const [day, month, year] = dateStr.split('-')
+
+                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })
+              }
+
+              return dateStr
+            } catch (e) {
+              console.error('Date parsing error:', e, dateStr)
+
+              return dateStr
+            }
+          }
+
+          const formatTimeDisplay = timeStr => {
+            console.log('str', timeStr)
+            if (!timeStr) return 'N/A'
+
+            const raw = String(timeStr).trim()
+
+            if (/NaN/i.test(raw)) return 'N/A'
+
+            // If already AM/PM, validate structure
+            if (/(AM|PM)/i.test(raw)) {
+              const match = raw.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(AM|PM)$/i)
+
+              if (!match) return 'N/A'
+              const h = Number(match[1])
+              const m = Number(match[2])
+
+              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
+              const hours12 = ((h - 1) % 12) + 1
+
+              return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
+            }
+
+            // Handle 24h format HH:mm[:ss]
+            try {
+              const parts = raw.split(':')
+              const h = Number(parts[0])
+              let m = parts.length > 1 ? Number(parts[1]) : 0
+
+              if (Number.isNaN(h)) return 'N/A'
+              if (Number.isNaN(m)) m = 0
+              const period = h >= 12 ? 'PM' : 'AM'
+              const hours12 = h % 12 || 12
+
+              return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
+            } catch (e) {
+              return 'N/A'
+            }
+          }
+
+          return (
+            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
+              {`${formatDateDisplay(row.original.parkedDate)}, ${formatTimeDisplay(row.original.parkedTime || 'N/A')}`}
+            </Typography>
+          )
+        }
+      },
+
+      {
+        id: 'exitVehicleDateTime',
+        header: 'Parking Exit Date & Time',
+        accessorFn: row => {
+          const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime)
+
+          return dateTime ? dateTime.getTime() : 0
+        },
+        sortingFn: 'basic',
+        cell: ({ row }) => {
+          const formatDateDisplay = dateStr => {
+            console.log('date', dateStr)
+            if (!dateStr) return 'N/A'
+
+            try {
+              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+                return new Date(dateStr).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })
+              } else if (dateStr.includes('-')) {
+                const [day, month, year] = dateStr.split('-')
+
+                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                })
+              }
+
+              return dateStr
+            } catch (e) {
+              console.error('Date parsing error:', e, dateStr)
+
+              return dateStr
+            }
+          }
+
+          const formatTimeDisplay = timeStr => {
+            if (!timeStr) return 'N/A'
+
+            const raw = String(timeStr).trim()
+
+            // AM/PM with optional minutes (e.g., '7 AM', '7:NaN AM', '07:05 PM')
+            const ampmMatch = raw.match(/^(\d{1,2})(?::(\d{1,2}|NaN))?\s*(AM|PM)$/i)
+
+            if (ampmMatch) {
+              let h = Number(ampmMatch[1])
+              let m = Number(ampmMatch[2])
+
+              if (Number.isNaN(h)) return 'N/A'
+              if (Number.isNaN(m)) m = 0
+              const hours12 = ((h - 1) % 12) + 1
+
+              return `${hours12}:${m.toString().padStart(2, '0')} ${ampmMatch[3].toUpperCase()}`
+            }
+
+            // 24h time HH[:mm[:ss]]
+            try {
+              const parts = raw.split(':')
+              const h = Number(parts[0])
+              let m = parts.length > 1 ? Number(parts[1]) : 0
+
+              if (Number.isNaN(h)) return 'N/A'
+              if (Number.isNaN(m)) m = 0
+              const period = h >= 12 ? 'PM' : 'AM'
+              const hours12 = h % 12 || 12
+
+              return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
+            } catch (e) {
+              return 'N/A'
+            }
+          }
+
+          return (
+            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
               {`${formatDateDisplay(row.original.exitvehicledate)}, ${formatTimeDisplay(row.original.exitvehicletime || 'N/A')}`}
             </Typography>
           )
@@ -794,12 +838,9 @@ const OrderListTable = ({ orderData }) => {
           // Show real-time timer for PARKED status
           if (isParked) {
             return (
-              <div className="flex items-center gap-2">
-                <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                <PayableTimeTimer
-                  parkedDate={row.original.parkedDate}
-                  parkedTime={row.original.parkedTime}
-                />
+              <div className='flex items-center gap-2'>
+                <i className='ri-time-line' style={{ fontSize: '16px', color: '#666CFF' }}></i>
+                <PayableTimeTimer parkedDate={row.original.parkedDate} parkedTime={row.original.parkedTime} />
               </div>
             )
           }
@@ -812,12 +853,12 @@ const OrderListTable = ({ orderData }) => {
         id: 'duration',
         header: 'Duration',
         cell: ({ row }) => {
-          const status = row.original.status?.toUpperCase();
-          const isCompleted = status === 'COMPLETED';
+          const status = row.original.status?.toUpperCase()
+          const isCompleted = status === 'COMPLETED'
 
           if (isCompleted) {
             // Use the hour field if available, otherwise calculate
-            let duration = row.original.hour;
+            let duration = row.original.hour
 
             if (!duration || duration === 'N/A') {
               duration = calculateDuration(
@@ -825,45 +866,39 @@ const OrderListTable = ({ orderData }) => {
                 row.original.parkedTime,
                 row.original.exitvehicledate,
                 row.original.exitvehicletime
-              );
+              )
             }
 
             return (
-              <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>
-                {duration}
-              </Typography>
-            );
+              <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>{duration}</Typography>
+            )
           }
 
-          return <Typography>N/A</Typography>;
+          return <Typography>N/A</Typography>
         }
       },
       {
         id: 'charges',
         header: 'Charges',
-        cell: ({ row }) => (
-          <Typography>₹{row.original.amount || '0'}</Typography>
-        )
+        cell: ({ row }) => <Typography>₹{Number(row.original.amount || 0).toFixed(2)}</Typography>
       },
       {
         id: 'handlingFee',
         header: 'Handling Fee',
-        cell: () => (
-          <Typography>₹0</Typography>
-        )
+        cell: ({ row }) => <Typography>₹{Number(row.original.handlingfee || 0).toFixed(2)}</Typography>
       },
       {
         id: 'gst',
         header: 'GST',
-        cell: () => (
-          <Typography>₹0</Typography>
-        )
+        cell: ({ row }) => <Typography>₹{Number(row.original.gstamout || 0).toFixed(2)}</Typography>
       },
       {
         id: 'total',
         header: 'Total',
         cell: ({ row }) => (
-          <Typography fontWeight={600}>₹{row.original.amount || '0'}</Typography>
+          <Typography fontWeight={600}>
+            ₹{Number(row.original.totalamout || row.original.amount || 0).toFixed(2)}
+          </Typography>
         )
       },
       {
@@ -876,12 +911,16 @@ const OrderListTable = ({ orderData }) => {
           return (
             <Chip
               label={row.original.status || 'N/A'}
-              variant="tonal"
-              size="small"
-              sx={chipData.color.startsWith('#') ? {
-                backgroundColor: chipData.color,
-                color: 'white'
-              } : {}}
+              variant='tonal'
+              size='small'
+              sx={
+                chipData.color.startsWith('#')
+                  ? {
+                      backgroundColor: chipData.color,
+                      color: 'white'
+                    }
+                  : {}
+              }
               color={!chipData.color.startsWith('#') ? chipData.color : undefined}
             />
           )
@@ -902,6 +941,7 @@ const OrderListTable = ({ orderData }) => {
                   menuItemProps: {
                     onClick: () => {
                       const selectedId = row.original._id
+
                       if (selectedId) {
                         router.push(`/pages/bookingdetails/${selectedId}`)
                       }
@@ -932,7 +972,7 @@ const OrderListTable = ({ orderData }) => {
   )
 
   const table = useReactTable({
-    data: filteredData,
+    data: useMemo(() => filteredData.filter(item => !isSubscription(item)), [filteredData]),
     columns,
     state: {
       rowSelection,
@@ -953,9 +993,9 @@ const OrderListTable = ({ orderData }) => {
     getSortedRowModel: getSortedRowModel()
   })
 
-  const handleExport = (type) => {
+  const handleExport = type => {
     // Get the data you want to export (filtered or all)
-    const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
+    const exportData = filteredData.length > 0 || globalFilter ? filteredData : data
 
     // Define fields with human-readable headers
     const fieldsConfig = [
@@ -974,40 +1014,42 @@ const OrderListTable = ({ orderData }) => {
       { key: 'amount', label: 'Charges' },
       { key: 'status', label: 'Status' },
       { key: 'sts', label: 'Service Type' }
-    ];
+    ]
 
     if (type === 'excel') {
       // Convert data to CSV format
       const csvContent = [
         fieldsConfig.map(f => f.label).join(','),
         ...exportData.map(row =>
-          fieldsConfig.map(field => {
-            // Format date/time fields if needed
-            let value = row[field.key];
+          fieldsConfig
+            .map(field => {
+              // Format date/time fields if needed
+              let value = row[field.key]
 
-            // Handle empty values
-            if (value === undefined || value === null) {
-              value = '';
-            }
+              // Handle empty values
+              if (value === undefined || value === null) {
+                value = ''
+              }
 
-            // Escape quotes and wrap in quotes to handle commas
-            return `"${String(value).replace(/"/g, '""')}"`;
-          }).join(',')
+              // Escape quotes and wrap in quotes to handle commas
+              return `"${String(value).replace(/"/g, '""')}"`
+            })
+            .join(',')
         )
-      ].join('\n');
+      ].join('\n')
 
       // Create download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `bookings_export_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
 
+      link.href = url
+      link.setAttribute('download', `bookings_export_${new Date().toISOString().slice(0, 10)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } else if (type === 'pdf') {
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open('', '_blank')
 
       // Build HTML with better formatting
       const html = `
@@ -1040,27 +1082,35 @@ const OrderListTable = ({ orderData }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    ${exportData.map(row => `
+                    ${exportData
+                      .map(
+                        row => `
               <tr>
-                ${fieldsConfig.map(field => {
-        let value = row[field.key];
-        value = value !== undefined && value !== null ? value : '-';
+                ${fieldsConfig
+                  .map(field => {
+                    let value = row[field.key]
 
-        // Special formatting for status
-        if (field.key === 'status') {
-          const statusClass = `status-${String(value).toLowerCase()}`;
-          return `<td class="${statusClass}">${value}</td>`;
-        }
+                    value = value !== undefined && value !== null ? value : '-'
 
-        // Format amounts with ₹ symbol
-        if (field.key === 'amount') {
-          return `<td>₹${value}</td>`;
-        }
+                    // Special formatting for status
+                    if (field.key === 'status') {
+                      const statusClass = `status-${String(value).toLowerCase()}`
 
-        return `<td>${value}</td>`;
-      }).join('')}
+                      return `<td class="${statusClass}">${value}</td>`
+                    }
+
+                    // Format amounts with ₹ symbol
+                    if (field.key === 'amount') {
+                      return `<td>₹${value}</td>`
+                    }
+
+                    return `<td>${value}</td>`
+                  })
+                  .join('')}
               </tr>
-            `).join('')}
+            `
+                      )
+                      .join('')}
                   </tbody>
                 </table>
                 <script>
@@ -1075,13 +1125,13 @@ const OrderListTable = ({ orderData }) => {
                 </script>
               </body>
             </html>
-            `;
+            `
 
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
+      printWindow.document.open()
+      printWindow.document.write(html)
+      printWindow.document.close()
     }
-  };
+  }
 
   return (
     <Card>
@@ -1095,8 +1145,7 @@ const OrderListTable = ({ orderData }) => {
             placeholder='Search Bookings'
             className='sm:is-auto'
           />
-          <div className='flex items-center gap-4 max-sm:is-full'>
-          </div>
+          <div className='flex items-center gap-4 max-sm:is-full'></div>
         </div>
 
         {/* Status Tabs and Action Buttons */}
@@ -1105,16 +1154,16 @@ const OrderListTable = ({ orderData }) => {
             <Tabs
               value={statusFilter}
               onChange={(e, newValue) => setStatusFilter(newValue)}
-              variant="scrollable"
-              scrollButtons="auto"
-              aria-label="booking status tabs"
+              variant='scrollable'
+              scrollButtons='auto'
+              aria-label='booking status tabs'
             >
-              <Tab label="Pending" value="pending" />
-              <Tab label="Approved" value="approved" />
-              <Tab label="Parked" value="parked" />
-              <Tab label="Completed" value="completed" />
-              <Tab label="Cancelled" value="cancelled" />
-              <Tab label="All" value="all" />
+              <Tab label='Pending' value='pending' />
+              <Tab label='Approved' value='approved' />
+              <Tab label='Parked' value='parked' />
+              <Tab label='Completed' value='completed' />
+              <Tab label='Cancelled' value='cancelled' />
+              <Tab label='All' value='all' />
             </Tabs>
           </Box>
 
@@ -1127,11 +1176,7 @@ const OrderListTable = ({ orderData }) => {
             >
               Download
             </Button>
-            <Menu
-              anchorEl={anchorEl}
-              open={open}
-              onClose={handleMenuClose}
-            >
+            <Menu anchorEl={anchorEl} open={open} onClose={handleMenuClose}>
               <MenuItem
                 onClick={() => {
                   handleExport('excel')
@@ -1165,15 +1210,15 @@ const OrderListTable = ({ orderData }) => {
       </CardContent>
       <div className='overflow-x-auto'>
         {loading ? (
-          <div className="flex justify-center items-center p-8">
+          <div className='flex justify-center items-center p-8'>
             <CircularProgress />
           </div>
         ) : error ? (
-          <Alert severity="error" className="m-4">
+          <Alert severity='error' className='m-4'>
             {error}
           </Alert>
         ) : table.getFilteredRowModel().rows.length === 0 ? (
-          <Alert severity="info" className="m-4">
+          <Alert severity='info' className='m-4'>
             {statusFilter.toLowerCase() === 'pending' ? 'No pending bookings found' : 'No bookings found'}
           </Alert>
         ) : (
@@ -1195,12 +1240,12 @@ const OrderListTable = ({ orderData }) => {
                               userSelect: 'none',
                               transition: 'all 0.2s ease'
                             }}
-                            onMouseEnter={(e) => {
+                            onMouseEnter={e => {
                               if (header.column.getCanSort()) {
                                 e.currentTarget.style.backgroundColor = '#f5f5f5'
                               }
                             }}
-                            onMouseLeave={(e) => {
+                            onMouseLeave={e => {
                               e.currentTarget.style.backgroundColor = 'transparent'
                             }}
                           >
@@ -1208,12 +1253,14 @@ const OrderListTable = ({ orderData }) => {
                               {flexRender(header.column.columnDef.header, header.getContext())}
                             </span>
                             {header.column.getCanSort() && (
-                              <span style={{
-                                display: 'inline-flex',
-                                flexDirection: 'column',
-                                marginLeft: '4px',
-                                opacity: header.column.getIsSorted() ? 1 : 0.3
-                              }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  flexDirection: 'column',
+                                  marginLeft: '4px',
+                                  opacity: header.column.getIsSorted() ? 1 : 0.3
+                                }}
+                              >
                                 {!header.column.getIsSorted() && (
                                   <i className='ri-arrow-up-down-line' style={{ fontSize: '18px' }} />
                                 )}
@@ -1255,7 +1302,7 @@ const OrderListTable = ({ orderData }) => {
           </>
         )}
       </div>
-    </Card >
+    </Card>
   )
 }
 

@@ -2,8 +2,10 @@
 
 // React Imports
 import { useState, useEffect, useMemo } from 'react'
+
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
+
 import { useSession } from 'next-auth/react'
 
 // MUI Imports
@@ -55,7 +57,7 @@ export const stsChipColor = {
   instant: { color: '#ff4d49', text: 'Instant' },
   subscription: { color: '#72e128', text: 'Subscription' },
   schedule: { color: '#fdb528', text: 'Schedule' }
-};
+}
 
 export const statusChipColor = {
   completed: { color: 'success' },
@@ -63,20 +65,21 @@ export const statusChipColor = {
   parked: { color: '#666CFF' },
   cancelled: { color: 'error' },
   approved: { color: 'info' }
-};
+}
 
 // IMPROVED FUZZY FILTER
 const fuzzyFilter = (row, columnId, value, addMeta) => {
-  if (!value) return true;
+  if (!value) return true
 
-  const searchValue = value.toLowerCase().trim();
-  const rowData = row.original;
+  const searchValue = value.toLowerCase().trim()
+  const rowData = row.original
 
   // Helper function to normalize values
-  const normalize = (val) => {
-    if (!val) return '';
-    return String(val).toLowerCase().trim();
-  };
+  const normalize = val => {
+    if (!val) return ''
+
+    return String(val).toLowerCase().trim()
+  }
 
   // Search in multiple fields
   const searchableFields = [
@@ -89,9 +92,9 @@ const fuzzyFilter = (row, columnId, value, addMeta) => {
     normalize(rowData.exitvehicletime),
     normalize(rowData.status),
     normalize(rowData.sts)
-  ];
+  ]
 
-  return searchableFields.some(field => field.includes(searchValue));
+  return searchableFields.some(field => field.includes(searchValue))
 }
 
 const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...props }) => {
@@ -118,6 +121,7 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
   useEffect(() => {
     if (!parkedDate || !parkedTime) {
       setElapsedTime('00:00:00')
+
       return
     }
 
@@ -134,6 +138,7 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
     if (isPM || isAM) {
       const [timePart] = timeStr.split(' ')
       const parts = timePart.split(':')
+
       hours = parseInt(parts[0])
       minutes = parseInt(parts[1]) || 0
 
@@ -144,11 +149,14 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
       }
     } else {
       const parts = timeStr.split(':')
+
       hours = parseInt(parts[0])
       minutes = parseInt(parts[1]) || 0
     }
 
-    const parkingStartTime = new Date(`${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`)
+    const parkingStartTime = new Date(
+      `${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
+    )
 
     const timer = setInterval(() => {
       const now = new Date()
@@ -156,6 +164,7 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
 
       if (diffMs < 0) {
         setElapsedTime('00:00:00')
+
         return
       }
 
@@ -164,20 +173,25 @@ const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
       const mins = Math.floor((diffSecs % 3600) / 60)
       const secs = diffSecs % 60
 
-      setElapsedTime(`${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`)
+      setElapsedTime(
+        `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      )
     }, 1000)
 
     return () => clearInterval(timer)
   }, [parkedDate, parkedTime])
 
-  return (
-    <Typography sx={{ fontFamily: 'monospace', fontWeight: 500, color: '#666CFF' }}>
-      {elapsedTime}
-    </Typography>
-  )
+  return <Typography sx={{ fontFamily: 'monospace', fontWeight: 500, color: '#666CFF' }}>{elapsedTime}</Typography>
 }
 
 const columnHelper = createColumnHelper()
+
+const isSubscription = item => {
+  const sts = item.sts?.toString().toLowerCase().trim() || ''
+  const type = item.subsctiptiontype?.toString().toLowerCase().trim() || ''
+
+  return sts === 'subscription' || ['weekly', 'monthly', 'yearly'].includes(type)
+}
 
 const OrderListTable = ({ orderData }) => {
   const [rowSelection, setRowSelection] = useState({})
@@ -192,7 +206,7 @@ const OrderListTable = ({ orderData }) => {
   const [anchorEl, setAnchorEl] = useState(null)
   const open = Boolean(anchorEl)
 
-  const handleMenuClick = (event) => {
+  const handleMenuClick = event => {
     setAnchorEl(event.currentTarget)
   }
 
@@ -202,11 +216,11 @@ const OrderListTable = ({ orderData }) => {
 
   // Function to parse date string to DateTime object
   const parseDateTime = (dateStr, timeStr) => {
-    if (!dateStr || !timeStr) return null;
+    if (!dateStr || !timeStr) return null
 
     try {
       // Parse date (DD-MM-YYYY format)
-      const [day, month, year] = dateStr.split('-');
+      const [day, month, year] = dateStr.split('-')
 
       // Parse time - handle both formats
       const timeStrTrim = timeStr.trim()
@@ -218,6 +232,7 @@ const OrderListTable = ({ orderData }) => {
       if (isPM || isAM) {
         const [timePart] = timeStrTrim.split(' ')
         const parts = timePart.split(':')
+
         hours = parseInt(parts[0])
         minutes = parseInt(parts[1]) || 0
 
@@ -228,54 +243,61 @@ const OrderListTable = ({ orderData }) => {
         }
       } else {
         const parts = timeStrTrim.split(':')
+
         hours = parseInt(parts[0])
         minutes = parseInt(parts[1]) || 0
       }
 
-      return new Date(`${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`);
+      return new Date(
+        `${year}-${month}-${day}T${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`
+      )
     } catch (e) {
-      console.error("Error parsing date/time:", e);
-      return null;
+      console.error('Error parsing date/time:', e)
+
+      return null
     }
-  };
+  }
 
   // Function to calculate duration between two dates
   const calculateDuration = (startDate, startTime, endDate, endTime) => {
-    if (!startDate || !startTime || !endDate || !endTime) return 'N/A';
+    if (!startDate || !startTime || !endDate || !endTime) return 'N/A'
 
     try {
-      const startDateTime = parseDateTime(startDate, startTime);
-      const endDateTime = parseDateTime(endDate, endTime);
+      const startDateTime = parseDateTime(startDate, startTime)
+      const endDateTime = parseDateTime(endDate, endTime)
 
-      if (!startDateTime || !endDateTime) return 'N/A';
+      if (!startDateTime || !endDateTime) return 'N/A'
 
-      const diffMs = endDateTime - startDateTime;
-      if (diffMs < 0) return 'N/A';
+      const diffMs = endDateTime - startDateTime
 
-      const diffSecs = Math.floor(diffMs / 1000);
-      const hours = Math.floor(diffSecs / 3600);
-      const minutes = Math.floor((diffSecs % 3600) / 60);
-      const seconds = diffSecs % 60;
+      if (diffMs < 0) return 'N/A'
 
-      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      const diffSecs = Math.floor(diffMs / 1000)
+      const hours = Math.floor(diffSecs / 3600)
+      const minutes = Math.floor((diffSecs % 3600) / 60)
+      const seconds = diffSecs % 60
+
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
     } catch (e) {
-      console.error("Error calculating duration:", e);
-      return 'N/A';
+      console.error('Error calculating duration:', e)
+
+      return 'N/A'
     }
-  };
+  }
 
   // Function to calculate total amount with GST and handling fee
-  const calculateTotalAmount = (amount) => {
-    if (!amount) return 'N/A';
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum)) return 'N/A';
+  const calculateTotalAmount = amount => {
+    if (!amount) return 'N/A'
+    const amountNum = parseFloat(amount)
 
-    const handlingFee = 5;
-    const gst = amountNum * 0.18;
-    const total = amountNum + handlingFee + gst;
+    if (isNaN(amountNum)) return 'N/A'
 
-    return total.toFixed(2);
-  };
+    const handlingFee = 5
+    const gst = amountNum * 0.18
+    const total = amountNum + handlingFee + gst
+
+    return total.toFixed(2)
+  }
 
   // Function to update booking status to Cancelled
   const updateBookingStatus = async (bookingId, status) => {
@@ -283,148 +305,160 @@ const OrderListTable = ({ orderData }) => {
       const response = await fetch(`${API_URL}/vendor/updatebookingstatus/${bookingId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ status })
-      });
+      })
 
       if (!response.ok) {
-        throw new Error('Failed to update booking status');
+        throw new Error('Failed to update booking status')
       }
 
-      return true;
+      return true
     } catch (error) {
-      console.error('Error updating booking status:', error);
-      return false;
+      console.error('Error updating booking status:', error)
+
+      return false
     }
-  };
+  }
 
   // Function to check and update pending bookings
-  const checkAndUpdatePendingBookings = async (bookings) => {
-    const now = new Date();
+  const checkAndUpdatePendingBookings = async bookings => {
+    const now = new Date()
 
     for (const booking of bookings) {
       try {
         if (booking.status.toLowerCase() !== 'pending') {
-          continue;
+          continue
         }
 
-        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
-        if (!scheduledDateTime) continue;
+        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime)
 
-        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        if (!scheduledDateTime) continue
+
+        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000)
 
         if (now > tenMinutesAfter) {
-          const success = await updateBookingStatus(booking._id, 'Cancelled');
+          const success = await updateBookingStatus(booking._id, 'Cancelled')
+
           if (success) {
-            console.log(`Booking ${booking._id} has been cancelled.`);
+            console.log(`Booking ${booking._id} has been cancelled.`)
           }
         }
       } catch (e) {
-        console.error(`Error processing booking ${booking._id}:`, e);
+        console.error(`Error processing booking ${booking._id}:`, e)
       }
     }
-  };
+  }
 
   // Function to check and update approved bookings
-  const checkAndUpdateApprovedBookings = async (bookings) => {
-    const now = new Date();
+  const checkAndUpdateApprovedBookings = async bookings => {
+    const now = new Date()
 
     for (const booking of bookings) {
       try {
         if (booking.status.toLowerCase() !== 'approved') {
-          continue;
+          continue
         }
 
-        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime);
-        if (!scheduledDateTime) continue;
+        const scheduledDateTime = parseDateTime(booking.bookingDate, booking.bookingTime)
 
-        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000);
+        if (!scheduledDateTime) continue
+
+        const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000)
 
         if (now > tenMinutesAfter) {
-          const success = await updateBookingStatus(booking._id, 'Cancelled');
+          const success = await updateBookingStatus(booking._id, 'Cancelled')
+
           if (success) {
-            console.log(`Booking ${booking._id} has been cancelled.`);
+            console.log(`Booking ${booking._id} has been cancelled.`)
           }
         }
       } catch (e) {
-        console.error(`Error processing booking ${booking._id}:`, e);
+        console.error(`Error processing booking ${booking._id}:`, e)
       }
     }
-  };
+  }
 
   // Function to refresh booking list
   const refreshBookingList = async () => {
     try {
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`);
-      const result = await response.json();
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+      const result = await response.json()
 
       if (result && result.bookings) {
-        const sortedBookings = sortBookingsByDate(result.bookings);
-        setData(sortedBookings);
-        setFilteredData(sortedBookings);
-        return sortedBookings;
+        const filteredBookings = result.bookings.filter(booking => !isSubscription(booking))
+        const sortedBookings = sortBookingsByDate(filteredBookings)
+
+        setData(sortedBookings)
+        setFilteredData(sortedBookings)
+
+        return sortedBookings
       }
-      return [];
+
+      return []
     } catch (error) {
-      console.error('Error refreshing booking list:', error);
-      return [];
+      console.error('Error refreshing booking list:', error)
+
+      return []
     }
-  };
+  }
 
   // Function to sort bookings by date (newest first)
-  const sortBookingsByDate = (bookings) => {
+  const sortBookingsByDate = bookings => {
     return bookings.sort((a, b) => {
-      const dateA = parseDateTime(a.bookingDate, a.bookingTime)?.getTime() || 0;
-      const dateB = parseDateTime(b.bookingDate, b.bookingTime)?.getTime() || 0;
-      return dateB - dateA;
-    });
-  };
+      const dateA = parseDateTime(a.bookingDate, a.bookingTime)?.getTime() || 0
+      const dateB = parseDateTime(b.bookingDate, b.bookingTime)?.getTime() || 0
+
+      return dateB - dateA
+    })
+  }
 
   useEffect(() => {
-    if (!vendorId) return;
+    if (!vendorId) return
 
     const fetchDataAndCheckBookings = async () => {
       try {
-        setLoading(true);
-        const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`);
-        const result = await response.json();
+        setLoading(true)
+        const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+        const result = await response.json()
 
         if (result && result.bookings) {
-          await checkAndUpdatePendingBookings(result.bookings);
-          await checkAndUpdateApprovedBookings(result.bookings);
-          const updatedBookings = await refreshBookingList();
-          setData(updatedBookings);
-          setFilteredData(updatedBookings);
+          await checkAndUpdatePendingBookings(result.bookings)
+          await checkAndUpdateApprovedBookings(result.bookings)
+          const updatedBookings = await refreshBookingList()
+
+          setData(updatedBookings)
+          setFilteredData(updatedBookings)
         } else {
-          setData([]);
-          setFilteredData([]);
+          setData([])
+          setFilteredData([])
         }
       } catch (error) {
-        console.error('Error fetching vendor data:', error);
+        console.error('Error fetching vendor data:', error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchDataAndCheckBookings();
+    fetchDataAndCheckBookings()
 
     const intervalId = setInterval(() => {
-      fetchDataAndCheckBookings();
-    }, 60000);
+      fetchDataAndCheckBookings()
+    }, 60000)
 
-    return () => clearInterval(intervalId);
-  }, [vendorId]);
+    return () => clearInterval(intervalId)
+  }, [vendorId])
 
   useEffect(() => {
     if (data.length > 0) {
-      setFilteredData(data);
+      setFilteredData(data.filter(item => !isSubscription(item)))
     }
-  }, [data]);
+  }, [data])
 
   // FORMAT TIME DISPLAY FUNCTION
-  const formatTimeDisplay = (timeStr) => {
-    if (!timeStr) return 'N/A';
+  const formatTimeDisplay = timeStr => {
+    if (!timeStr) return 'N/A'
 
     try {
       const timeStrTrim = timeStr.trim()
@@ -435,6 +469,7 @@ const OrderListTable = ({ orderData }) => {
         // Already in 12-hour format, just standardize it
         const [timePart, period] = timeStrTrim.split(' ')
         const [hours, minutes] = timePart.split(':')
+
         return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')} ${period.toUpperCase()}`
       }
 
@@ -444,14 +479,16 @@ const OrderListTable = ({ orderData }) => {
       const minutes = parts[1] || '00'
 
       const period = hours >= 12 ? 'PM' : 'AM'
+
       hours = hours % 12 || 12
 
       return `${hours.toString().padStart(2, '0')}:${minutes.padStart(2, '0')} ${period}`
     } catch (e) {
-      console.error("Time formatting error:", e, timeStr);
-      return timeStr;
+      console.error('Time formatting error:', e, timeStr)
+
+      return timeStr
     }
-  };
+  }
 
   const columns = useMemo(
     () => [
@@ -482,13 +519,13 @@ const OrderListTable = ({ orderData }) => {
         id: 'customer',
         header: 'Customer',
         cell: ({ row }) => (
-          <div className="flex items-center gap-3">
+          <div className='flex items-center gap-3'>
             <CustomAvatar skin='light' color='primary'>
               {getInitials(row.original.personName || 'N/A')}
             </CustomAvatar>
-            <div className="flex flex-col">
-              <Typography className="font-medium">{row.original.personName || 'Unknown'}</Typography>
-              <Typography variant="body2">{row.original.mobileNumber || 'N/A'}</Typography>
+            <div className='flex flex-col'>
+              <Typography className='font-medium'>{row.original.personName || 'Unknown'}</Typography>
+              <Typography variant='body2'>{row.original.mobileNumber || 'N/A'}</Typography>
             </div>
           </div>
         )
@@ -497,20 +534,22 @@ const OrderListTable = ({ orderData }) => {
         id: 'vehicleType',
         header: 'Vehicle Type',
         cell: ({ row }) => {
-          const vehicleType = row.original.vehicleType?.toLowerCase();
+          const vehicleType = row.original.vehicleType?.toLowerCase()
+
           const vehicleIcons = {
             car: { icon: 'ri-car-fill', color: '#ff4d49' },
             bike: { icon: 'ri-motorbike-fill', color: '#72e128' },
             default: { icon: 'ri-roadster-fill', color: '#282a42' }
-          };
-          const { icon, color } = vehicleIcons[vehicleType] || vehicleIcons.default;
+          }
+
+          const { icon, color } = vehicleIcons[vehicleType] || vehicleIcons.default
 
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <i className={icon} style={{ fontSize: '16px', color }}></i>
               {row.original.vehicleType || 'N/A'}
             </Typography>
-          );
+          )
         }
       },
       {
@@ -522,17 +561,15 @@ const OrderListTable = ({ orderData }) => {
         id: 'bookType',
         header: 'Booking Type',
         cell: ({ row }) => {
-          const stsKey = row.original.sts?.toLowerCase();
-          const chipData = stsChipColor[stsKey] || { color: 'text.secondary', text: row.original.sts || 'N/A' };
+          const stsKey = row.original.sts?.toLowerCase()
+          const chipData = stsChipColor[stsKey] || { color: 'text.secondary', text: row.original.sts || 'N/A' }
 
           return (
-            <Typography
-              sx={{ color: chipData.color, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}
-            >
-              <i className="ri-circle-fill" style={{ fontSize: '10px', color: chipData.color }}></i>
+            <Typography sx={{ color: chipData.color, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <i className='ri-circle-fill' style={{ fontSize: '10px', color: chipData.color }}></i>
               {chipData.text}
             </Typography>
-          );
+          )
         }
       },
       {
@@ -541,10 +578,10 @@ const OrderListTable = ({ orderData }) => {
         cell: ({ row }) => {
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
               {`${row.original.bookingDate || 'N/A'}, ${formatTimeDisplay(row.original.bookingTime)}`}
             </Typography>
-          );
+          )
         }
       },
       {
@@ -553,10 +590,10 @@ const OrderListTable = ({ orderData }) => {
         cell: ({ row }) => {
           return (
             <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className="ri-calendar-2-line" style={{ fontSize: '16px', color: '#666' }}></i>
+              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
               {`${row.original.parkedDate || 'N/A'}, ${formatTimeDisplay(row.original.parkedTime)}`}
             </Typography>
-          );
+          )
         }
       },
       {
@@ -564,13 +601,15 @@ const OrderListTable = ({ orderData }) => {
         header: 'Parking Exit Date & Time',
         cell: ({ row }) => {
           return (
-            <Typography sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}>
+            <Typography
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}
+            >
               <i
-                className="ri-calendar-2-line"
+                className='ri-calendar-2-line'
                 style={{
                   fontSize: '16px',
                   color: '#666'
@@ -578,41 +617,38 @@ const OrderListTable = ({ orderData }) => {
               />
               {`${row.original.exitvehicledate || 'N/A'}, ${formatTimeDisplay(row.original.exitvehicletime)}`}
             </Typography>
-          );
+          )
         }
       },
       {
         id: 'payableTime',
         header: 'Payable Time',
         cell: ({ row }) => {
-          const status = row.original.status?.toUpperCase();
-          const isParked = status === 'PARKED';
+          const status = row.original.status?.toUpperCase()
+          const isParked = status === 'PARKED'
 
           if (isParked) {
             return (
-              <div className="flex items-center gap-2">
-                <i className="ri-time-line" style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                <PayableTimeTimer
-                  parkedDate={row.original.parkedDate}
-                  parkedTime={row.original.parkedTime}
-                />
+              <div className='flex items-center gap-2'>
+                <i className='ri-time-line' style={{ fontSize: '16px', color: '#666CFF' }}></i>
+                <PayableTimeTimer parkedDate={row.original.parkedDate} parkedTime={row.original.parkedTime} />
               </div>
-            );
+            )
           }
 
-          return <Typography>N/A</Typography>;
+          return <Typography>N/A</Typography>
         }
       },
       {
         id: 'duration',
         header: 'Duration',
         cell: ({ row }) => {
-          const status = row.original.status?.toUpperCase();
-          const isCompleted = status === 'COMPLETED';
+          const status = row.original.status?.toUpperCase()
+          const isCompleted = status === 'COMPLETED'
 
           if (isCompleted) {
             // Use the hour field if available, otherwise calculate
-            let duration = row.original.hour;
+            let duration = row.original.hour
 
             if (!duration || duration === 'N/A') {
               duration = calculateDuration(
@@ -620,17 +656,15 @@ const OrderListTable = ({ orderData }) => {
                 row.original.parkedTime,
                 row.original.exitvehicledate,
                 row.original.exitvehicletime
-              );
+              )
             }
 
             return (
-              <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>
-                {duration}
-              </Typography>
-            );
+              <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>{duration}</Typography>
+            )
           }
 
-          return <Typography>N/A</Typography>;
+          return <Typography>N/A</Typography>
         }
       },
       {
@@ -647,35 +681,37 @@ const OrderListTable = ({ orderData }) => {
         id: 'gst',
         header: 'GST',
         cell: ({ row }) => {
-          const amount = parseFloat(row.original.amount) || 0;
-          const gst = amount * 0.18;
-          return <Typography>₹{gst.toFixed(2)}</Typography>;
+          const amount = parseFloat(row.original.amount) || 0
+          const gst = amount * 0.18
+
+          return <Typography>₹{gst.toFixed(2)}</Typography>
         }
       },
       {
         id: 'total',
         header: 'Total',
         cell: ({ row }) => {
-          const total = calculateTotalAmount(row.original.amount);
-          return <Typography sx={{ fontWeight: 500 }}>₹{total}</Typography>;
+          const total = calculateTotalAmount(row.original.amount)
+
+          return <Typography sx={{ fontWeight: 500 }}>₹{total}</Typography>
         }
       },
       {
         id: 'status',
         header: 'Status',
         cell: ({ row }) => {
-          const statusKey = row.original.status?.toLowerCase();
-          const chipData = statusChipColor[statusKey] || { color: 'default' };
+          const statusKey = row.original.status?.toLowerCase()
+          const chipData = statusChipColor[statusKey] || { color: 'default' }
 
           return (
             <Chip
               label={row.original.status || 'N/A'}
-              variant="tonal"
-              size="small"
+              variant='tonal'
+              size='small'
               sx={chipData.color.startsWith('#') ? { backgroundColor: chipData.color, color: 'white' } : {}}
               color={!chipData.color.startsWith('#') ? chipData.color : undefined}
             />
-          );
+          )
         }
       },
       {
@@ -692,9 +728,10 @@ const OrderListTable = ({ orderData }) => {
                   icon: 'ri-eye-line',
                   menuItemProps: {
                     onClick: () => {
-                      const selectedId = row.original._id;
+                      const selectedId = row.original._id
+
                       if (selectedId) {
-                        router.push(`/pages/bookingdetails/${selectedId}`);
+                        router.push(`/pages/bookingdetails/${selectedId}`)
                       }
                     }
                   }
@@ -707,10 +744,14 @@ const OrderListTable = ({ orderData }) => {
       }
     ],
     [router]
-  );
+  )
 
   const table = useReactTable({
-    data: filteredData.length > 0 || globalFilter ? filteredData : data,
+    data: useMemo(() => {
+      const baseData = filteredData.length > 0 || globalFilter ? filteredData : data
+
+      return baseData.filter(item => !isSubscription(item))
+    }, [filteredData, data, globalFilter]),
     columns,
     filterFns: {
       fuzzy: fuzzyFilter
@@ -735,10 +776,10 @@ const OrderListTable = ({ orderData }) => {
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues()
-  });
+  })
 
-  const handleExport = (type) => {
-    const exportData = filteredData.length > 0 || globalFilter ? filteredData : data;
+  const handleExport = type => {
+    const exportData = filteredData.length > 0 || globalFilter ? filteredData : data
 
     const fieldsConfig = [
       { key: 'vehicleNumber', label: 'Vehicle Number' },
@@ -756,29 +797,25 @@ const OrderListTable = ({ orderData }) => {
       { key: 'status', label: 'Status' },
       { key: 'amount', label: 'Amount' },
       { key: 'hour', label: 'Duration' }
-    ];
+    ]
 
     if (type === 'excel') {
       const csvContent = [
         fieldsConfig.map(f => f.label).join(','),
-        ...exportData.map(row =>
-          fieldsConfig.map(field =>
-            JSON.stringify(row[field.key] ?? '')
-          ).join(',')
-        )
-      ].join('\n');
+        ...exportData.map(row => fieldsConfig.map(field => JSON.stringify(row[field.key] ?? '')).join(','))
+      ].join('\n')
 
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `bookings_${new Date().toISOString().slice(0, 10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
 
+      link.href = url
+      link.setAttribute('download', `bookings_${new Date().toISOString().slice(0, 10)}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     } else if (type === 'pdf') {
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open('', '_blank')
 
       const html = `
         <html>
@@ -807,14 +844,21 @@ const OrderListTable = ({ orderData }) => {
                 </tr>
               </thead>
               <tbody>
-                ${exportData.map(row => `
+                ${exportData
+                  .map(
+                    row => `
                   <tr>
-                    ${fieldsConfig.map(field => {
-                      const value = row[field.key];
-                      return `<td>${value !== undefined && value !== null ? value : '-'}</td>`;
-                    }).join('')}
+                    ${fieldsConfig
+                      .map(field => {
+                        const value = row[field.key]
+
+                        return `<td>${value !== undefined && value !== null ? value : '-'}</td>`
+                      })
+                      .join('')}
                   </tr>
-                `).join('')}
+                `
+                  )
+                  .join('')}
               </tbody>
             </table>
             <script>
@@ -826,15 +870,15 @@ const OrderListTable = ({ orderData }) => {
             </script>
           </body>
         </html>
-      `;
+      `
 
-      printWindow.document.open();
-      printWindow.document.write(html);
-      printWindow.document.close();
+      printWindow.document.open()
+      printWindow.document.write(html)
+      printWindow.document.close()
     }
 
-    handleMenuClose();
-  };
+    handleMenuClose()
+  }
 
   return (
     <Card>
@@ -857,11 +901,7 @@ const OrderListTable = ({ orderData }) => {
           >
             Download
           </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleMenuClose}
-          >
+          <Menu anchorEl={anchorEl} open={open} onClose={handleMenuClose}>
             <MenuItem
               onClick={() => {
                 handleExport('excel')
@@ -894,11 +934,11 @@ const OrderListTable = ({ orderData }) => {
       </CardContent>
       <div className='overflow-x-auto'>
         {loading ? (
-          <div className="flex justify-center items-center p-8">
+          <div className='flex justify-center items-center p-8'>
             <CircularProgress />
           </div>
         ) : table.getFilteredRowModel().rows.length === 0 ? (
-          <Alert severity="info" className="m-4">
+          <Alert severity='info' className='m-4'>
             No bookings found
           </Alert>
         ) : (

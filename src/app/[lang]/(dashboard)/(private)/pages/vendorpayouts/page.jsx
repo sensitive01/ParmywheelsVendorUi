@@ -202,13 +202,9 @@ const VendorPayOuts = () => {
                     message: "No settlement records found for this vendor",
                     severity: "info",
                 });
-            } else {
-                setSnackbar({
-                    open: true,
-                    message: "Failed to fetch transactions. Please try again.",
-                    severity: "error",
-                });
             }
+
+            
         } finally {
             setIsLoading(false);
         }
@@ -304,8 +300,8 @@ const VendorPayOuts = () => {
                     <style>
                         body { font-family: Arial, sans-serif; margin: 20px; }
                         h1 { color: #329a73; text-align: center; }
-                        .summary { 
-                            margin-bottom: 20px; 
+                        .summary {
+                            margin-bottom: 20px;
                             background-color: #f5f5f5;
                             padding: 15px;
                             border-radius: 5px;
@@ -577,7 +573,7 @@ const VendorPayOuts = () => {
                                 sx={{
                                     '.MuiTablePagination-toolbar': {
                                         backgroundColor: '#fafafa',
-                                       
+
                                     }
                                 }}
                             />
