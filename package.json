@@ -3,9 +3,7 @@
   "version": "5.0.0",
   "license": "Commercial",
   "private": true,
-    "engines": {
-    "node": "18.x"
-  },
+
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
