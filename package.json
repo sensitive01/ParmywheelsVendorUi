@@ -94,7 +94,7 @@
     "cross-env": "^10.1.0",
     "dotenv-cli": "7.4.4",
     "eslint": "8.57.1",
-    "eslint-config-next": "15.1.2",
+    "eslint-config-next": "15.1.6",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-import": "2.31.0",
     "globby": "14.0.2",
