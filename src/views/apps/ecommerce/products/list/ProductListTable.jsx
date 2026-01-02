@@ -1,7 +1,7 @@
 'use client'
 
 // React Imports
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -88,7 +88,7 @@ const DebouncedInput = ({ value: initialValue, onChange, debounce = 500, ...prop
     }, debounce)
 
     return () => clearTimeout(timeout)
-  }, [value])
+  }, [value, onChange, debounce])
 
   return <TextField {...props} value={value} onChange={e => setValue(e.target.value)} size='small' />
 }
@@ -191,6 +191,10 @@ const OrderListTable = ({ orderData }) => {
   const handleMenuClose = () => {
     setAnchorEl(null)
   }
+
+  const onSearchChange = useCallback(val => {
+    setGlobalFilter(String(val))
+  }, [])
 
   // Function to parse date string to DateTime object
   const parseDateTime = (dateStr, timeStr) => {
@@ -386,7 +390,8 @@ const OrderListTable = ({ orderData }) => {
         })
 
         setData(sortedBookings)
-        setFilteredData(sortedBookings)
+
+        // setFilteredData(sortedBookings) // Let the useEffect handle filtering based on current state
 
         return sortedBookings
       }
@@ -405,10 +410,10 @@ const OrderListTable = ({ orderData }) => {
 
       setData(filteredOrderData)
 
-      // Apply pending filter by default
-      const pendingData = filteredOrderData.filter(item => item?.status?.toString().toLowerCase() === 'pending')
+      // Apply pending filter by default - handled by useEffect now
+      // const pendingData = filteredOrderData.filter(item => item?.status?.toString().toLowerCase() === 'pending')
 
-      setFilteredData(pendingData)
+      // setFilteredData(pendingData)
       setLoading(false)
     }
   }, [orderData])
@@ -455,8 +460,9 @@ const OrderListTable = ({ orderData }) => {
     const q = (globalFilter || '').toString().toLowerCase().trim()
     let result = [...data].filter(item => !isSubscription(item))
 
-    // Apply status filter (case-insensitive comparison)
-    if (statusFilter && statusFilter.toLowerCase() !== 'all') {
+    // Apply status filter ONLY if there is no search term
+    // This allows global search to find bookings across all statuses
+    if (!q && statusFilter && statusFilter.toLowerCase() !== 'all') {
       const filterStatus = statusFilter.toLowerCase()
 
       result = result.filter(item => item.status && item.status.toString().toLowerCase() === filterStatus)
@@ -464,13 +470,50 @@ const OrderListTable = ({ orderData }) => {
 
     // Apply search filter if search term exists
     if (q) {
-      const searchFields = ['mobileNumber', 'personName', 'vehicleNumber', 'bookingId']
+      // Prepare variations of the search term
+      const queryLower = q.toLowerCase()
+      const queryNoSpaces = queryLower.replace(/\s+/g, '')
+      const queryNoSpecial = queryNoSpaces.replace(/[^a-z0-9]/g, '')
 
       result = result.filter(item => {
-        // Search in specified fields (case-insensitive)
-        return searchFields.some(field => item[field]?.toString().toLowerCase().includes(q))
+        // Collect all potential values to search against
+        const rawValues = [
+          item.personName,
+          item.mobileNumber,
+          item.vehicleNumber,
+          item._id,
+          item.bookingId,
+          item.vehicleType,
+          item.sts,
+          item.status
+        ].filter(Boolean) // Remove null/undefined
+
+        // Add derived values (like displayed vehicle number)
+        if (item.vehicleNumber) {
+          rawValues.push(`#${item.vehicleNumber}`)
+        }
+
+        // Check if any value matches the query conditions
+        return rawValues.some(val => {
+          const valStr = String(val).toLowerCase()
+          const valNoSpaces = valStr.replace(/\s+/g, '')
+          const valNoSpecial = valNoSpaces.replace(/[^a-z0-9]/g, '')
+
+          // 1. Direct substring match
+          if (valStr.includes(queryLower)) return true
+
+          // 2. Space-insensitive match (e.g. "KA 123" vs "KA123")
+          if (queryNoSpaces && valNoSpaces.includes(queryNoSpaces)) return true
+
+          // 3. Special-char insensitive match for alphanumeric search (e.g. "#KA-123" vs "KA123")
+          if (queryNoSpecial.length > 2 && valNoSpecial.includes(queryNoSpecial)) return true
+
+          return false
+        })
       })
     }
+
+    console.log('Filtered result count:', result.length)
 
     setFilteredData(result)
   }, [globalFilter, statusFilter, data])
@@ -976,21 +1019,25 @@ const OrderListTable = ({ orderData }) => {
     columns,
     state: {
       rowSelection,
-      globalFilter,
+
+      // globalFilter, // Don't pass globalFilter to table to prevent internal re-filtering
       sorting
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: setGlobalFilter,
+
+    // onGlobalFilterChange: setGlobalFilter, // Managed manually
     onSortingChange: setSorting,
-    globalFilterFn: fuzzyFilter,
+
+    // globalFilterFn: fuzzyFilter, // Not needed
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
+    getFilteredRowModel: getFilteredRowModel(), // Kept for potential column filters, but won't affect global
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
     getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel()
+    getSortedRowModel: getSortedRowModel(),
+    manualGlobalFilter: true
   })
 
   const handleExport = type => {
@@ -1141,11 +1188,12 @@ const OrderListTable = ({ orderData }) => {
         <div className='flex justify-between max-sm:flex-col sm:items-center gap-4'>
           <DebouncedInput
             value={globalFilter ?? ''}
-            onChange={value => setGlobalFilter(String(value))}
-            placeholder='Search Bookings'
+            onChange={onSearchChange}
+            placeholder='Search by Name, Vehicle, Mobile, or ID'
             className='sm:is-auto'
           />
-          <div className='flex items-center gap-4 max-sm:is-full'></div>
+
+
         </div>
 
         {/* Status Tabs and Action Buttons */}
