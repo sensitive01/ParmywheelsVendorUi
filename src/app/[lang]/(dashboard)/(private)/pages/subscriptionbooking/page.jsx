@@ -896,13 +896,7 @@ const OrderListTable = ({ orderData }) => {
         id: 'statusAction',
         header: 'Change Status',
         cell: ({ row }) => (
-          <div style={{ pointerEvents: 'none', opacity: 0.6 }}>
-            <BookingActionButton
-              bookingId={row.original._id}
-              currentStatus={row.original.status}
-              onUpdate={fetchData}
-            />
-          </div>
+          <BookingActionButton bookingId={row.original._id} currentStatus={row.original.status} onUpdate={fetchData} />
         ),
         enableSorting: false
       }

@@ -45,13 +45,13 @@ const VerticalMenu = ({ dictionary, scrollMenu }) => {
     <ScrollWrapper
       {...(isBreakpointReached
         ? {
-          className: 'bs-full overflow-y-auto overflow-x-hidden',
-          onScroll: container => scrollMenu(container, false)
-        }
+            className: 'bs-full overflow-y-auto overflow-x-hidden',
+            onScroll: container => scrollMenu(container, false)
+          }
         : {
-          options: { wheelPropagation: false, suppressScrollX: true },
-          onScrollY: container => scrollMenu(container, true)
-        })}
+            options: { wheelPropagation: false, suppressScrollX: true },
+            onScrollY: container => scrollMenu(container, true)
+          })}
     >
       {/* Incase you also want to scroll NavHeader to scroll with Vertical Menu, remove NavHeader from above and paste it below this comment */}
       {/* Vertical Menu */}
@@ -72,6 +72,10 @@ const VerticalMenu = ({ dictionary, scrollMenu }) => {
           <MenuItem href={`/${locale}/dashboards/ecommerce`}>{dictionary['navigation'].eCommerce}</MenuItem>
           <MenuItem href={`/${locale}/dashboards/academy`}>{dictionary['navigation'].academy}</MenuItem>
           <MenuItem href={`/${locale}/dashboards/logistics`}>{dictionary['navigation'].logistics}</MenuItem>
+        </SubMenu>
+        <SubMenu label='Vendor Mobile' icon={<i className='ri-smartphone-line' />}>
+          <MenuItem href={`/${locale}/dashboards/vendor/requests`}>Vendor Requests</MenuItem>
+          <MenuItem href={`/${locale}/dashboards/vendor/subscription`}>Vendor Subscriptions</MenuItem>
         </SubMenu>
         <SubMenu label={dictionary['navigation'].frontPages} icon={<i className='ri-file-copy-line' />}>
           <MenuItem href='/front-pages/landing-page' target='_blank'>
@@ -222,8 +226,8 @@ const VerticalMenu = ({ dictionary, scrollMenu }) => {
               </MenuItem>
               <MenuItem href={`/${locale}/pages/auth/verify-email-v2`} target='_blank'>
                 {dictionary['navigation'].verifyEmailV2}
-              </MenuItem>y
-
+              </MenuItem>
+              y
             </SubMenu>
             <SubMenu label={dictionary['navigation'].forgotPassword}>
               <MenuItem href={`/${locale}/pages/auth/forgot-password-v1`} target='_blank'>
@@ -233,7 +237,7 @@ const VerticalMenu = ({ dictionary, scrollMenu }) => {
                 {dictionary['navigation'].forgotPasswordV2}
               </MenuItem>
             </SubMenu>
-            <SubMenu label={"ResetPasswordssssss"}>
+            <SubMenu label={'ResetPasswordssssss'}>
               <MenuItem href={`/${locale}/pages/auth/reset-password-v1`} target='_blank'>
                 {dictionary['navigation'].resetPasswordV1}
               </MenuItem>

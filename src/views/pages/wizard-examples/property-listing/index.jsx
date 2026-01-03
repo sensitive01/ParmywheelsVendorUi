@@ -1,6 +1,8 @@
 'use client'
-import { useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react'
+
+import { useRouter } from 'next/navigation'
+
 import axios from 'axios'
 import { useSession } from 'next-auth/react'
 
@@ -27,7 +29,7 @@ import {
   InputAdornment,
   CircularProgress,
   Switch,
-  FormGroup,
+  FormGroup
 } from '@mui/material'
 import MuiStepper from '@mui/material/Stepper'
 import Card from '@mui/material/Card'
@@ -55,7 +57,6 @@ import StepperWrapper from '@core/styles/stepper'
 import StepperCustomDot from '@components/stepper-dot'
 import DirectionalIcon from '@components/DirectionalIcon'
 import { createBookingNotification, showNotification } from '@/utils/requestNotificationPermission'
-
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(3),
@@ -131,34 +132,34 @@ const StyledSwitch = styled(Switch)(({ theme }) => ({
       '& + .MuiSwitch-track': {
         backgroundColor: '#4caf50',
         opacity: 1,
-        border: 0,
+        border: 0
       },
       '&.Mui-disabled + .MuiSwitch-track': {
-        opacity: 0.5,
-      },
+        opacity: 0.5
+      }
     },
     '&.Mui-focusVisible .MuiSwitch-thumb': {
       color: '#33cf4d',
-      border: '6px solid #fff',
+      border: '6px solid #fff'
     },
     '&.Mui-disabled .MuiSwitch-thumb': {
-      color: theme.palette.mode === 'light' ? theme.palette.grey[100] : theme.palette.grey[600],
+      color: theme.palette.mode === 'light' ? theme.palette.grey[100] : theme.palette.grey[600]
     },
     '&.Mui-disabled + .MuiSwitch-track': {
-      opacity: theme.palette.mode === 'light' ? 0.7 : 0.3,
-    },
+      opacity: theme.palette.mode === 'light' ? 0.7 : 0.3
+    }
   },
   '& .MuiSwitch-thumb': {
     boxSizing: 'border-box',
     width: 30,
     height: 30,
-    backgroundColor: props => props.checked ? '#ff0000' : '#ffffff',
+    backgroundColor: props => (props.checked ? '#ff0000' : '#ffffff'),
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     '& svg': {
       fontSize: '20px',
-      color: props => props.checked ? 'white' : '#757575'
+      color: props => (props.checked ? 'white' : '#757575')
     }
   },
   '& .MuiSwitch-track': {
@@ -166,20 +167,20 @@ const StyledSwitch = styled(Switch)(({ theme }) => ({
     backgroundColor: theme.palette.mode === 'light' ? '#4caf50' : '#39393D',
     opacity: 1,
     transition: theme.transitions.create(['background-color'], {
-      duration: 500,
-    }),
-  },
+      duration: 500
+    })
+  }
 }))
 
 const steps = [
   {
-    title: 'Vehicle Type',
+    title: 'Vehicle Type'
   },
   {
-    title: 'Booking Details',
+    title: 'Booking Details'
   },
   {
-    title: 'Personal Info',
+    title: 'Personal Info'
   }
 ]
 
@@ -208,182 +209,290 @@ export default function ParkingBooking() {
   const [minDate, setMinDate] = useState('')
   const [minTime, setMinTime] = useState('')
   const [minTentativeDateTime, setMinTentativeDateTime] = useState('')
+  const [charges, setCharges] = useState([])
+  const [availableSlots, setAvailableSlots] = useState(null)
   const timerRef = useRef(null)
-  const router = useRouter();
+  const router = useRouter()
 
-  const formatToDDMMYYYY = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
+  const formatToDDMMYYYY = dateString => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    const day = date.getDate().toString().padStart(2, '0')
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const year = date.getFullYear()
 
-  const formatTimeTo12Hour = (time24h) => {
-    if (!time24h) return '';
-    const [hours, minutes] = time24h.split(':');
-    const h = parseInt(hours, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const hour12 = h % 12 || 12;
-    return `${hour12.toString().padStart(2, '0')}:${minutes} ${ampm}`;
-  };
+    return `${day}-${month}-${year}`
+  }
+
+  const formatTimeTo12Hour = time24h => {
+    if (!time24h) return ''
+    const [hours, minutes] = time24h.split(':')
+    const h = parseInt(hours, 10)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour12 = h % 12 || 12
+
+    return `${hour12.toString().padStart(2, '0')}:${minutes} ${ampm}`
+  }
 
   const updateCurrentDateTime = () => {
-    const now = new Date();
-    const dateString = now.toISOString().split('T')[0];
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const timeString = `${hours}:${minutes}`;
+    const now = new Date()
+    const dateString = now.toISOString().split('T')[0]
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    const timeString = `${hours}:${minutes}`
 
-    setParkingDate(dateString);
-    setParkingTime(timeString);
-    setMinDate(dateString);
-    setMinTime(timeString);
+    setParkingDate(dateString)
+    setParkingTime(timeString)
+    setMinDate(dateString)
+    setMinTime(timeString)
 
-    return { dateString, timeString };
-  };
+    return { dateString, timeString }
+  }
 
   useEffect(() => {
     // Clear any existing timer
-    if (timerRef.current) clearInterval(timerRef.current);
+    if (timerRef.current) clearInterval(timerRef.current)
 
     if (sts === 'Instant') {
       // For Instant bookings, keep date/time in sync with now
-      const { dateString, timeString } = updateCurrentDateTime();
-      updateMinTentativeDateTime(dateString, timeString);
+      const { dateString, timeString } = updateCurrentDateTime()
+
+      updateMinTentativeDateTime(dateString, timeString)
       timerRef.current = setInterval(() => {
-        const { dateString: d, timeString: t } = updateCurrentDateTime();
-        updateMinTentativeDateTime(d, t);
-      }, 1000);
+        const { dateString: d, timeString: t } = updateCurrentDateTime()
+
+        updateMinTentativeDateTime(d, t)
+      }, 1000)
     } else {
       // For Schedule/Subscription, set minimums but DO NOT override user selections
-      const now = new Date();
-      const dateString = now.toISOString().split('T')[0];
-      const hours = now.getHours().toString().padStart(2, '0');
-      const minutes = now.getMinutes().toString().padStart(2, '0');
-      setMinDate(dateString);
-      setMinTime('00:00');
-      updateMinTentativeDateTime(parkingDate || dateString, parkingTime || `${hours}:${minutes}`);
+      const now = new Date()
+      const dateString = now.toISOString().split('T')[0]
+      const hours = now.getHours().toString().padStart(2, '0')
+      const minutes = now.getMinutes().toString().padStart(2, '0')
+
+      setMinDate(dateString)
+      setMinTime('00:00')
+      updateMinTentativeDateTime(parkingDate || dateString, parkingTime || `${hours}:${minutes}`)
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [sts]);
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [sts])
 
   useEffect(() => {
-    updateMinTentativeDateTime();
-  }, [parkingDate, parkingTime]);
+    updateMinTentativeDateTime()
+  }, [parkingDate, parkingTime])
 
   useEffect(() => {
-    if (!alert.show) return;
+    if (!alert.show) return
+
     const t = setTimeout(() => {
-      setAlert(prev => ({ ...prev, show: false }));
-    }, 4000);
-    return () => clearTimeout(t);
-  }, [alert.show]);
+      setAlert(prev => ({ ...prev, show: false }))
+    }, 4000)
+
+    return () => clearTimeout(t)
+  }, [alert.show])
 
   useEffect(() => {
-    if (!vendorId || !API_URL) return;
-    (async () => {
+    if (!vendorId || !API_URL) return
+
+    ;(async () => {
       try {
         const res = await axios.get(`${API_URL}/vendor/fetchbusinesshours/${vendorId}`)
-        console.log("res.data", res.data)
+
+        console.log('res.data', res.data)
         const bh = res.data?.businessHours || []
+
         if (bh?.length) {
           setBusinessHours(bh)
+
           return
         }
+
         const res2 = await axios.get(`${API_URL}/vendor/getvendor/${vendorId}`)
         const bh2 = res2.data?.data?.businessHours || []
+
         setBusinessHours(bh2)
       } catch (e) {
         setBusinessHours([])
       }
     })()
-  }, [vendorId, API_URL]);
+  }, [vendorId, API_URL])
+
+  useEffect(() => {
+    if (!vendorId || !API_URL) return
+
+    const fetchVendorDetails = async () => {
+      try {
+        // Fetch Charges
+        console.log('Fetching charges for vendor:', vendorId)
+        const chargesRes = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`)
+
+        if (chargesRes.data?.vendor?.charges) {
+          setCharges(chargesRes.data.vendor.charges)
+          console.log('Charges fetched:', chargesRes.data.vendor.charges)
+        }
+
+        // Fetch Available Slots
+        const slotsRes = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`)
+
+        if (slotsRes.data) {
+          setAvailableSlots(slotsRes.data)
+          console.log('Slots fetched:', slotsRes.data)
+        }
+      } catch (e) {
+        console.error('Error fetching vendor details:', e)
+      }
+    }
+
+    fetchVendorDetails()
+  }, [vendorId, API_URL])
+
+  const getAvailableSlotsForType = type => {
+    if (!availableSlots) return 0
+
+    switch (type) {
+      case 'Car':
+        return availableSlots['Cars'] || 0
+      case 'Bike':
+        return availableSlots['Bikes'] || 0
+      case 'Others':
+        return availableSlots['Others'] || 0
+      default:
+        return 0
+    }
+  }
+
+  const calculateAmount = () => {
+    if (!charges.length) return '0'
+
+    let typeToFind = ''
+
+    if (sts === 'Subscription') {
+      typeToFind = 'Monthly' // Currently React UI only shows Monthly for subscription
+    } else {
+      typeToFind = bookType === 'Hourly' ? 'Hourly' : 'Daily' // Map '24 Hours' to 'Daily' for price lookup if needed, assuming backend/charges use 'Daily'
+    }
+
+    const charge = charges.find(c => c.category === vehicleType && c.type === typeToFind)
+
+    return charge ? charge.amount : '0'
+  }
 
   const updateMinTentativeDateTime = (date = parkingDate, time = parkingTime) => {
-    if (!date || !time) return;
+    if (!date || !time) return
 
-    const dateTimeString = `${date}T${time}`;
-    setMinTentativeDateTime(dateTimeString);
+    const dateTimeString = `${date}T${time}`
+
+    setMinTentativeDateTime(dateTimeString)
 
     if (sts === 'Instant' && tentativeCheckout && tentativeCheckout < dateTimeString) {
-      setTentativeCheckout(dateTimeString);
+      setTentativeCheckout(dateTimeString)
     }
-  };
+  }
 
-  const isClosedOnDate = (isoDate) => {
-    console.log("isoDate", isoDate)
-    if (!isoDate || !businessHours?.length) return false;
-    const d = new Date(isoDate);
-    if (isNaN(d)) return false;
-    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-    const entry = businessHours.find(b => b.day === dayName);
-    return entry ? !!entry.isClosed : false;
-  };
+  const isClosedOnDate = isoDate => {
+    console.log('isoDate', isoDate)
+    if (!isoDate || !businessHours?.length) return false
+    const d = new Date(isoDate)
+
+    if (isNaN(d)) return false
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' })
+    const entry = businessHours.find(b => b.day === dayName)
+
+    return entry ? !!entry.isClosed : false
+  }
 
   const validate = () => {
-    const newErrors = {};
+    const newErrors = {}
 
     switch (activeStep) {
       case 0:
-        if (!vehicleType) newErrors.vehicleType = 'Please select a vehicle type';
-        break;
+        if (!vehicleType) newErrors.vehicleType = 'Please select a vehicle type'
+        break
       case 1:
-        if (!vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required';
-        break;
+        if (!vehicleNumber) newErrors.vehicleNumber = 'Vehicle number is required'
+        break
       case 2:
         if (mobileNumber && !/^\d{10}$/.test(mobileNumber)) {
-          newErrors.mobileNumber = 'Enter a valid 10-digit number';
+          newErrors.mobileNumber = 'Enter a valid 10-digit number'
         }
-        break;
+
+        break
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    setErrors(newErrors)
+
+    return Object.keys(newErrors).length === 0
+  }
 
   const handleNext = () => {
     if (validate()) {
       if (activeStep === steps.length - 1) {
-        handleSubmit();
+        handleSubmit()
       } else {
-        setActiveStep((prev) => prev + 1);
+        setActiveStep(prev => prev + 1)
       }
     }
-  };
+  }
 
   const handleBack = () => {
-    setActiveStep((prev) => prev - 1);
-  };
+    setActiveStep(prev => prev - 1)
+  }
 
   const handleSubmit = async () => {
     if (isClosedOnDate(parkingDate)) {
-      const dayName = new Date(parkingDate).toLocaleDateString('en-US', { weekday: 'long' });
-      setAlert({ show: true, message: `Booking is closed on ${dayName}. Please choose another date.`, type: 'error' });
-      return;
+      const dayName = new Date(parkingDate).toLocaleDateString('en-US', { weekday: 'long' })
+
+      setAlert({ show: true, message: `Booking is closed on ${dayName}. Please choose another date.`, type: 'error' })
+
+      return
     }
-    setLoading(true);
+
+    setLoading(true)
 
     try {
-      const formattedDate = formatToDDMMYYYY(parkingDate);
-      const formattedTime = formatTimeTo12Hour(parkingTime);
-      const formattedBookingDate = formatToDDMMYYYY(new Date().toISOString());
-      const formattedBookingTime = formatTimeTo12Hour(new Date().toTimeString().substring(0, 5));
+      const formattedDate = formatToDDMMYYYY(parkingDate)
+      const formattedTime = formatTimeTo12Hour(parkingTime)
+      const formattedBookingDate = formatToDDMMYYYY(new Date().toISOString())
+      const formattedBookingTime = formatTimeTo12Hour(new Date().toTimeString().substring(0, 5))
 
       // Match Flutter logic: PARKED for Instant and Subscription, PENDING for Schedule
-      const status = (sts === 'Instant' || sts === 'Subscription') ? 'PARKED' : 'PENDING';
+      const status = sts === 'Instant' || sts === 'Subscription' ? 'PARKED' : 'PENDING'
+
+      // Validation: Check Available Slots
+      const slotsAvailable = getAvailableSlotsForType(vehicleType)
+
+      if (slotsAvailable <= 0) {
+        setAlert({
+          show: true,
+          message: `No space available for ${vehicleType}. Please try another vehicle type or check back later.`,
+          type: 'error'
+        })
+        setLoading(false)
+
+        return
+      }
+
+      // Calculate Amount
+      const calculatedAmount = calculateAmount()
+
+      if (calculatedAmount === '0' || !calculatedAmount) {
+        // Optional: warn if price is 0, or just proceed. Flutter proceeds but 0 might be wrong.
+        // keeping it silent but ensuring it's calculated.
+        console.warn('Calculated amount is 0 or not found')
+      }
 
       // Calculate subscription end date if Subscription booking
-      let subscriptionEndDate = '';
+      let subscriptionEndDate = ''
+
       if (sts === 'Subscription') {
-        const startDate = new Date(parkingDate);
-        const endDate = new Date(startDate);
-        endDate.setDate(endDate.getDate() + 30); // Add 30 days
-        subscriptionEndDate = formatToDDMMYYYY(endDate.toISOString()) + ' ' + formatTimeTo12Hour(parkingTime);
+        const startDate = new Date(parkingDate)
+        const endDate = new Date(startDate)
+
+        endDate.setDate(endDate.getDate() + 30) // Add 30 days
+        subscriptionEndDate = formatToDDMMYYYY(endDate.toISOString()) + ' ' + formatTimeTo12Hour(parkingTime)
       }
 
       const payload = {
@@ -398,8 +507,8 @@ export default function ParkingBooking() {
         bookingTime: formattedBookingTime,
 
         // Set approvedDate and approvedTime for Instant and Subscription
-        approvedDate: (sts === 'Instant' || sts === 'Subscription') ? formattedDate : '',
-        approvedTime: (sts === 'Instant' || sts === 'Subscription') ? formattedTime : '',
+        approvedDate: sts === 'Instant' || sts === 'Subscription' ? formattedDate : '',
+        approvedTime: sts === 'Instant' || sts === 'Subscription' ? formattedTime : '',
 
         parkedDate: formattedDate,
         parkedTime: formattedTime,
@@ -407,7 +516,9 @@ export default function ParkingBooking() {
         parkingTime: formattedTime,
 
         tenditivecheckout: tentativeCheckout
-          ? formatToDDMMYYYY(tentativeCheckout.split('T')[0]) + ' ' + formatTimeTo12Hour(tentativeCheckout.split('T')[1])
+          ? formatToDDMMYYYY(tentativeCheckout.split('T')[0]) +
+            ' ' +
+            formatTimeTo12Hour(tentativeCheckout.split('T')[1])
           : '',
 
         subsctiptiontype: sts === 'Subscription' ? subscriptionType : '',
@@ -418,135 +529,157 @@ export default function ParkingBooking() {
         bookType: sts === 'Subscription' ? '' : bookType,
         cancelledStatus: '', // Add this field to match Flutter
         hour: '', // Add this field to match Flutter (you can calculate hours for hourly bookings)
-        amount: '' // You might want to calculate amount based on bookType and vehicleType
-      };
+        amount: calculatedAmount
+      }
 
-      console.log('Booking Payload:', payload); // Debug log
+      console.log('Booking Payload:', payload) // Debug log
 
-      const response = await axios.post(`${API_URL}/vendor/vendorcreatebooking`, payload);
+      const response = await axios.post(`${API_URL}/vendor/vendorcreatebooking`, payload)
 
       showNotification('New Booking Created', {
         body: `${vehicleType} booking for ${vehicleNumber} created successfully`,
         tag: 'new-booking'
-      });
+      })
+
+      // Refresh slots after booking
+      try {
+        const slotsRes = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`)
+
+        if (slotsRes.data) setAvailableSlots(slotsRes.data)
+      } catch (e) {
+        console.error('Error refreshing slots', e)
+      }
 
       createBookingNotification({
         vehicleType,
         vehicleNumber,
         personName,
         status
-      });
+      })
 
       setAlert({
         show: true,
         message: 'Booking created successfully!',
         type: 'success'
-      });
+      })
 
       setTimeout(() => {
-        setActiveStep(0);
-        setVehicleType('Car');
-        setVehicleNumber('');
-        setSts('Instant');
-        setPersonName('');
-        setMobileNumber('');
-        setCarType('');
-        setBookType('Hourly');
-        setIs24Hours(false);
-        setTentativeCheckout('');
-        setSubscriptionType('Monthly');
-        updateCurrentDateTime();
-        router.push('/apps/ecommerce/products/list');
-      }, 1000);
+        setActiveStep(0)
+        setVehicleType('Car')
+        setVehicleNumber('')
+        setSts('Instant')
+        setPersonName('')
+        setMobileNumber('')
+        setCarType('')
+        setBookType('Hourly')
+        setIs24Hours(false)
+        setTentativeCheckout('')
+        setSubscriptionType('Monthly')
+        updateCurrentDateTime()
+        router.push('/apps/ecommerce/products/list')
+      }, 1000)
     } catch (error) {
-      console.error('Booking error:', error); // Add error logging
+      console.error('Booking error:', error) // Add error logging
       setAlert({
         show: true,
         message: error.response?.data?.message || 'Failed to create booking. Please try again.',
         type: 'error'
-      });
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const handleBookTypeChange = (event) => {
-    const checked = event.target.checked;
-    setIs24Hours(checked);
-    setBookType(checked ? '24 Hours' : 'Hourly');
-  };
+  const handleBookTypeChange = event => {
+    const checked = event.target.checked
 
-  const handleVehicleNumberChange = (e) => {
-    setVehicleNumber(e.target.value.toUpperCase());
-  };
+    setIs24Hours(checked)
+    setBookType(checked ? '24 Hours' : 'Hourly')
+  }
 
-  const handleStsChange = (e) => {
-    const value = e.target.value;
-    setSts(value);
+  const handleVehicleNumberChange = e => {
+    setVehicleNumber(e.target.value.toUpperCase())
+  }
+
+  const handleStsChange = e => {
+    const value = e.target.value
+
+    setSts(value)
+
     if (value === 'Instant') {
-      updateCurrentDateTime();
+      updateCurrentDateTime()
     }
+
     if (value === 'Subscription') {
-      setSubscriptionType('Monthly');
+      setSubscriptionType('Monthly')
     }
-  };
+  }
 
-  const handleParkingDateChange = (e) => {
-    const selectedDate = e.target.value;
+  const handleParkingDateChange = e => {
+    const selectedDate = e.target.value
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]
+
     if (selectedDate < today) {
-      setAlert({ show: true, message: 'You cannot select a past date', type: 'error' });
-      setParkingDate('');
-      return;
+      setAlert({ show: true, message: 'You cannot select a past date', type: 'error' })
+      setParkingDate('')
+
+      return
     }
 
     if (isClosedOnDate(selectedDate)) {
-      const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
-      setAlert({ show: true, message: `Booking is closed on ${dayName}. Please choose another date.`, type: 'error' });
-      setParkingDate('');
-      return;
+      const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' })
+
+      setAlert({ show: true, message: `Booking is closed on ${dayName}. Please choose another date.`, type: 'error' })
+      setParkingDate('')
+
+      return
     }
 
-    setParkingDate(selectedDate);
+    setParkingDate(selectedDate)
 
     if (sts === 'Instant') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0]
+
       if (selectedDate === today) {
-        const now = new Date();
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        setMinTime(`${hours}:${minutes}`);
+        const now = new Date()
+        const hours = now.getHours().toString().padStart(2, '0')
+        const minutes = now.getMinutes().toString().padStart(2, '0')
+
+        setMinTime(`${hours}:${minutes}`)
+
         if (parkingTime < `${hours}:${minutes}`) {
-          setParkingTime(`${hours}:${minutes}`);
+          setParkingTime(`${hours}:${minutes}`)
         }
       } else {
-        setMinTime('00:00');
+        setMinTime('00:00')
       }
     }
-  };
+  }
 
-  const handleParkingTimeChange = (e) => {
-    const selectedTime = e.target.value;
+  const handleParkingTimeChange = e => {
+    const selectedTime = e.target.value
 
     if (sts === 'Instant') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split('T')[0]
+
       if (parkingDate === today && selectedTime < minTime) {
         setAlert({
           show: true,
           message: 'You cannot select a past time for instant booking',
           type: 'error'
-        });
-        return;
+        })
+
+        return
       }
     }
 
-    setParkingTime(selectedTime);
-  };
+    setParkingTime(selectedTime)
+  }
 
   const renderVehicleTypeStep = () => (
     <Box>
-      <Typography variant="h6" gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
+      <Typography variant='h6' gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
         Vehicle Type
       </Typography>
       <Grid container spacing={2}>
@@ -554,7 +687,7 @@ export default function ParkingBooking() {
           { value: 'Car', label: 'Car', icon: DirectionsCarFilled },
           { value: 'Bike', label: 'Bikes', icon: TwoWheeler },
           { value: 'Others', label: 'Other', icon: LocalShipping }
-        ].map((option) => (
+        ].map(option => (
           <Grid item xs={12} sm={4} key={option.value}>
             <OptionCard
               selected={vehicleType === option.value}
@@ -562,12 +695,10 @@ export default function ParkingBooking() {
               elevation={vehicleType === option.value ? 2 : 1}
             >
               <IconWrapper>
-                <option.icon color="#ffe32a" />
+                <option.icon color='#ffe32a' />
               </IconWrapper>
-              <Typography variant="subtitle1">{option.label}</Typography>
-              {vehicleType === option.value && (
-                <CheckIcon color="primary" sx={{ ml: 'auto' }} />
-              )}
+              <Typography variant='subtitle1'>{option.label}</Typography>
+              {vehicleType === option.value && <CheckIcon color='primary' sx={{ ml: 'auto' }} />}
             </OptionCard>
           </Grid>
         ))}
@@ -577,7 +708,7 @@ export default function ParkingBooking() {
 
   const renderBookingDetailsStep = () => (
     <Box>
-      <Typography variant="h6" gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
+      <Typography variant='h6' gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
         Booking Details
       </Typography>
       <Grid container spacing={3}>
@@ -587,14 +718,14 @@ export default function ParkingBooking() {
               { value: 'Instant', label: 'Instant', icon: AccessTime },
               { value: 'Schedule', label: 'Schedule', icon: CalendarMonth },
               { value: 'Subscription', label: 'Subscription', icon: AutorenewRounded }
-            ].map((option) => (
+            ].map(option => (
               <FormControlLabel
                 key={option.value}
                 value={option.value}
-                control={<Radio color="primary" />}
+                control={<Radio color='primary' />}
                 label={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <option.icon fontSize="small" />
+                    <option.icon fontSize='small' />
                     {option.label}
                   </Box>
                 }
@@ -606,12 +737,12 @@ export default function ParkingBooking() {
         <Grid item xs={12}>
           <TextField
             fullWidth
-            label="Vehicle Number"
+            label='Vehicle Number'
             value={vehicleNumber}
             onChange={handleVehicleNumberChange}
             error={!!errors.vehicleNumber}
             helperText={errors.vehicleNumber}
-            placeholder="Enter vehicle number"
+            placeholder='Enter vehicle number'
             inputProps={{
               style: { textTransform: 'uppercase' }
             }}
@@ -621,7 +752,7 @@ export default function ParkingBooking() {
         {sts !== 'Subscription' && (
           <Grid item xs={12}>
             <BookingTypeToggle>
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+              <Typography variant='body1' sx={{ fontWeight: 500 }}>
                 Hourly
               </Typography>
               <StyledSwitch
@@ -631,7 +762,7 @@ export default function ParkingBooking() {
                 icon={<WatchLater />}
                 checkedIcon={<WatchLater />}
               />
-              <Typography variant="body1" sx={{ fontWeight: 500 }}>
+              <Typography variant='body1' sx={{ fontWeight: 500 }}>
                 24 hours
               </Typography>
             </BookingTypeToggle>
@@ -644,10 +775,10 @@ export default function ParkingBooking() {
               <InputLabel>Subscription Type</InputLabel>
               <Select
                 value={subscriptionType}
-                onChange={(e) => setSubscriptionType(e.target.value)}
-                label="Subscription Type"
+                onChange={e => setSubscriptionType(e.target.value)}
+                label='Subscription Type'
               >
-                <MenuItem value="Monthly">Monthly</MenuItem>
+                <MenuItem value='Monthly'>Monthly</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -656,18 +787,18 @@ export default function ParkingBooking() {
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
-              label="Car Type"
+              label='Car Type'
               value={carType}
-              onChange={(e) => setCarType(e.target.value)}
-              placeholder="e.g. Sedan, SUV"
+              onChange={e => setCarType(e.target.value)}
+              placeholder='e.g. Sedan, SUV'
             />
           </Grid>
         )}
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Parking Date"
-            type="date"
+            label='Parking Date'
+            type='date'
             value={parkingDate}
             onChange={handleParkingDateChange}
             disabled={sts === 'Instant'}
@@ -682,8 +813,8 @@ export default function ParkingBooking() {
         <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
-            label="Parking Time"
-            type="time"
+            label='Parking Time'
+            type='time'
             value={parkingTime}
             onChange={handleParkingTimeChange}
             disabled={sts === 'Instant'}
@@ -691,17 +822,17 @@ export default function ParkingBooking() {
             helperText={errors.parkingTime}
             InputLabelProps={{ shrink: true }}
             inputProps={{
-              min: (sts === 'Instant' && parkingDate === minDate) ? minTime : undefined
+              min: sts === 'Instant' && parkingDate === minDate ? minTime : undefined
             }}
           />
         </Grid>
         <Grid item xs={12}>
           <TextField
             fullWidth
-            label="Tentative Checkout"
-            type="datetime-local"
+            label='Tentative Checkout'
+            type='datetime-local'
             value={tentativeCheckout}
-            onChange={(e) => setTentativeCheckout(e.target.value)}
+            onChange={e => setTentativeCheckout(e.target.value)}
             error={!!errors.tentativeCheckout}
             helperText={errors.tentativeCheckout}
             InputLabelProps={{ shrink: true }}
@@ -716,45 +847,45 @@ export default function ParkingBooking() {
 
   const renderPersonalInfoStep = () => (
     <Box>
-      <Typography variant="h6" gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
+      <Typography variant='h6' gutterBottom style={{ marginTop: '20px', marginBottom: '20px' }}>
         Personal Information
       </Typography>
       <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
-            label="Full Name"
+            label='Full Name'
             value={personName}
-            onChange={(e) => setPersonName(e.target.value)}
-            placeholder="Enter your full name"
+            onChange={e => setPersonName(e.target.value)}
+            placeholder='Enter your full name'
           />
         </Grid>
         <Grid item xs={12} md={6}>
           <TextField
             fullWidth
-            label="Mobile Number"
+            label='Mobile Number'
             value={mobileNumber}
-            onChange={(e) => {
-              const input = e.target.value;
+            onChange={e => {
+              const input = e.target.value
+
               if (/^\d{0,10}$/.test(input)) {
-                setMobileNumber(input);
+                setMobileNumber(input)
               }
             }}
             error={!!errors.mobileNumber}
             helperText={errors.mobileNumber}
-            placeholder="Enter your mobile number"
+            placeholder='Enter your mobile number'
             InputProps={{
-              startAdornment: <InputAdornment position="start">+91</InputAdornment>,
+              startAdornment: <InputAdornment position='start'>+91</InputAdornment>,
               inputMode: 'numeric'
             }}
           />
         </Grid>
-
       </Grid>
     </Box>
   )
 
-  const getStepContent = (step) => {
+  const getStepContent = step => {
     switch (step) {
       case 0:
         return renderVehicleTypeStep()
@@ -770,7 +901,7 @@ export default function ParkingBooking() {
   return (
     <>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" gutterBottom color="primary" sx={{ fontWeight: 600 }}>
+        <Typography variant='h5' gutterBottom color='primary' sx={{ fontWeight: 600 }}>
           Parking Booking
         </Typography>
       </Box>
@@ -786,9 +917,9 @@ export default function ParkingBooking() {
                     }}
                     StepIconComponent={StepperCustomDot}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <Typography className="step-number">{`0${index + 1}`}</Typography>
-                      <Typography className="step-title">{label.title}</Typography>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Typography className='step-number'>{`0${index + 1}`}</Typography>
+                      <Typography className='step-title'>{label.title}</Typography>
                     </div>
                   </StepLabel>
                 </Step>
@@ -800,11 +931,8 @@ export default function ParkingBooking() {
             <Alert
               severity={alert.type}
               action={
-                <IconButton
-                  size="small"
-                  onClick={() => setAlert({ ...alert, show: false })}
-                >
-                  <CloseIcon fontSize="small" />
+                <IconButton size='small' onClick={() => setAlert({ ...alert, show: false })}>
+                  <CloseIcon fontSize='small' />
                 </IconButton>
               }
               sx={{ mb: 2 }}
@@ -819,17 +947,23 @@ export default function ParkingBooking() {
               <Button
                 disabled={activeStep === 0}
                 onClick={handleBack}
-                variant="outlined"
+                variant='outlined'
                 color='secondary'
                 startIcon={<DirectionalIcon ltrIconClass='ri-arrow-left-line' rtlIconClass='ri-arrow-right-line' />}
               >
                 Back
               </Button>
               <Button
-                variant="contained"
+                variant='contained'
                 onClick={handleNext}
                 type='submit'
-                endIcon={loading ? <CircularProgress size={20} /> : <DirectionalIcon ltrIconClass='ri-arrow-right-line' rtlIconClass='ri-arrow-left-line' />}
+                endIcon={
+                  loading ? (
+                    <CircularProgress size={20} />
+                  ) : (
+                    <DirectionalIcon ltrIconClass='ri-arrow-right-line' rtlIconClass='ri-arrow-left-line' />
+                  )
+                }
                 disabled={loading}
               >
                 {activeStep === steps.length - 1 ? 'Complete Booking' : 'Next'}
@@ -839,5 +973,5 @@ export default function ParkingBooking() {
         </CardContent>
       </Card>
     </>
-  );
+  )
 }

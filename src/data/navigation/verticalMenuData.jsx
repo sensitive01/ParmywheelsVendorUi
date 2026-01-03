@@ -32,6 +32,21 @@ const verticalMenuData = dictionary => [
     ]
   },
   {
+    label: 'Bookings',
+    icon: 'ri-calendar-check-line',
+    children: [
+      {
+        label: 'Vendor Requests',
+        href: '/dashboards/vendor/requests'
+      },
+      {
+        label: 'Vendor Subscriptions',
+        href: '/dashboards/vendor/subscription'
+      }
+    ]
+  },
+
+  {
     label: dictionary['navigation'].frontPages,
     icon: 'ri-file-copy-line',
     children: [

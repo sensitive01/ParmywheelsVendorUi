@@ -9,7 +9,7 @@ const horizontalMenuData = dictionary => [
         label: dictionary['navigation'].crm,
         icon: 'ri-pie-chart-2-line',
         href: '/dashboards/crm'
-      },
+      }
 
       // {
       //   label: dictionary['navigation'].analytics,
@@ -34,7 +34,24 @@ const horizontalMenuData = dictionary => [
     ]
   },
   {
+    label: 'Bookings',
+    icon: 'ri-calendar-check-line',
+    children: [
+      {
+        label: 'Vendor Requests',
+        icon: 'ri-file-list-3-line',
+        href: '/dashboards/vendor/requests'
+      },
+      {
+        label: 'Vendor Subscriptions',
+        icon: 'ri-calendar-2-line',
+        href: '/dashboards/vendor/subscription'
+      }
+    ]
+  },
+  {
     label: dictionary['navigation'].apps,
+
     icon: 'ri-mail-open-line',
     children: [
       {

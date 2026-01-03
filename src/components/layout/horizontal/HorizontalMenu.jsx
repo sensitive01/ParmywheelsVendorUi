@@ -85,9 +85,13 @@ const HorizontalMenu = ({ dictionary }) => {
             <MenuItem href={`/${locale}/pages/userbookings`}>{dictionary['navigation'].UserBookings}</MenuItem>
           </SubMenu>
           <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].vendorpayouts}</MenuItem>
-          <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].Settlements}</MenuItem>
+          {/* <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].Settlements}</MenuItem> */}
         </SubMenu>
-        <SubMenu label={dictionary['navigation'].apps} icon={<i className='ri-shopping-bag-3-line' />}>
+        <SubMenu label='Vendor' icon={<i className='ri-smartphone-line' />}>
+          <MenuItem href={`/${locale}/dashboards/vendor/requests`}>Vendor Requests</MenuItem>
+          <MenuItem href={`/${locale}/dashboards/vendor/subscription`}>Vendor Subscriptions</MenuItem>
+        </SubMenu>
+        <SubMenu label='Parking' icon={<i className='ri-shopping-bag-3-line' />}>
           <MenuItem href={`/${locale}/pages/widget-examples/statistics`}>{dictionary['navigation'].slots}</MenuItem>
           <MenuItem href={`/${locale}/apps/kanban`}>{dictionary['navigation'].Charges}</MenuItem>
           <MenuItem href={`/${locale}/pages/user-profile`}>{dictionary['navigation'].ParkingProfile}</MenuItem>
@@ -97,13 +101,13 @@ const HorizontalMenu = ({ dictionary }) => {
           <MenuItem href={`/${locale}/pages/account-settings`}>{dictionary['navigation'].AccountSettings}</MenuItem>
         </SubMenu>
         <MenuItem href={`/${locale}/pages/helpandsupport`} icon={<i className='ri-calendar-line' />}>
-          {dictionary['navigation'].helpandsupport}
+          Help
         </MenuItem>
         <MenuItem href={`/${locale}/pages/currentplan`} icon={<i className='ri-shopping-bag-3-line' />}>
           {dictionary['navigation'].Plans}
         </MenuItem>
         <MenuItem href={`/${locale}/apps/calendar`} icon={<i className='ri-calendar-line' />}>
-          {dictionary['navigation'].calendar}
+          Advertise
         </MenuItem>
         {/* <SubMenu label={dictionary['navigation'].pages} icon={<i className='ri-file-list-2-line' />}>
           <MenuItem href={`/${locale}/pages/user-profile`} icon={<i className='ri-user-line' />}>
