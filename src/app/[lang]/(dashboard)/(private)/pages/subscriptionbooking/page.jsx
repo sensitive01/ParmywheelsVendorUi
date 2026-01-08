@@ -724,13 +724,7 @@ const OrderListTable = ({ orderData }) => {
         header: 'Duration',
         cell: ({ row }) => {
           const status = row.original.status?.toUpperCase()
-          const isCompleted = status === 'COMPLETED'
           const isParked = status === 'PARKED'
-
-          // If not completed or parked, show N/A
-          if (!isCompleted && !isParked) {
-            return <Typography sx={{ color: 'text.secondary' }}>N/A</Typography>
-          }
 
           // For parked vehicles, show live timer
           if (isParked) {
@@ -742,25 +736,31 @@ const OrderListTable = ({ orderData }) => {
             )
           }
 
-          // For completed bookings, show the stored hour or calculate it
-          const hourField = row.original.hour
+          // For any other status, try to show stored duration first
+          // Prioritize 'hour' as that matches the JSON user provided ("00:03:30")
+          // Also check 'duration' just in case.
+          const durationField = row.original.hour || row.original.duration
 
-          if (hourField && hourField !== '00:00:00' && hourField.trim() !== '') {
-            return (
-              <Typography
-                sx={{
-                  fontWeight: 500,
-                  color: '#72e128',
-                  fontFamily: 'monospace',
-                  fontSize: '0.875rem'
-                }}
-              >
-                {hourField}
-              </Typography>
-            )
+          if (durationField && durationField !== '00:00:00') {
+            const strVal = String(durationField).trim()
+
+            if (strVal !== '' && strVal !== '00:00:00') {
+              return (
+                <Typography
+                  sx={{
+                    fontWeight: 500,
+                    color: '#72e128',
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  {strVal}
+                </Typography>
+              )
+            }
           }
 
-          // Calculate duration if hour field is not available
+          // Fallback to calculation
           const calculated = calculateDuration(
             row.original.parkedDate,
             row.original.parkedTime,
@@ -768,11 +768,15 @@ const OrderListTable = ({ orderData }) => {
             row.original.exitvehicletime
           )
 
+          if (calculated === 'N/A') {
+            return <Typography sx={{ color: 'text.secondary' }}>N/A</Typography>
+          }
+
           return (
             <Typography
               sx={{
                 fontWeight: 500,
-                color: calculated !== 'N/A' ? '#72e128' : 'text.secondary',
+                color: '#72e128',
                 fontFamily: 'monospace',
                 fontSize: '0.875rem'
               }}
@@ -896,7 +900,12 @@ const OrderListTable = ({ orderData }) => {
         id: 'statusAction',
         header: 'Change Status',
         cell: ({ row }) => (
-          <BookingActionButton bookingId={row.original._id} currentStatus={row.original.status} onUpdate={fetchData} />
+          <BookingActionButton
+            bookingId={row.original._id}
+            currentStatus={row.original.status}
+            bookingDetails={row.original}
+            onUpdate={fetchData}
+          />
         ),
         enableSorting: false
       }

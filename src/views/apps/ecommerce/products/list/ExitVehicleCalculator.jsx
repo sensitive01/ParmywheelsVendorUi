@@ -572,8 +572,9 @@ const ExitVehicleCalculator = ({
   }
 
   const handleSubmit = async () => {
-    if (!bookingId || !amount || !hours) {
-      setError('Booking ID, amount and hours are required')
+    // Allow amount to be 0 (e.g. subscription or free parking)
+    if (!bookingId || amount === null || amount === undefined || !hours) {
+      setError('Booking ID and duration are required')
 
       return
     }
@@ -627,7 +628,11 @@ const ExitVehicleCalculator = ({
         body.totalamout = totalWithTaxes
       }
 
-      const response = await fetch(`${API_URL}/vendor/exitvehicle/${bookingId}`, {
+      const endpoint = isSubscription
+        ? `${API_URL}/vendor/exitvendorsubscription/${bookingId}`
+        : `${API_URL}/vendor/exitvehicle/${bookingId}`
+
+      const response = await fetch(endpoint, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -776,49 +781,51 @@ const ExitVehicleCalculator = ({
               )}
             </Grid>
 
-            <Box sx={{ mt: 3, mb: 2 }}>
-              <Grid container spacing={1}>
-                <Grid item xs={6}>
-                  <Typography variant='body2'>Parking Charges:</Typography>
-                </Grid>
-                <Grid item xs={6} sx={{ textAlign: 'right' }}>
-                  <Typography variant='body2'>₹{Math.ceil(amount).toFixed(2)}</Typography>
-                </Grid>
+            {!isSubscription && (
+              <Box sx={{ mt: 3, mb: 2 }}>
+                <Grid container spacing={1}>
+                  <Grid item xs={6}>
+                    <Typography variant='body2'>Parking Charges:</Typography>
+                  </Grid>
+                  <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                    <Typography variant='body2'>₹{Math.ceil(amount).toFixed(2)}</Typography>
+                  </Grid>
 
-                {!isVendorBooking && (
-                  <>
-                    <Grid item xs={6}>
-                      <Typography variant='body2'>Handling Fee:</Typography>
-                    </Grid>
-                    <Grid item xs={6} sx={{ textAlign: 'right' }}>
-                      <Typography variant='body2'>₹{Math.ceil(handlingFee).toFixed(2)}</Typography>
-                    </Grid>
+                  {!isVendorBooking && (
+                    <>
+                      <Grid item xs={6}>
+                        <Typography variant='body2'>Handling Fee:</Typography>
+                      </Grid>
+                      <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                        <Typography variant='body2'>₹{Math.ceil(handlingFee).toFixed(2)}</Typography>
+                      </Grid>
 
-                    <Grid item xs={6}>
-                      <Typography variant='body2'>GST ({gstPercentage}%):</Typography>
-                    </Grid>
-                    <Grid item xs={6} sx={{ textAlign: 'right' }}>
-                      <Typography variant='body2'>₹{gstAmount.toFixed(2)}</Typography>
-                    </Grid>
-                  </>
-                )}
+                      <Grid item xs={6}>
+                        <Typography variant='body2'>GST ({gstPercentage}%):</Typography>
+                      </Grid>
+                      <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                        <Typography variant='body2'>₹{gstAmount.toFixed(2)}</Typography>
+                      </Grid>
+                    </>
+                  )}
 
-                <Grid item xs={12}>
-                  <Divider sx={{ my: 1 }} />
-                </Grid>
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 1 }} />
+                  </Grid>
 
-                <Grid item xs={6}>
-                  <Typography variant='h6' color='primary'>
-                    Payable Amount:
-                  </Typography>
+                  <Grid item xs={6}>
+                    <Typography variant='h6' color='primary'>
+                      Payable Amount:
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6} sx={{ textAlign: 'right' }}>
+                    <Typography variant='h6' fontWeight='bold' color='primary'>
+                      ₹{(!isVendorBooking ? totalWithTaxes : Math.ceil(amount)).toFixed(2)}
+                    </Typography>
+                  </Grid>
                 </Grid>
-                <Grid item xs={6} sx={{ textAlign: 'right' }}>
-                  <Typography variant='h6' fontWeight='bold' color='primary'>
-                    ₹{(!isVendorBooking ? totalWithTaxes : Math.ceil(amount)).toFixed(2)}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Box>
+              </Box>
+            )}
           </>
         )}
       </DialogContent>

@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState } from 'react'
@@ -19,6 +18,7 @@ import {
   Typography
 } from '@mui/material'
 import ExitVehicleCalculator from './ExitVehicleCalculator'
+import RenewSubscriptionDialog from './RenewSubscriptionDialog'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -36,7 +36,12 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     severity: 'success'
   })
 
-  const handleClick = (event) => {
+  // Renewal State
+  const [showRenewDialog, setShowRenewDialog] = useState(false)
+
+  const isSubscription = bookingDetails?.sts?.toLowerCase() === 'subscription'
+
+  const handleClick = event => {
     setAnchorEl(event.currentTarget)
   }
 
@@ -48,9 +53,15 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     setSnackbar(prev => ({ ...prev, open: false }))
   }
 
-  const handleActionClick = (action) => {
-    setActionType(action)
+  const handleActionClick = action => {
     handleClose()
+
+    if (action === 'renew') {
+      setShowRenewDialog(true)
+      return
+    }
+
+    setActionType(action)
     resetFields()
 
     // Initialize with current date and time in required format
@@ -103,7 +114,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.accessToken}`
+          Authorization: `Bearer ${session?.accessToken}`
         }
       }
 
@@ -178,31 +189,63 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
 
   const getAvailableActions = () => {
     const status = currentStatus?.toLowerCase()
+    const actions = []
 
-    switch (status) {
-      case 'pending':
-        return [
+    if (isSubscription) {
+      // Subscription Actions
+      if (status === 'pending') {
+        actions.push(
           { action: 'approve', label: 'Approve Booking', color: 'success' },
           { action: 'cancel', label: 'Cancel Booking', color: 'error' }
-        ]
-      case 'approved':
-        return [
+        )
+      } else if (status === 'approved') {
+        actions.push(
           { action: 'allowParking', label: 'Allow Parking', color: 'info' },
           { action: 'cancelApproved', label: 'Cancel Booking', color: 'error' }
-        ]
-      case 'parked':
-        return [
-          { action: 'exitVehicle', label: 'Exit Vehicle', color: 'warning' }
-        ]
-      default:
-        return []
+        )
+      } else if (status === 'parked') {
+        actions.push(
+          { action: 'exitVehicle', label: 'Exit Subscription', color: 'warning' },
+          { action: 'renew', label: 'Renew Subscription', color: 'primary' }
+        )
+      }
+    } else {
+      // Regular Actions
+      switch (status) {
+        case 'pending':
+          actions.push(
+            { action: 'approve', label: 'Approve Booking', color: 'success' },
+            { action: 'cancel', label: 'Cancel Booking', color: 'error' }
+          )
+          break
+        case 'approved':
+          actions.push(
+            { action: 'allowParking', label: 'Allow Parking', color: 'info' },
+            { action: 'cancelApproved', label: 'Cancel Booking', color: 'error' }
+          )
+          break
+        case 'parked':
+          actions.push({ action: 'exitVehicle', label: 'Exit Vehicle', color: 'warning' })
+          break
+      }
     }
+    return actions
   }
 
-  const handleExitSuccess = (message) => {
+  const handleExitSuccess = message => {
     showSnackbar(message)
     handleDialogClose()
     if (onUpdate) onUpdate()
+  }
+
+  const handleRenewSuccess = message => {
+    showSnackbar(message)
+    setShowRenewDialog(false)
+    if (onUpdate) onUpdate()
+    // Refresh the page after a short delay
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000)
   }
 
   const renderDialogContent = () => {
@@ -223,24 +266,24 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
         return (
           <Stack spacing={3} sx={{ mt: 2 }}>
             <TextField
-              label={actionType === 'approve' ? "Approval Date (DD-MM-YYYY)" : "Parking Date (DD-MM-YYYY)"}
+              label={actionType === 'approve' ? 'Approval Date (DD-MM-YYYY)' : 'Parking Date (DD-MM-YYYY)'}
               value={dateInput}
-              onChange={(e) => setDateInput(e.target.value)}
-              placeholder="DD-MM-YYYY"
+              onChange={e => setDateInput(e.target.value)}
+              placeholder='DD-MM-YYYY'
               fullWidth
               required
               disabled={loading}
             />
             <TextField
-              label={actionType === 'approve' ? "Approval Time (hh:mm AM/PM)" : "Parking Time (hh:mm AM/PM)"}
+              label={actionType === 'approve' ? 'Approval Time (hh:mm AM/PM)' : 'Parking Time (hh:mm AM/PM)'}
               value={timeInput}
-              onChange={(e) => setTimeInput(e.target.value)}
-              placeholder="hh:mm AM/PM"
+              onChange={e => setTimeInput(e.target.value)}
+              placeholder='hh:mm AM/PM'
               fullWidth
               required
               disabled={loading}
             />
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant='caption' color='text.secondary'>
               Format: Date (DD-MM-YYYY) and Time (hh:mm AM/PM)
             </Typography>
           </Stack>
@@ -248,7 +291,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
       case 'cancel':
       case 'cancelApproved':
         return (
-          <Alert severity="warning" sx={{ mt: 2 }}>
+          <Alert severity='warning' sx={{ mt: 2 }}>
             Are you sure you want to cancel this booking? This action cannot be undone.
           </Alert>
         )
@@ -262,10 +305,13 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
   if (actions.length === 0) {
     return (
       <Button
-        variant="outlined"
+        variant='outlined'
         color={
-          currentStatus?.toLowerCase() === 'completed' ? 'success' :
-            currentStatus?.toLowerCase() === 'cancelled' ? 'error' : 'default'
+          currentStatus?.toLowerCase() === 'completed'
+            ? 'success'
+            : currentStatus?.toLowerCase() === 'cancelled'
+              ? 'error'
+              : 'default'
         }
         disabled
       >
@@ -276,26 +322,32 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
 
   return (
     <>
+      <RenewSubscriptionDialog
+        open={showRenewDialog}
+        onClose={() => setShowRenewDialog(false)}
+        bookingId={bookingId}
+        vehicleType={bookingDetails?.vehicleType || 'Car'}
+        vehicleNumber={bookingDetails?.vehicleNumber || 'N/A'}
+        bookingDetails={bookingDetails}
+        userId={bookingDetails?.userid}
+        userName={bookingDetails?.personName}
+        mobileNumber={bookingDetails?.mobileNumber}
+        onSuccess={handleRenewSuccess}
+      />
+
       <Button
-        variant="outlined"
-        color="primary"
+        variant='outlined'
+        color='primary'
         onClick={handleClick}
-        endIcon={<i className="ri-arrow-down-s-line" />}
+        endIcon={<i className='ri-arrow-down-s-line' />}
         disabled={loading}
       >
         {loading ? <CircularProgress size={20} /> : 'Update Status'}
       </Button>
 
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-      >
-        {actions.map((actionItem) => (
-          <MenuItem
-            key={actionItem.action}
-            onClick={() => handleActionClick(actionItem.action)}
-          >
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
+        {actions.map(actionItem => (
+          <MenuItem key={actionItem.action} onClick={() => handleActionClick(actionItem.action)}>
             {actionItem.label}
           </MenuItem>
         ))}
@@ -309,11 +361,11 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
       >
         <DialogTitle>
           {{
-            'approve': 'Approve Booking',
-            'cancel': 'Cancel Booking',
-            'cancelApproved': 'Cancel Approved Booking',
-            'allowParking': 'Allow Parking',
-            'exitVehicle': 'Exit Vehicle'
+            approve: 'Approve Booking',
+            cancel: 'Cancel Booking',
+            cancelApproved: 'Cancel Approved Booking',
+            allowParking: 'Allow Parking',
+            exitVehicle: 'Exit Vehicle'
           }[actionType] || 'Update Booking Status'}
         </DialogTitle>
 
@@ -321,18 +373,18 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
 
         {actionType !== 'exitVehicle' && (
           <DialogActions>
-            <Button
-              onClick={handleDialogClose}
-              disabled={loading}
-            >
+            <Button onClick={handleDialogClose} disabled={loading}>
               Cancel
             </Button>
             <Button
               onClick={handleSubmit}
-              variant="contained"
+              variant='contained'
               color={
-                actionType === 'cancel' || actionType === 'cancelApproved' ? 'error' :
-                  actionType === 'approve' ? 'success' : 'primary'
+                actionType === 'cancel' || actionType === 'cancelApproved'
+                  ? 'error'
+                  : actionType === 'approve'
+                    ? 'success'
+                    : 'primary'
               }
               disabled={loading}
             >
@@ -348,11 +400,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert
-          onClose={handleSnackbarClose}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
           {snackbar.message}
         </Alert>
       </Snackbar>

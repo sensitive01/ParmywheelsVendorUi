@@ -207,8 +207,39 @@ export default function ParkingBooking() {
   const [minDate, setMinDate] = useState('')
   const [minTime, setMinTime] = useState('')
   const [minTentativeDateTime, setMinTentativeDateTime] = useState('')
+  const [vendorName, setVendorName] = useState('')
+  const [availableSlots, setAvailableSlots] = useState(null)
+  const [charges, setCharges] = useState([])
   const timerRef = useRef(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!vendorId) return
+
+      try {
+        const vendorRes = await axios.get(`${API_URL}/vendor/fetch-vendor-data?id=${vendorId}`)
+
+        if (vendorRes.data?.data) {
+          setVendorName(vendorRes.data.data.vendorName)
+        }
+
+        const slotsRes = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`)
+
+        setAvailableSlots(slotsRes.data)
+
+        const chargesRes = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`)
+
+        if (chargesRes.data?.vendor?.charges) {
+          setCharges(chargesRes.data.vendor.charges)
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      }
+    }
+
+    fetchData()
+  }, [vendorId, API_URL])
 
   const formatToDDMMYYYY = dateString => {
     if (!dateString) return ''
@@ -328,80 +359,128 @@ export default function ParkingBooking() {
   }
 
   const handleSubmit = async () => {
+    // Check Slots
+    if (availableSlots) {
+      let available = 0
+
+      if (vehicleType === 'Car') available = availableSlots['Cars'] || 0
+      else if (vehicleType === 'Bike') available = availableSlots['Bikes'] || 0
+      else available = availableSlots['Others'] || 0
+
+      if (available <= 0) {
+        setAlert({
+          show: true,
+          message: `No space available for ${vehicleType}. Please check availability.`,
+          type: 'error'
+        })
+
+        return
+      }
+    }
+
+    // Calculate Amount
+    let amount = '0'
+
+    const monthlyCharge = charges.find(c => c.category === vehicleType && c.type === 'Monthly')
+
+    if (monthlyCharge) {
+      amount = monthlyCharge.amount
+    }
+
     setLoading(true)
 
     try {
       const formattedDate = formatToDDMMYYYY(parkingDate)
       const formattedTime = formatTimeTo12Hour(parkingTime)
-      const formattedBookingDate = formatToDDMMYYYY(new Date().toISOString())
-      const formattedBookingTime = formatTimeTo12Hour(new Date().toTimeString().substring(0, 5))
+
+      const now = new Date()
+
+      // DD-MM-YYYY
+      const dateNow = now.getDate().toString().padStart(2, '0')
+      const monthNow = (now.getMonth() + 1).toString().padStart(2, '0')
+      const yearNow = now.getFullYear()
+      const formattedBookingDate = `${dateNow}-${monthNow}-${yearNow}`
+
+      // hh:mm AM/PM
+      let hours = now.getHours()
+      const minutes = now.getMinutes().toString().padStart(2, '0')
+      const ampm = hours >= 12 ? 'PM' : 'AM'
+
+      hours = hours % 12
+      hours = hours ? hours : 12
+      const formattedBookingTime = `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`
 
       const status = 'PARKED'
       const subscriptionEndDate = calculateSubscriptionEndDate(parkingDate, parkingTime)
 
       const payload = {
-        vendorId,
+        carType: vehicleType === 'Car' ? carType : '',
         personName,
         mobileNumber,
-        vehicleType,
-        carType: vehicleType === 'Car' ? carType : '',
         vehicleNumber,
+        vendorName,
+        sts: 'Subscription',
         bookingDate: formattedBookingDate,
-        bookingTime: formattedBookingTime,
-        parkedDate: formattedDate,
-        parkedTime: formattedTime,
+        vendorId,
+        amount,
+        hour: '',
+        status,
+        vehicleType,
         parkingDate: formattedDate,
         parkingTime: formattedTime,
-        tenditivecheckout: tentativeCheckout
-          ? formatToDDMMYYYY(tentativeCheckout.split('T')[0]) +
-            ' ' +
-            formatTimeTo12Hour(tentativeCheckout.split('T')[1])
-          : '',
+        bookingTime: formattedBookingTime,
+        cancelledStatus: '',
         subsctiptiontype: subscriptionType,
+        approvedDate: formattedDate,
+        approvedTime: formattedTime,
+        parkedDate: formattedDate,
         subsctiptionenddate: subscriptionEndDate,
-        status,
-        sts,
-        bookType: ''
+        parkedTime: formattedTime,
+        bookType: 'Hourly'
       }
 
-      const response = await axios.post(`${API_URL}/vendor/createbooking`, payload)
+      const response = await axios.post(`${API_URL}/vendor/vendorcreatebooking`, payload)
 
-      showNotification('New Booking Created', {
-        body: `${vehicleType} booking for ${vehicleNumber} created successfully`,
-        tag: 'new-booking'
-      })
+      if (response.data && response.data.message === 'Booking created successfully') {
+        showNotification('New Booking Created', {
+          body: `${vehicleType} booking for ${vehicleNumber} created successfully`,
+          tag: 'new-booking'
+        })
 
-      createBookingNotification({
-        vehicleType,
-        vehicleNumber,
-        personName,
-        status
-      })
+        createBookingNotification({
+          vehicleType,
+          vehicleNumber,
+          personName,
+          status
+        })
 
-      setAlert({
-        show: true,
-        message: 'Booking created successfully!',
-        type: 'success'
-      })
+        setAlert({
+          show: true,
+          message: 'Booking created successfully!',
+          type: 'success'
+        })
 
-      setTimeout(() => {
-        setActiveStep(0)
-        setVehicleType('Car')
-        setVehicleNumber('')
-        setSts('Subscription')
-        setPersonName('')
-        setMobileNumber('')
-        setBookType('Hourly')
-        setIs24Hours(false)
-        setTentativeCheckout('')
-        setSubscriptionType('Monthly')
-        updateCurrentDateTime()
-        router.push('/pages/subscriptionbooking')
-      }, 1000)
+        setTimeout(() => {
+          setActiveStep(0)
+          setVehicleType('Car')
+          setVehicleNumber('')
+          setSts('Subscription')
+          setPersonName('')
+          setMobileNumber('')
+          setBookType('Hourly')
+          setIs24Hours(false)
+          setTentativeCheckout('')
+          setSubscriptionType('Monthly')
+          updateCurrentDateTime()
+          router.push('/pages/subscriptionbooking')
+        }, 1000)
+      } else {
+        throw new Error(response.data?.message || 'Failed to create booking')
+      }
     } catch (error) {
       setAlert({
         show: true,
-        message: 'Failed to create booking. Please try again.',
+        message: error.response?.data?.message || error.message || 'Failed to create booking. Please try again.',
         type: 'error'
       })
     } finally {
@@ -645,7 +724,7 @@ export default function ParkingBooking() {
     <>
       <Box sx={{ mb: 4 }}>
         <Typography variant='h5' gutterBottom color='primary' sx={{ fontWeight: 600 }}>
-          Subscription Booking
+          Subscription Bookings
         </Typography>
       </Box>
       <Card>

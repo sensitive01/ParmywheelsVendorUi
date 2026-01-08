@@ -46,6 +46,11 @@ const horizontalMenuData = dictionary => [
         label: 'Vendor Subscriptions',
         icon: 'ri-calendar-2-line',
         href: '/dashboards/vendor/subscription'
+      },
+      {
+        label: 'Transactions',
+        icon: 'ri-bill-line',
+        href: '/pages/transactions'
       }
     ]
   },

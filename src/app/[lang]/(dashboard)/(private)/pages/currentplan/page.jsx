@@ -154,7 +154,6 @@ const SubscriptionPlan = () => {
 
       console.log('Trial API Response:', trialResponse.data)
 
-      console.log(`Fetching plans from: ${API_URL}/admin/getvendorplan`)
       const plansResponse = await axios.get(`${API_URL}/admin/getvendorplan/${vendorId}`)
 
       console.log('Plans API Response:', plansResponse.data)

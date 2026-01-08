@@ -42,6 +42,10 @@ const verticalMenuData = dictionary => [
       {
         label: 'Vendor Subscriptions',
         href: '/dashboards/vendor/subscription'
+      },
+      {
+        label: 'Transactions',
+        href: '/pages/transactions'
       }
     ]
   },
