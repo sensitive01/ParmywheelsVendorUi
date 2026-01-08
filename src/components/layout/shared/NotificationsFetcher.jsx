@@ -18,7 +18,7 @@ const NotificationsFetcher = () => {
     if (!vendorId) return
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchnotification/${vendorId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchnotification-in-web/${vendorId}`, {
         headers: {
           Authorization: `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
@@ -82,14 +82,11 @@ const NotificationsFetcher = () => {
           allNotifs = [...allNotifs, ...helpNotifs]
         }
 
-        // 4. Adv Notifications
         if (Array.isArray(data.advNotifications)) {
-          const advNotifs = data.advNotifications
-            .filter(item => item.isRead === true) // Admin must have read it
-            .map(item => ({
-              id: item._id,
-              read: item.isVendorRead // Vendor read status
-            }))
+          const advNotifs = data.advNotifications.map(item => ({
+            id: item._id,
+            read: item.isVendorRead // Vendor read status
+          }))
 
           allNotifs = [...allNotifs, ...advNotifs]
         }

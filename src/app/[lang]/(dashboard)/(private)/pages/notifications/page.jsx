@@ -45,6 +45,8 @@ export default function NotificationsPage() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
   const [deletingId, setDeletingId] = useState(null)
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [notificationToDelete, setNotificationToDelete] = useState(null)
   const [isDeletingAll, setIsDeletingAll] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -67,7 +69,7 @@ export default function NotificationsPage() {
         throw new Error('Vendor ID not found in session')
       }
 
-      const response = await fetch(`${API_BASE_URL}/vendor/fetchnotification/${vendorId}`, {
+      const response = await fetch(`${API_BASE_URL}/vendor/fetchnotification-in-web/${vendorId}`, {
         headers: {
           Authorization: `Bearer ${session?.accessToken}`,
           'Content-Type': 'application/json'
@@ -149,20 +151,18 @@ export default function NotificationsPage() {
       if (Array.isArray(data.advNotifications)) {
         combined = [
           ...combined,
-          ...data.advNotifications
-            .filter(i => i.isRead)
-            .map(item => ({
-              _id: item._id,
-              title: 'Callback Request Update',
-              message: `Request for ${item.department} has been viewed by Admin.`,
-              time: item.updatedAt || item.createdAt,
+          ...data.advNotifications.map(item => ({
+            _id: item._id,
+            title: 'Callback Request Update',
+            message: `Request for ${item.department} has been viewed by Admin.`,
+            time: item.updatedAt || item.createdAt,
 
-              // Vendor read status needs to be checked. For generic notifications, 'read' is standard.
-              // For adv, we used 'isVendorRead' in fetcher.
-              read: item.isVendorRead,
-              type: 'adv',
-              original: item
-            }))
+            // Vendor read status needs to be checked. For generic notifications, 'read' is standard.
+            // For adv, we used 'isVendorRead' in fetcher.
+            read: item.isVendorRead,
+            type: 'adv',
+            original: item
+          }))
         ]
       }
 
@@ -200,11 +200,20 @@ export default function NotificationsPage() {
     setNotifications(filtered.slice(startIndex, endIndex))
   }, [allNotifications, tabValue, currentPage])
 
-  const handleDelete = async notificationId => {
+  const handleDelete = notificationId => {
+    setNotificationToDelete(notificationId)
+    setShowDeleteDialog(true)
+  }
+
+  const confirmDelete = async () => {
+    const notificationId = notificationToDelete
+
+    if (!notificationId) return
+
     try {
       setDeletingId(notificationId)
 
-      const response = await fetch(`${API_BASE_URL}/vendor/notification/${notificationId}`, {
+      const response = await fetch(`${API_BASE_URL}/vendor/delete-my-notification/${notificationId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${session?.accessToken}`,
@@ -218,6 +227,7 @@ export default function NotificationsPage() {
 
       setAllNotifications(prev => prev.filter(n => n._id !== notificationId))
       setSnackbar({ open: true, message: 'Notification deleted', severity: 'success' })
+      setShowDeleteDialog(false)
     } catch (err) {
       console.error('Error deleting notification:', err)
       setSnackbar({
@@ -227,6 +237,7 @@ export default function NotificationsPage() {
       })
     } finally {
       setDeletingId(null)
+      setNotificationToDelete(null)
     }
   }
 
@@ -671,6 +682,43 @@ export default function NotificationsPage() {
           )}
         </>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteDialog}
+        onClose={() => !deletingId && setShowDeleteDialog(false)}
+        maxWidth='sm'
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant='h6' fontWeight='bold'>
+            Delete Notification
+          </Typography>
+        </DialogTitle>
+        <Divider />
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography>Are you sure you want to delete this notification? This action cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3 }}>
+          <Button onClick={() => setShowDeleteDialog(false)} disabled={!!deletingId} variant='outlined'>
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            color='error'
+            variant='contained'
+            disabled={!!deletingId}
+            startIcon={deletingId ? <CircularProgress size={20} /> : <DeleteIcon />}
+          >
+            {deletingId ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Delete All Dialog */}
       <Dialog
