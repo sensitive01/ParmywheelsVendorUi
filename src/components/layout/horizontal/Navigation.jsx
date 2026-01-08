@@ -60,12 +60,10 @@
 
 // export default Navigation
 
-
-
-
 // Third-party Imports
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+
 import styled from '@emotion/styled'
 import classnames from 'classnames'
 
@@ -83,6 +81,7 @@ import useHorizontalNav from '@menu/hooks/useHorizontalNav'
 import { horizontalLayoutClasses } from '@layouts/utils/layoutClasses'
 import { getLocalizedUrl } from '@/utils/i18n'
 import UserDropdown from '../shared/UserDropdown'
+import NotificationsFetcher from '../shared/NotificationsFetcher'
 
 const StyledDiv = styled.div`
   ${({ isContentCompact, isBreakpointReached }) =>
@@ -130,7 +129,7 @@ const Navigation = ({ dictionary }) => {
           <Link href={getLocalizedUrl('/', locale)} className='flex items-center'>
             <img
               src='/images/cards/login.png'
-              style={{ height: '42px', width: 'auto', marginLeft:'20px' }} 
+              style={{ height: '42px', width: 'auto', marginLeft: '20px' }}
               alt='Logo'
             />
           </Link>
@@ -144,7 +143,12 @@ const Navigation = ({ dictionary }) => {
         })}
       >
         <HorizontalMenu dictionary={dictionary} />
-         {!isBreakpointReached && <UserDropdown />}
+        {!isBreakpointReached && (
+          <div className='flex items-center gap-2'>
+            <NotificationsFetcher />
+            <UserDropdown />
+          </div>
+        )}
       </StyledDiv>
     </div>
   )

@@ -24,8 +24,6 @@
 
 // // Vars
 
-
-
 // const NavbarContent = () => {
 //   // Hooks
 //   const { isBreakpointReached } = useHorizontalNav()
@@ -60,9 +58,6 @@
 
 // export default NavbarContent
 
-
-
-
 'use client'
 
 // Next Imports
@@ -78,7 +73,7 @@ import NavSearch from '@components/layout/shared/search'
 import LanguageDropdown from '@components/layout/shared/LanguageDropdown'
 import ModeDropdown from '@components/layout/shared/ModeDropdown'
 import ShortcutsDropdown from '@components/layout/shared/ShortcutsDropdown'
-// import NotificationsDropdown from '@components/layout/shared/NotificationsDropdown'
+import NotificationsFetcher from '@components/layout/shared/NotificationsFetcher'
 import UserDropdown from '@components/layout/shared/UserDropdown'
 
 // Hook Imports
@@ -102,11 +97,7 @@ const NavbarContent = () => {
         {/* Hide Logo on Smaller screens */}
         {!isBreakpointReached && (
           <Link href={getLocalizedUrl('/', locale)} className='flex items-center'>
-            <img
-              src='/images/cards/login.png'
-              style={{ width: 'auto', height: 'auto', maxWidth: '9%' }}
-              alt='Logo'
-            />
+            <img src='/images/cards/login.png' style={{ width: 'auto', height: 'auto', maxWidth: '9%' }} alt='Logo' />
           </Link>
         )}
       </div>
@@ -116,7 +107,7 @@ const NavbarContent = () => {
         <LanguageDropdown />
         <ModeDropdown />
         <ShortcutsDropdown shortcuts={shortcuts} /> */}
-        {/* <NotificationsDropdown notifications={notifications} /> */}
+        <NotificationsFetcher />
         <UserDropdown />
         {/* Language Dropdown, Notification Dropdown, quick access menu dropdown, user dropdown will be placed here */}
       </div>

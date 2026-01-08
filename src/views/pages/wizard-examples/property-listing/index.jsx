@@ -296,7 +296,6 @@ export default function ParkingBooking() {
 
   useEffect(() => {
     if (!vendorId || !API_URL) return
-
     ;(async () => {
       try {
         const res = await axios.get(`${API_URL}/vendor/fetchbusinesshours/${vendorId}`)
@@ -458,8 +457,8 @@ export default function ParkingBooking() {
       const formattedBookingDate = formatToDDMMYYYY(new Date().toISOString())
       const formattedBookingTime = formatTimeTo12Hour(new Date().toTimeString().substring(0, 5))
 
-      // Match Flutter logic: PARKED for Instant and Subscription, PENDING for Schedule
-      const status = sts === 'Instant' || sts === 'Subscription' ? 'PARKED' : 'PENDING'
+      // Updated: All vendor bookings are treated as PARKED immediately
+      const status = 'PARKED'
 
       // Validation: Check Available Slots
       const slotsAvailable = getAvailableSlotsForType(vehicleType)
@@ -506,9 +505,9 @@ export default function ParkingBooking() {
         bookingDate: formattedBookingDate,
         bookingTime: formattedBookingTime,
 
-        // Set approvedDate and approvedTime for Instant and Subscription
-        approvedDate: sts === 'Instant' || sts === 'Subscription' ? formattedDate : '',
-        approvedTime: sts === 'Instant' || sts === 'Subscription' ? formattedTime : '',
+        // Set approvedDate and approvedTime for all vendor bookings
+        approvedDate: formattedDate,
+        approvedTime: formattedTime,
 
         parkedDate: formattedDate,
         parkedTime: formattedTime,

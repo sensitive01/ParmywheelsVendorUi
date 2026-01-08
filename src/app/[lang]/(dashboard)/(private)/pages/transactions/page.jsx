@@ -176,7 +176,7 @@ const TransactionsPage = () => {
       platformFee: sum('releasefee'),
       receivable: sum('recievableamount'),
       gst: sum('gstamout'),
-      vendorTotal: sum('recievableamount') // Matching Flutter logic where vendor total card shows receivable
+      vendorTotal: sum('amount') // Corrected: Vendor Total should be sum of amounts collected (amount), not just receivable.
     }
   }
 

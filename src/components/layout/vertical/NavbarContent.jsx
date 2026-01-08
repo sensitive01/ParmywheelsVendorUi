@@ -7,7 +7,7 @@ import NavSearch from '@components/layout/shared/search'
 import LanguageDropdown from '@components/layout/shared/LanguageDropdown'
 import ModeDropdown from '@components/layout/shared/ModeDropdown'
 import ShortcutsDropdown from '@components/layout/shared/ShortcutsDropdown'
-import NotificationsDropdown from '@components/layout/shared/NotificationsDropdown'
+import NotificationsFetcher from '@components/layout/shared/NotificationsFetcher'
 import UserDropdown from '@components/layout/shared/UserDropdown'
 
 // Util Imports
@@ -111,7 +111,7 @@ const NavbarContent = () => {
         {/* <LanguageDropdown /> */}
         {/* <ModeDropdown /> */}
         {/* <ShortcutsDropdown shortcuts={shortcuts} /> */}
-        <NotificationsDropdown notifications={notifications} />
+        <NotificationsFetcher />
         <UserDropdown />
       </div>
     </div>
