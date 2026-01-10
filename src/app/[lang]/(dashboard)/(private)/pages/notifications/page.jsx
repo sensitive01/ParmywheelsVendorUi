@@ -129,21 +129,28 @@ export default function NotificationsPage() {
         ]
       }
 
-      // 3. Help
+      // 3. Help (UPDATED LOGIC HERE)
       if (Array.isArray(data.helpAndSupports)) {
         combined = [
           ...combined,
-          ...data.helpAndSupports
-            .filter(i => i.status !== 'Pending')
-            .map(item => ({
+          ...data.helpAndSupports.map(item => {
+            // Get the last message to display what the admin said
+            const lastMessage = item.chatbox && item.chatbox.length > 0 ? item.chatbox[item.chatbox.length - 1] : null
+
+            return {
               _id: item._id,
-              title: 'Support Ticket Update',
-              message: `Ticket "${item.description}" is ${item.status}`,
+              title: 'Support Ticket Reply',
+              message: lastMessage
+                ? `Admin: ${lastMessage.message || 'Sent an image'}`
+                : `Ticket "${item.description}" updated`,
               time: item.updatedAt,
-              read: item.isRead,
+
+              // Use isVendorRead to control the read status (Red Border)
+              read: item.isVendorRead,
               type: 'help',
               original: item
-            }))
+            }
+          })
         ]
       }
 
@@ -228,6 +235,9 @@ export default function NotificationsPage() {
       setAllNotifications(prev => prev.filter(n => n._id !== notificationId))
       setSnackbar({ open: true, message: 'Notification deleted', severity: 'success' })
       setShowDeleteDialog(false)
+
+      // Notify header to refresh
+      window.dispatchEvent(new CustomEvent('notification-update'))
     } catch (err) {
       console.error('Error deleting notification:', err)
       setSnackbar({
@@ -273,6 +283,9 @@ export default function NotificationsPage() {
       setAllNotifications([])
       setSnackbar({ open: true, message: 'All notifications cleared', severity: 'success' })
       setShowDeleteAllDialog(false)
+
+      // Notify header to refresh
+      window.dispatchEvent(new CustomEvent('notification-update'))
     } catch (err) {
       console.error('Error clearing notifications:', err)
       setSnackbar({

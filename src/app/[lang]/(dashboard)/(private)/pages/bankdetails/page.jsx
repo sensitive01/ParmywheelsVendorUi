@@ -485,7 +485,7 @@ const BankDetails = () => {
             disabled={loading}
             startIcon={loading ? <CircularProgress size={20} /> : null}
           >
-            {loading ? 'Saving...' : 'Save Bank Details'}
+            {loading ? 'Saving...' : 'Save and submit for approval'}
           </Button>
         </form>
       </Paper>

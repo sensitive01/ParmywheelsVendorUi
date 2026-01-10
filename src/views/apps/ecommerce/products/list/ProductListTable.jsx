@@ -174,6 +174,7 @@ const OrderListTable = ({ orderData }) => {
   const [loading, setLoading] = useState(true)
   const [globalFilter, setGlobalFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('pending')
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('user')
   const [filteredData, setFilteredData] = useState(data)
   const [error, setError] = useState(null)
   const [sorting, setSorting] = useState([])
@@ -458,7 +459,20 @@ const OrderListTable = ({ orderData }) => {
   // Filter data when globalFilter or statusFilter changes
   useEffect(() => {
     const q = (globalFilter || '').toString().toLowerCase().trim()
-    let result = [...data].filter(item => !isSubscription(item))
+
+    // 1. Filter by Subscription (exclude them)
+    // 2. Filter by Booking Type (User vs Vendor) using userid logic
+    let result = [...data].filter(item => {
+      if (isSubscription(item)) return false
+
+      if (bookingTypeFilter === 'user') {
+        // User bookings: userid exists AND IS NOT same as vendorId
+        return item.userid && String(item.userid) !== String(vendorId)
+      } else {
+        // Vendor bookings: userid missing OR userid IS same as vendorId
+        return !item.userid || String(item.userid) === String(vendorId)
+      }
+    })
 
     // Apply status filter ONLY if there is no search term
     // This allows global search to find bookings across all statuses
@@ -516,7 +530,7 @@ const OrderListTable = ({ orderData }) => {
     console.log('Filtered result count:', result.length)
 
     setFilteredData(result)
-  }, [globalFilter, statusFilter, data])
+  }, [globalFilter, statusFilter, data, bookingTypeFilter, vendorId])
 
   const columns = useMemo(
     () => [
@@ -920,30 +934,85 @@ const OrderListTable = ({ orderData }) => {
           return <Typography>N/A</Typography>
         }
       },
-      {
-        id: 'charges',
-        header: 'Charges',
-        cell: ({ row }) => <Typography>₹{Number(row.original.amount || 0).toFixed(2)}</Typography>
-      },
-      {
-        id: 'handlingFee',
-        header: 'Handling Fee',
-        cell: ({ row }) => <Typography>₹{Number(row.original.handlingfee || 0).toFixed(2)}</Typography>
-      },
-      {
-        id: 'gst',
-        header: 'GST',
-        cell: ({ row }) => <Typography>₹{Number(row.original.gstamout || 0).toFixed(2)}</Typography>
-      },
-      {
-        id: 'total',
-        header: 'Total',
-        cell: ({ row }) => (
-          <Typography fontWeight={600}>
-            ₹{Number(row.original.totalamout || row.original.amount || 0).toFixed(2)}
-          </Typography>
-        )
-      },
+      ...((bookingTypeFilter === 'user'
+        ? [
+            {
+              id: 'charges',
+              header: 'Charges',
+              cell: ({ row }) => <Typography>₹{Number(row.original.amount || 0).toFixed(2)}</Typography>
+            },
+            {
+              id: 'handlingFee',
+              header: 'Handling Fee',
+              cell: ({ row }) => <Typography>₹{Number(row.original.handlingfee || 0).toFixed(2)}</Typography>
+            },
+            {
+              id: 'gst',
+              header: 'GST',
+              cell: ({ row }) => <Typography>₹{Number(row.original.gstamout || 0).toFixed(2)}</Typography>
+            },
+            {
+              id: 'platformFee',
+              header: 'Platform Fee',
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#ff4d49', fontWeight: 500 }}>
+                  - ₹{Number(row.original.releasefee || 0).toFixed(2)}
+                </Typography>
+              )
+            },
+            {
+              id: 'receivableAmount',
+              header: 'Receivable',
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#72e128', fontWeight: 500 }}>
+                  ₹{Number(row.original.recievableamount || 0).toFixed(2)}
+                </Typography>
+              )
+            },
+            {
+              id: 'total',
+              header: 'Total',
+              cell: ({ row }) => (
+                <Typography fontWeight={600}>
+                  ₹{Number(row.original.totalamout || row.original.amount || 0).toFixed(2)}
+                </Typography>
+              )
+            }
+          ]
+        : [
+            {
+              id: 'charges',
+              header: 'Charges',
+              cell: ({ row }) => <Typography>₹{Number(row.original.amount || 0).toFixed(2)}</Typography>
+            },
+            {
+              id: 'platformFee',
+              header: 'Platform Fee',
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#ff4d49', fontWeight: 500 }}>
+                  - ₹{Number(row.original.releasefee || 0).toFixed(2)}
+                </Typography>
+              )
+            },
+            {
+              id: 'receivableAmount',
+              header: 'Receivable',
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#72e128', fontWeight: 500 }}>
+                  ₹{Number(row.original.recievableamount || 0).toFixed(2)}
+                </Typography>
+              )
+            },
+            {
+              id: 'total',
+              header: 'Total',
+              cell: ({ row }) => (
+                <Typography fontWeight={600}>
+                  ₹{Number(row.original.totalamout || row.original.amount || 0).toFixed(2)}
+                </Typography>
+              )
+            }
+          ]) || []),
       {
         id: 'status',
         header: 'Status',
@@ -1011,7 +1080,7 @@ const OrderListTable = ({ orderData }) => {
         enableSorting: false
       }
     ],
-    [router]
+    [router, bookingTypeFilter]
   )
 
   const table = useReactTable({
@@ -1044,24 +1113,50 @@ const OrderListTable = ({ orderData }) => {
     // Get the data you want to export (filtered or all)
     const exportData = filteredData.length > 0 || globalFilter ? filteredData : data
 
-    // Define fields with human-readable headers
-    const fieldsConfig = [
-      { key: 'vehicleNumber', label: 'Vehicle Number' },
-      { key: 'personName', label: 'Customer Name' },
-      { key: 'mobileNumber', label: 'Mobile Number' },
-      { key: 'vehicleType', label: 'Vehicle Type' },
-      { key: 'bookType', label: 'Booking Type' },
-      { key: 'bookingDate', label: 'Booking Date' },
-      { key: 'bookingTime', label: 'Booking Time' },
-      { key: 'parkingDate', label: 'Parking Entry Date' },
-      { key: 'parkingTime', label: 'Parking Entry Time' },
-      { key: 'exitvehicledate', label: 'Exit Date' },
-      { key: 'exitvehicletime', label: 'Exit Time' },
-      { key: 'hour', label: 'Duration' },
-      { key: 'amount', label: 'Charges' },
-      { key: 'status', label: 'Status' },
-      { key: 'sts', label: 'Service Type' }
-    ]
+    // Define fields based on booking type filter
+    let fieldsConfig = []
+
+    if (bookingTypeFilter === 'user') {
+      fieldsConfig = [
+        { key: 'vehicleNumber', label: 'Vehicle Number' },
+        { key: 'personName', label: 'Customer Name' },
+        { key: 'mobileNumber', label: 'Mobile Number' },
+        { key: 'vehicleType', label: 'Vehicle Type' },
+        { key: 'bookingDate', label: 'Booking Date' },
+        { key: 'bookingTime', label: 'Booking Time' },
+        { key: 'parkingDate', label: 'Parking Entry Date' },
+        { key: 'parkingTime', label: 'Parking Entry Time' },
+        { key: 'exitvehicledate', label: 'Exit Date' },
+        { key: 'exitvehicletime', label: 'Exit Time' },
+        { key: 'hour', label: 'Duration' },
+        { key: 'amount', label: 'Charges' },
+        { key: 'handlingfee', label: 'Handling Fee' },
+        { key: 'gstamout', label: 'GST' },
+        { key: 'releasefee', label: 'Platform Fee' }, // Should be negative
+        { key: 'recievableamount', label: 'Receivable Amount' },
+        { key: 'totalamout', label: 'Total Amount' },
+        { key: 'status', label: 'Status' }
+      ]
+    } else {
+      fieldsConfig = [
+        { key: 'vehicleNumber', label: 'Vehicle Number' },
+        { key: 'personName', label: 'Customer Name' },
+        { key: 'mobileNumber', label: 'Mobile Number' },
+        { key: 'vehicleType', label: 'Vehicle Type' },
+        { key: 'bookingDate', label: 'Booking Date' },
+        { key: 'bookingTime', label: 'Booking Time' },
+        { key: 'parkingDate', label: 'Parking Entry Date' },
+        { key: 'parkingTime', label: 'Parking Entry Time' },
+        { key: 'exitvehicledate', label: 'Exit Date' },
+        { key: 'exitvehicletime', label: 'Exit Time' },
+        { key: 'hour', label: 'Duration' },
+        { key: 'amount', label: 'Charges' },
+        { key: 'releasefee', label: 'Platform Fee' }, // Should be negative
+        { key: 'recievableamount', label: 'Receivable Amount' },
+        { key: 'totalamout', label: 'Total Amount' },
+        { key: 'status', label: 'Status' }
+      ]
+    }
 
     if (type === 'excel') {
       // Convert data to CSV format
@@ -1070,12 +1165,15 @@ const OrderListTable = ({ orderData }) => {
         ...exportData.map(row =>
           fieldsConfig
             .map(field => {
-              // Format date/time fields if needed
               let value = row[field.key]
 
-              // Handle empty values
               if (value === undefined || value === null) {
                 value = ''
+              }
+
+              // Format Platform Fee as negative
+              if (field.key === 'releasefee' && value) {
+                value = `-${value}`
               }
 
               // Escape quotes and wrap in quotes to handle commas
@@ -1090,8 +1188,11 @@ const OrderListTable = ({ orderData }) => {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
 
+      const dateStr = new Date().toISOString().slice(0, 10)
+      const filename = `bookings_${bookingTypeFilter}_${dateStr}.csv`
+
       link.href = url
-      link.setAttribute('download', `bookings_export_${new Date().toISOString().slice(0, 10)}.csv`)
+      link.setAttribute('download', filename)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -1102,12 +1203,12 @@ const OrderListTable = ({ orderData }) => {
       const html = `
             <html>
               <head>
-                <title>Bookings Export</title>
+                <title>Bookings Export - ${bookingTypeFilter === 'user' ? 'User Bookings' : 'Vendor Bookings'}</title>
                 <style>
                   body {font-family: Arial, sans-serif; margin: 20px; }
                   h1 {color: #333; text-align: center; }
-                  table {border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 12px; }
-                  th {background-color: #f2f2f2; position: sticky; top: 0; padding: 8px; text-align: left; }
+                  table {border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 10px; }
+                  th {background-color: #f2f2f2; padding: 6px; text-align: left; border: 1px solid #ddd; }
                   td {border: 1px solid #ddd; padding: 6px; text-align: left; }
                   tr:nth-child(even) {background-color: #f9f9f9; }
                   .header {display: flex; justify-content: space-between; margin-bottom: 20px; }
@@ -1115,11 +1216,13 @@ const OrderListTable = ({ orderData }) => {
                   .status-completed {color: green; }
                   .status-pending {color: orange; }
                   .status-cancelled {color: red; }
+                  .amount-positive { color: #22c55e; font-weight: bold; }
+                  .amount-negative { color: #ff4d49; font-weight: bold; }
                 </style>
               </head>
               <body>
                 <div class="header">
-                  <h1>Bookings Export</h1>
+                  <h1>${bookingTypeFilter === 'user' ? 'User Bookings' : 'Vendor Bookings'}</h1>
                   <div class="date">Generated: ${new Date().toLocaleString()}</div>
                 </div>
                 <table>
@@ -1139,16 +1242,31 @@ const OrderListTable = ({ orderData }) => {
 
                     value = value !== undefined && value !== null ? value : '-'
 
-                    // Special formatting for status
+                    // Formatting Logic
                     if (field.key === 'status') {
                       const statusClass = `status-${String(value).toLowerCase()}`
 
                       return `<td class="${statusClass}">${value}</td>`
                     }
 
-                    // Format amounts with ₹ symbol
-                    if (field.key === 'amount') {
-                      return `<td>₹${value}</td>`
+                    if (field.key === 'releasefee') {
+                      // Platform Fee: Negative, Red
+                      const displayValue = value !== '-' ? `-₹${value}` : '-'
+
+                      return `<td class="amount-negative">${displayValue}</td>`
+                    }
+
+                    if (field.key === 'recievableamount') {
+                      // Receivable: Positive, Green
+                      const displayValue = value !== '-' ? `₹${value}` : '-'
+
+                      return `<td class="amount-positive">${displayValue}</td>`
+                    }
+
+                    if (['amount', 'handlingfee', 'gstamout', 'totalamout'].includes(field.key)) {
+                      const displayValue = value !== '-' ? `₹${value}` : '-'
+
+                      return `<td>${displayValue}</td>`
                     }
 
                     return `<td>${value}</td>`
@@ -1167,7 +1285,7 @@ const OrderListTable = ({ orderData }) => {
                       window.onafterprint = function () {
                         window.close();
                       };
-                    }, 300);
+                    }, 500);
                   };
                 </script>
               </body>
@@ -1182,7 +1300,7 @@ const OrderListTable = ({ orderData }) => {
 
   return (
     <Card>
-      <CardHeader title='Booking Management' />
+      <CardHeader title='Booking Managements' />
       <Divider />
       <CardContent className='flex flex-col gap-4'>
         <div className='flex justify-between max-sm:flex-col sm:items-center gap-4'>
@@ -1192,9 +1310,35 @@ const OrderListTable = ({ orderData }) => {
             placeholder='Search by Name, Vehicle, Mobile, or ID'
             className='sm:is-auto'
           />
-
-
         </div>
+
+        {/* Booking Source Filter (User vs Vendor) */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+            {['user', 'vendor'].map(type => (
+              <Button
+                key={type}
+                onClick={() => setBookingTypeFilter(type)}
+                sx={{
+                  textTransform: 'capitalize',
+                  color: bookingTypeFilter === type ? '#22c55e' : '#64748b',
+                  fontWeight: bookingTypeFilter === type ? 600 : 400,
+                  borderBottom: bookingTypeFilter === type ? '2px solid #22c55e' : '2px solid transparent',
+                  borderRadius: 0,
+                  px: 3,
+                  py: 1.5,
+                  fontSize: '1rem',
+                  '&:hover': {
+                    backgroundColor: '#f8fafc',
+                    color: '#22c55e'
+                  }
+                }}
+              >
+                {type === 'user' ? 'User Bookings' : 'Vendor Bookings'}
+              </Button>
+            ))}
+          </Box>
+        </Box>
 
         {/* Status Tabs and Action Buttons */}
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>

@@ -29,6 +29,7 @@ const UserBookings = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [dateDialogOpen, setDateDialogOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState(null)
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('user')
   const open = Boolean(anchorEl)
 
   const getCurrentDate = () => {
@@ -79,8 +80,23 @@ const UserBookings = () => {
   // Decide which date field to use for sorting
   const getItemDate = item => item.parkingDate || item.bookingDate || item.createdAt || null
 
+  const filteredTransactions = transactions.filter(item => {
+    const vendorId = session?.user?.id
+
+    if (!vendorId) return true
+
+    if (bookingTypeFilter === 'user') {
+      // User bookings: userid exists AND userid != vendorId
+      return item.userid && String(item.userid) !== String(vendorId)
+    } else {
+      // Vendor bookings: userid missing OR userid == vendorId
+      return !item.userid || String(item.userid) === String(vendorId)
+    }
+  })
+
+  // Use filteredTransactions for totals
   const getTotalReceivable = () => {
-    return transactions.reduce((total, transaction) => {
+    return filteredTransactions.reduce((total, transaction) => {
       const amount = parseFloat(transaction.receivable.replace('₹', '')) || 0
 
       return total + amount
@@ -120,6 +136,7 @@ const UserBookings = () => {
           id: item._id,
           serialNo: index + 1,
           bookingId: item._id,
+          userid: item.userid, // Added for filtering
           bookingDate: item.bookingDate || 'N/A',
           parkingDate: item.parkingDate || 'N/A',
           parkingTime: item.parkingTime || 'N/A',
@@ -185,7 +202,7 @@ const UserBookings = () => {
   }
 
   const exportToExcel = () => {
-    if (transactions.length === 0) {
+    if (filteredTransactions.length === 0) {
       setSnackbar({
         open: true,
         message: 'No data to export',
@@ -195,35 +212,34 @@ const UserBookings = () => {
       return
     }
 
-    // Create CSV content
+    // Create CSV content based on rows
     const headers = [
       'S.No',
       'Booking ID',
       'Vehicle Number',
-      ' Date',
-      ' Time',
+      'Date',
+      'Time',
       'Charges',
-      'GST Amount',
-      'Handling Fee',
-      'Release Fee',
+      ...(bookingTypeFilter === 'user' ? ['GST Amount', 'Handling Fee'] : []),
+      'Platform Fee',
       'Receivable Amount',
-      'Payable Amount',
       'Total Amount'
     ]
 
-    const rows = transactions.map(t => [
-      t.serialNo,
-      t.bookingId,
-      t.vehicleNumber,
-      t.parkingDate,
-      t.parkingTime,
-      t.bookingAmount,
-      t.gstAmount,
-      t.handlingFee,
-      t.releaseFee,
-      t.receivable,
-      t.totalAmount
-    ])
+    const rows = filteredTransactions.map(t => {
+      const row = [t.serialNo, t.bookingId, t.vehicleNumber, t.parkingDate, t.parkingTime, t.bookingAmount]
+
+      if (bookingTypeFilter === 'user') {
+        row.push(t.gstAmount)
+        row.push(t.handlingFee)
+      }
+
+      row.push(`-${t.releaseFee}`) // Platform fee as negative
+      row.push(t.receivable)
+      row.push(t.totalAmount)
+
+      return row
+    })
 
     let csvContent =
       'data:text/csv;charset=utf-8,' + headers.join(',') + '\n' + rows.map(row => row.join(',')).join('\n')
@@ -232,7 +248,7 @@ const UserBookings = () => {
     const link = document.createElement('a')
 
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `transactions_${startDate}_to_${endDate}.csv`)
+    link.setAttribute('download', `transactions_${bookingTypeFilter}_${startDate}_to_${endDate}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -241,7 +257,7 @@ const UserBookings = () => {
   }
 
   const exportToPDF = () => {
-    if (transactions.length === 0) {
+    if (filteredTransactions.length === 0) {
       setSnackbar({
         open: true,
         message: 'No data to export',
@@ -257,16 +273,18 @@ const UserBookings = () => {
         <head>
           <title>Transactions Report</title>
           <style>
-            table { border-collapse: collapse; width: 100%; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            table { border-collapse: collapse; width: 100%; font-size: 10px; }
+            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
             th { background-color: #f2f2f2; }
             .title { text-align: center; margin-bottom: 20px; }
             .date-range { margin-bottom: 20px; }
             .total { margin-top: 20px; font-weight: bold; }
+            .negative { color: #ff4d49; }
+            .positive { color: #22c55e; }
           </style>
         </head>
         <body>
-          <h1 class="title">Booking Transactions Report</h1>
+          <h1 class="title">${bookingTypeFilter === 'user' ? 'User' : 'Vendor'} Booking Transactions Report</h1>
           <div class="date-range">Date Range: ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}</div>
           <table>
             <thead>
@@ -277,15 +295,14 @@ const UserBookings = () => {
                 <th>Date</th>
                 <th>Time</th>
                 <th>Charges</th>
-                <th>GST</th>
-                <th>Handling Fee</th>
-                <th>platform Fee</th>
+                ${bookingTypeFilter === 'user' ? '<th>GST</th><th>Handling Fee</th>' : ''}
+                <th>Platform Fee</th>
                 <th>Receivable</th>
                 <th>Total Amount</th>
               </tr>
             </thead>
             <tbody>
-              ${transactions
+              ${filteredTransactions
                 .map(
                   t => `
                 <tr>
@@ -295,11 +312,10 @@ const UserBookings = () => {
                   <td>${t.parkingDate}</td>
                   <td>${t.parkingTime}</td>
                   <td>${t.bookingAmount}</td>
-                    <td>${t.gstAmount}</td>
-                  <td>${t.handlingFee}</td>
-                  <td>${t.releaseFee}</td>
-                  <td>${t.receivable}</td>
-                  <td>${t.totalAmount}</td>
+                  ${bookingTypeFilter === 'user' ? `<td>${t.gstAmount}</td><td>${t.handlingFee}</td>` : ''}
+                  <td class="negative">- ${t.releaseFee}</td>
+                  <td class="positive">${t.receivable}</td>
+                  <td><b>${t.totalAmount}</b></td>
                 </tr>
               `
                 )
@@ -329,18 +345,40 @@ const UserBookings = () => {
     { field: 'serialNo', headerName: 'S.No', width: 70 },
     { field: 'bookingId', headerName: 'Booking ID', width: 200 },
     { field: 'vehicleNumber', headerName: 'Vehicle Number', width: 140 },
-
-    // { field: "bookingDate", headerName: "Booking Date", width: 120 },
     { field: 'parkingDate', headerName: 'Date', width: 120 },
     { field: 'parkingTime', headerName: 'Time', width: 100 },
-    { field: 'bookingAmount', headerName: 'Charges', width: 100 },
-    { field: 'gstAmount', headerName: 'GST', width: 100 },
-    { field: 'handlingFee', headerName: 'Handling Fee', width: 120 },
-    { field: 'totalAmount', headerName: 'Total Amount', width: 120 },
-    { field: 'releaseFee', headerName: 'Platform Fee', width: 120 },
-    { field: 'receivable', headerName: 'Receivable', width: 120 }
-
-    // { field: "payableAmount", headerName: "Payable", width: 120 },
+    { field: 'bookingAmount', headerName: 'Charges', width: 100, align: 'right', headerAlign: 'right' },
+    ...(bookingTypeFilter === 'user'
+      ? [
+          { field: 'gstAmount', headerName: 'GST', width: 100, align: 'right', headerAlign: 'right' },
+          { field: 'handlingFee', headerName: 'Handling Fee', width: 120, align: 'right', headerAlign: 'right' }
+        ]
+      : []),
+    {
+      field: 'releaseFee',
+      headerName: 'Platform Fee',
+      width: 120,
+      align: 'right',
+      headerAlign: 'right',
+      renderCell: params => (
+        <Typography color='error.main' fontWeight='500'>
+          - {params.value}
+        </Typography>
+      )
+    },
+    {
+      field: 'receivable',
+      headerName: 'Receivable',
+      width: 120,
+      align: 'right',
+      headerAlign: 'right',
+      renderCell: params => (
+        <Typography color='success.main' fontWeight='600'>
+          {params.value}
+        </Typography>
+      )
+    },
+    { field: 'totalAmount', headerName: 'Total Amount', width: 120, align: 'right', headerAlign: 'right' }
   ]
 
   return (
@@ -359,6 +397,34 @@ const UserBookings = () => {
           <Typography variant='h5' component='h1' sx={{ mb: 3, textAlign: 'center' }}>
             User Booking Transactions
           </Typography>
+
+          {/* Booking Source Filter (User vs Vendor) */}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+              {['user', 'vendor'].map(type => (
+                <Button
+                  key={type}
+                  onClick={() => setBookingTypeFilter(type)}
+                  sx={{
+                    textTransform: 'capitalize',
+                    color: bookingTypeFilter === type ? '#22c55e' : '#64748b',
+                    fontWeight: bookingTypeFilter === type ? 600 : 400,
+                    borderBottom: bookingTypeFilter === type ? '2px solid #22c55e' : '2px solid transparent',
+                    borderRadius: 0,
+                    px: 3,
+                    py: 1.5,
+                    fontSize: '1rem',
+                    '&:hover': {
+                      backgroundColor: '#f8fafc',
+                      color: '#22c55e'
+                    }
+                  }}
+                >
+                  {type === 'user' ? 'User Bookings' : 'Vendor Bookings'}
+                </Button>
+              ))}
+            </Box>
+          </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box sx={{ display: 'flex', gap: 1 }}>
@@ -415,7 +481,7 @@ const UserBookings = () => {
           ) : (
             <Box sx={{ height: 600, width: '100%' }}>
               <DataGrid
-                rows={transactions}
+                rows={filteredTransactions}
                 columns={columns}
                 pageSizeOptions={[5, 10, 20]}
                 initialState={{

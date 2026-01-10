@@ -24,6 +24,13 @@ import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
+import Dialog from '@mui/material/Dialog'
+import DialogTitle from '@mui/material/DialogTitle'
+import DialogContent from '@mui/material/DialogContent'
+import DialogActions from '@mui/material/DialogActions'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import Select from '@mui/material/Select'
 
 // Payable Time Timer Component
 const PayableTimeTimer = ({ parkedDate, parkedTime }) => {
@@ -185,10 +192,13 @@ const parseBookingDate = dateStr => {
   if (!dateStr) return null
 
   try {
-    if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
-      return new Date(dateStr)
-    } else if (dateStr.includes('-')) {
-      const [day, month, year] = dateStr.split('-').map(Number)
+    // Handle date strings that might include time (e.g. "10-01-2026 09:00 PM")
+    const cleanDateStr = dateStr.toString().trim().split(' ')[0]
+
+    if (cleanDateStr.includes('-') && cleanDateStr.split('-')[0].length === 4) {
+      return new Date(cleanDateStr)
+    } else if (cleanDateStr.includes('-')) {
+      const [day, month, year] = cleanDateStr.split('-').map(Number)
 
       return new Date(year, month - 1, day)
     }
@@ -208,33 +218,46 @@ const pick = v => {
   return v.toString().toLowerCase().trim()
 }
 
-const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts) => {
+const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts, subscriptionEndDate) => {
   if (sts?.toLowerCase() !== 'subscription') return null
 
-  const startDate = parseBookingDate(bookingDate)
-
-  if (!startDate) return null
-
   const currentDate = new Date()
-  let durationInDays = 30
+  let endDate
 
-  if (subscriptionType) {
-    switch (subscriptionType.toLowerCase()) {
-      case 'weekly':
-        durationInDays = 7
-        break
-      case 'monthly':
-        durationInDays = 30
-        break
-      case 'yearly':
-        durationInDays = 365
-        break
-    }
+  // Prioritize explicit subscription end date
+  if (subscriptionEndDate) {
+    endDate = parseBookingDate(subscriptionEndDate)
   }
 
-  const endDate = new Date(startDate)
+  // Fallback to calculation if calculation failed or end date not provided
+  if (!endDate) {
+    const startDate = parseBookingDate(bookingDate)
 
-  endDate.setDate(startDate.getDate() + durationInDays)
+    if (!startDate) return null
+
+    let durationInDays = 30
+
+    if (subscriptionType) {
+      switch (subscriptionType.toLowerCase()) {
+        case 'weekly':
+          durationInDays = 7
+          break
+        case 'monthly':
+          durationInDays = 30
+          break
+        case 'yearly':
+          durationInDays = 365
+          break
+      }
+    }
+
+    endDate = new Date(startDate)
+    endDate.setDate(startDate.getDate() + durationInDays)
+  }
+
+  // Normalize dates to start of day for accurate comparison
+  currentDate.setHours(0, 0, 0, 0)
+  endDate.setHours(0, 0, 0, 0)
 
   if (currentDate > endDate) return { days: 0, expired: true }
 
@@ -289,19 +312,6 @@ const formatDateDisplay = dateStr => {
   }
 }
 
-const calculateTotalAmount = amount => {
-  if (!amount) return 'N/A'
-  const amountNum = parseFloat(amount)
-
-  if (isNaN(amountNum)) return 'N/A'
-
-  const handlingFee = 5
-  const gst = amountNum * 0.18
-  const total = amountNum + handlingFee + gst
-
-  return total.toFixed(2)
-}
-
 const columnHelper = createColumnHelper()
 
 // Stats Card Component
@@ -342,15 +352,17 @@ const OrderListTable = ({ orderData }) => {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [globalFilter, setGlobalFilter] = useState('')
-  const [filteredData, setFilteredData] = useState(data)
-  const [error, setError] = useState(null)
   const [statusFilter, setStatusFilter] = useState('pending')
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('user')
+  const [filteredData, setFilteredData] = useState([])
+  const [error, setError] = useState(null)
   const [sorting, setSorting] = useState([])
   const { lang: locale } = useParams()
   const { data: session } = useSession()
   const router = useRouter()
   const vendorId = session?.user?.id
   const [anchorEl, setAnchorEl] = useState(null)
+
   const open = Boolean(anchorEl)
 
   const handleMenuClick = event => {
@@ -390,7 +402,6 @@ const OrderListTable = ({ orderData }) => {
         })
 
         setData(sorted)
-        setFilteredData(sorted)
       } else {
         setData([])
         setFilteredData([])
@@ -501,22 +512,25 @@ const OrderListTable = ({ orderData }) => {
   useEffect(() => {
     const q = (globalFilter || '').toString().toLowerCase().trim()
 
-    if (!q) {
-      // No search query - filter by status only
-      if (statusFilter === 'all') {
-        setFilteredData([...data])
-      } else {
-        setFilteredData(data.filter(item => item.status?.toLowerCase() === statusFilter.toLowerCase()))
-      }
+    // First filter by booking type (User vs Vendor)
+    let results = [...data]
 
-      return
+    if (bookingTypeFilter === 'user') {
+      results = results.filter(item => {
+        // User bookings: userid must exist AND must NOT be the same as the current vendorId
+        return item.userid && String(item.userid) !== String(vendorId)
+      })
+    } else {
+      results = results.filter(item => {
+        // Vendor bookings: userid is missing OR userid IS the same as the current vendorId
+        return !item.userid || String(item.userid) === String(vendorId)
+      })
     }
 
-    // First filter by status
-    let results =
-      statusFilter === 'all'
-        ? [...data]
-        : data.filter(item => item.status?.toLowerCase() === statusFilter.toLowerCase())
+    // Then filter by status
+    if (statusFilter !== 'all') {
+      results = results.filter(item => item.status?.toLowerCase() === statusFilter.toLowerCase())
+    }
 
     // Then filter by search query
     results = results.filter(item => {
@@ -546,7 +560,7 @@ const OrderListTable = ({ orderData }) => {
     })
 
     setFilteredData(results)
-  }, [globalFilter, data, statusFilter])
+  }, [globalFilter, data, statusFilter, bookingTypeFilter])
 
   const columns = useMemo(
     () => [
@@ -786,35 +800,82 @@ const OrderListTable = ({ orderData }) => {
           )
         }
       },
-      {
-        id: 'charges',
-        header: 'Charges',
-        cell: ({ row }) => <Typography>₹{row.original.amount || '0'}</Typography>
-      },
-      {
-        id: 'handlingFee',
-        header: 'Handling Fee',
-        cell: () => <Typography>₹5.00</Typography>
-      },
-      {
-        id: 'gst',
-        header: 'GST',
-        cell: ({ row }) => {
-          const amount = parseFloat(row.original.amount) || 0
-          const gst = amount * 0.18
 
-          return <Typography>₹{gst.toFixed(2)}</Typography>
-        }
-      },
-      {
-        id: 'total',
-        header: 'Total',
-        cell: ({ row }) => {
-          const total = calculateTotalAmount(row.original.amount)
-
-          return <Typography sx={{ fontWeight: 500 }}>₹{total}</Typography>
-        }
-      },
+      ...((bookingTypeFilter === 'user'
+        ? [
+            {
+              id: 'charges',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Charges</Typography>,
+              cell: ({ row }) => <Typography sx={{ textAlign: 'right' }}>₹{row.original.amount || '0'}</Typography>
+            },
+            {
+              id: 'handlingFee',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Handling Fee</Typography>,
+              cell: ({ row }) => <Typography sx={{ textAlign: 'right' }}>₹{row.original.handlingfee || '0'}</Typography>
+            },
+            {
+              id: 'gst',
+              header: () => <Typography sx={{ textAlign: 'right' }}>GST</Typography>,
+              cell: ({ row }) => <Typography sx={{ textAlign: 'right' }}>₹{row.original.gstamout || '0'}</Typography>
+            },
+            {
+              id: 'platformFee',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Platform Fee</Typography>,
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#ff4d49', fontWeight: 500, textAlign: 'right' }}>
+                  - ₹{row.original.releasefee || '0'}
+                </Typography>
+              )
+            },
+            {
+              id: 'receivableAmount',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Receivable Amount</Typography>,
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#72e128', fontWeight: 500, textAlign: 'right' }}>
+                  ₹{row.original.recievableamount || '0'}
+                </Typography>
+              )
+            },
+            {
+              id: 'total',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Total Amount</Typography>,
+              cell: ({ row }) => (
+                <Typography sx={{ fontWeight: 500, textAlign: 'right' }}>₹{row.original.totalamout || '0'}</Typography>
+              )
+            }
+          ]
+        : [
+            {
+              id: 'charges',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Charges</Typography>,
+              cell: ({ row }) => <Typography sx={{ textAlign: 'right' }}>₹{row.original.amount || '0'}</Typography>
+            },
+            {
+              id: 'platformFee',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Platform Fee</Typography>,
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#ff4d49', fontWeight: 500, textAlign: 'right' }}>
+                  - ₹{row.original.releasefee || '0'}
+                </Typography>
+              )
+            },
+            {
+              id: 'receivableAmount',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Receivable Amount</Typography>,
+              cell: ({ row }) => (
+                <Typography sx={{ color: '#72e128', fontWeight: 500, textAlign: 'right' }}>
+                  ₹{row.original.recievableamount || '0'}
+                </Typography>
+              )
+            },
+            {
+              id: 'total',
+              header: () => <Typography sx={{ textAlign: 'right' }}>Total Amount</Typography>,
+              cell: ({ row }) => (
+                <Typography sx={{ fontWeight: 500, textAlign: 'right' }}>₹{row.original.totalamout || '0'}</Typography>
+              )
+            }
+          ]) || []),
       {
         id: 'subscriptionLeft',
         header: 'Subscription Left',
@@ -824,7 +885,8 @@ const OrderListTable = ({ orderData }) => {
           const subscriptionStatus = calculateSubscriptionDaysLeft(
             dateToUse,
             row.original.subsctiptiontype,
-            row.original.sts
+            row.original.sts,
+            row.original.subsctiptionenddate
           )
 
           if (!subscriptionStatus) {
@@ -910,7 +972,7 @@ const OrderListTable = ({ orderData }) => {
         enableSorting: false
       }
     ],
-    [router, statusFilter]
+    [router, statusFilter, bookingTypeFilter]
   )
 
   const table = useReactTable({
@@ -944,9 +1006,11 @@ const OrderListTable = ({ orderData }) => {
   })
 
   const handleExport = type => {
+    // Use the filtered data directly which respects the User/Vendor tabs
     const exportData = filteredData
 
-    const exportColumns = [
+    // Base columns common to both views
+    let exportColumns = [
       { key: 'vehicleNumber', label: 'Vehicle Number' },
       { key: 'vendorName', label: 'Vendor Name' },
       { key: 'personName', label: 'Customer Name' },
@@ -960,10 +1024,31 @@ const OrderListTable = ({ orderData }) => {
       { key: 'exitvehicledate', label: 'Exit Date' },
       { key: 'exitvehicletime', label: 'Exit Time' },
       { key: 'duration', label: 'Duration' },
-      { key: 'amount', label: 'Charges' },
-      { key: 'handlingFee', label: 'Handling Fee' },
-      { key: 'gst', label: 'GST' },
-      { key: 'total', label: 'Total' },
+      { key: 'amount', label: 'Charges' }
+    ]
+
+    // Add specific columns based on filter
+    if (bookingTypeFilter === 'user') {
+      exportColumns = [
+        ...exportColumns,
+        { key: 'handlingfee', label: 'Handling Fee' },
+        { key: 'gstamout', label: 'GST' },
+        { key: 'releasefee', label: 'Platform Fee' }, // This acts as platform fee deduction
+        { key: 'recievableamount', label: 'Receivable Amount' },
+        { key: 'totalamout', label: 'Total Amount' }
+      ]
+    } else {
+      exportColumns = [
+        ...exportColumns,
+        { key: 'releasefee', label: 'Platform Fee' },
+        { key: 'recievableamount', label: 'Receivable Amount' },
+        { key: 'totalamout', label: 'Total Amount' }
+      ]
+    }
+
+    // Add remaining common columns
+    exportColumns = [
+      ...exportColumns,
       { key: 'subscriptionLeft', label: 'Subscription Left' },
       { key: 'status', label: 'Status' }
     ]
@@ -978,7 +1063,8 @@ const OrderListTable = ({ orderData }) => {
         const daysLeft = calculateSubscriptionDaysLeft(
           row.parkingDate || row.bookingDate,
           row.subsctiptiontype,
-          row.sts
+          row.sts,
+          row.subsctiptionenddate
         )
 
         const daysLeftText = daysLeft?.expired
@@ -987,34 +1073,47 @@ const OrderListTable = ({ orderData }) => {
             ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}`
             : 'N/A'
 
-        const duration = row.hour || 'N/A'
+        const duration =
+          row.status?.toLowerCase() === 'completed'
+            ? calculateDuration(row.parkedDate, row.parkedTime, row.exitvehicledate, row.exitvehicletime)
+            : 'N/A'
 
-        const amount = parseFloat(row.amount) || 0
-        const handlingFee = 5
-        const gst = amount * 0.18
-        const total = amount + handlingFee + gst
+        // Helper to safely format CSV values
+        const safeVal = val => `"${(val || 'N/A').toString().replace(/"/g, '""')}"`
+        const currencyVal = val => `"${parseFloat(val || 0).toFixed(2)}"`
 
+        // Build the row values array dynamically to match the headers
         const values = [
-          `"${(row.vehicleNumber || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(row.vendorName || 'My Parking Place').toString().replace(/"/g, '""')}"`,
-          `"${(row.personName || 'Unknown').toString().replace(/"/g, '""')}"`,
-          `"${(row.mobileNumber || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(row.vehicleType || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(row.subsctiptiontype || 'Monthly').toString().replace(/"/g, '""')}"`,
-          `"${(formatDateDisplay(row.bookingDate) || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(formatTimeDisplay(row.bookingTime) || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(formatDateDisplay(row.parkedDate) || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(formatTimeDisplay(row.parkedTime) || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(formatDateDisplay(row.exitvehicledate) || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${(formatTimeDisplay(row.exitvehicletime) || 'N/A').toString().replace(/"/g, '""')}"`,
-          `"${duration.toString().replace(/"/g, '""')}"`,
-          `"₹${amount.toFixed(2)}"`,
-          `"₹${handlingFee.toFixed(2)}"`,
-          `"₹${gst.toFixed(2)}"`,
-          `"₹${total.toFixed(2)}"`,
-          `"${daysLeftText.toString().replace(/"/g, '""')}"`,
-          `"${(row.status || 'N/A').toString().replace(/"/g, '""')}"`
+          safeVal(row.vehicleNumber),
+          safeVal(row.vendorName || 'My Parking Place'),
+          safeVal(row.personName || 'Unknown'),
+          safeVal(row.mobileNumber),
+          safeVal(row.vehicleType),
+          safeVal(row.subsctiptiontype),
+          safeVal(formatDateDisplay(row.bookingDate)),
+          safeVal(formatTimeDisplay(row.bookingTime)),
+          safeVal(formatDateDisplay(row.parkedDate)),
+          safeVal(formatTimeDisplay(row.parkedTime)),
+          safeVal(formatDateDisplay(row.exitvehicledate)),
+          safeVal(formatTimeDisplay(row.exitvehicletime)),
+          safeVal(duration),
+          currencyVal(row.amount)
         ]
+
+        if (bookingTypeFilter === 'user') {
+          values.push(currencyVal(row.handlingfee))
+          values.push(currencyVal(row.gstamout))
+          values.push(`"-${parseFloat(row.releasefee || 0).toFixed(2)}"`) // Show as deduction
+          values.push(currencyVal(row.recievableamount))
+          values.push(currencyVal(row.totalamout))
+        } else {
+          values.push(`"-${parseFloat(row.releasefee || 0).toFixed(2)}"`) // Show as deduction
+          values.push(currencyVal(row.recievableamount))
+          values.push(currencyVal(row.totalamout))
+        }
+
+        values.push(safeVal(daysLeftText))
+        values.push(safeVal(row.status))
 
         csvRows.push(values.join(','))
       })
@@ -1025,7 +1124,7 @@ const OrderListTable = ({ orderData }) => {
       const link = document.createElement('a')
 
       link.setAttribute('href', url)
-      link.setAttribute('download', 'Subscription_Bookings.csv')
+      link.setAttribute('download', `Subscription_Bookings_${bookingTypeFilter}.csv`)
       link.style.visibility = 'hidden'
       document.body.appendChild(link)
       link.click()
@@ -1046,6 +1145,8 @@ const OrderListTable = ({ orderData }) => {
               .expired { color: #ff4d49; }
               .warning { color: #fdb528; }
               .good { color: #72e128; }
+              .negative { color: #ff4d49; }
+              .positive { color: #72e128; }
               @media print {
                 @page {
                   size: landscape;
@@ -1062,7 +1163,7 @@ const OrderListTable = ({ orderData }) => {
             </style>
           </head>
           <body>
-            <h1>Subscription Bookings</h1>
+            <h1>${bookingTypeFilter === 'user' ? 'User' : 'Vendor'} Subscription Bookings</h1>
             <table>
               <thead>
                 <tr>
@@ -1075,46 +1176,62 @@ const OrderListTable = ({ orderData }) => {
                     const daysLeft = calculateSubscriptionDaysLeft(
                       row.parkingDate || row.bookingDate,
                       row.subsctiptiontype,
-                      row.sts
+                      row.sts,
+                      row.subsctiptionenddate
                     )
 
                     const daysLeftClass = daysLeft?.expired ? 'expired' : daysLeft?.days <= 3 ? 'warning' : 'good'
+
+                    const daysLeftText = daysLeft?.expired
+                      ? 'Expired'
+                      : daysLeft
+                        ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}`
+                        : 'N/A'
 
                     const duration =
                       row.status?.toLowerCase() === 'completed'
                         ? calculateDuration(row.parkedDate, row.parkedTime, row.exitvehicledate, row.exitvehicletime)
                         : 'N/A'
 
-                    const amount = parseFloat(row.amount) || 0
-                    const handlingFee = 5
-                    const gst = amount * 0.18
-                    const total = amount + handlingFee + gst
+                    // Helper for currency formatting
+                    const currency = val => `₹${parseFloat(val || 0).toFixed(2)}`
 
-                    return `
-                    <tr>
-                      <td>${row.vehicleNumber || 'N/A'}</td>
-                      <td>${row.vendorName || 'My Parking Place'}</td>
-                      <td>${row.personName || 'Unknown'}</td>
-                      <td>${row.mobileNumber || 'N/A'}</td>
-                      <td>${row.vehicleType || 'N/A'}</td>
-                      <td>${row.subsctiptiontype || 'Monthly'}</td>
-                      <td>${formatDateDisplay(row.bookingDate) || 'N/A'}</td>
-                      <td>${formatTimeDisplay(row.bookingTime) || 'N/A'}</td>
-                      <td>${formatDateDisplay(row.parkedDate) || 'N/A'}</td>
-                      <td>${formatTimeDisplay(row.parkedTime) || 'N/A'}</td>
-                      <td>${formatDateDisplay(row.exitvehicledate) || 'N/A'}</td>
-                      <td>${formatTimeDisplay(row.exitvehicletime) || 'N/A'}</td>
-                      <td>${duration}</td>
-                      <td>₹${amount.toFixed(2)}</td>
-                      <td>₹${handlingFee.toFixed(2)}</td>
-                      <td>₹${gst.toFixed(2)}</td>
-                      <td>₹${total.toFixed(2)}</td>
-                      <td class="${daysLeftClass}">
-                        ${daysLeft?.expired ? 'Expired' : daysLeft ? `${daysLeft.days} day${daysLeft.days !== 1 ? 's' : ''}` : 'N/A'}
-                      </td>
-                      <td>${row.status || 'N/A'}</td>
-                    </tr>
-                  `
+                    // Base cells
+                    let cells = [
+                      row.vehicleNumber || 'N/A',
+                      row.vendorName || 'My Parking Place',
+                      row.personName || 'Unknown',
+                      row.mobileNumber || 'N/A',
+                      row.vehicleType || 'N/A',
+                      row.subsctiptiontype || 'Monthly',
+                      formatDateDisplay(row.bookingDate) || 'N/A',
+                      formatTimeDisplay(row.bookingTime) || 'N/A',
+                      formatDateDisplay(row.parkedDate) || 'N/A',
+                      formatTimeDisplay(row.parkedTime) || 'N/A',
+                      formatDateDisplay(row.exitvehicledate) || 'N/A',
+                      formatTimeDisplay(row.exitvehicletime) || 'N/A',
+                      duration,
+                      currency(row.amount)
+                    ]
+
+                    // Conditional cells
+                    if (bookingTypeFilter === 'user') {
+                      cells.push(currency(row.handlingfee))
+                      cells.push(currency(row.gstamout))
+                      cells.push(`<span class="negative">- ${currency(row.releasefee)}</span>`)
+                      cells.push(`<span class="positive">${currency(row.recievableamount)}</span>`)
+                      cells.push(`<b>${currency(row.totalamout)}</b>`)
+                    } else {
+                      cells.push(`<span class="negative">- ${currency(row.releasefee)}</span>`)
+                      cells.push(`<span class="positive">${currency(row.recievableamount)}</span>`)
+                      cells.push(`<b>${currency(row.totalamout)}</b>`)
+                    }
+
+                    // Remaining cells
+                    cells.push(`<span class="${daysLeftClass}">${daysLeftText}</span>`)
+                    cells.push(row.status || 'N/A')
+
+                    return `<tr>${cells.map(cell => `<td>${cell}</td>`).join('')}</tr>`
                   })
                   .join('')}
               </tbody>
@@ -1174,7 +1291,7 @@ const OrderListTable = ({ orderData }) => {
         <CardContent sx={{ p: 3 }}>
           {/* Booking Management Header */}
           <Typography variant='h5' fontWeight='600' sx={{ mb: 3 }}>
-            Subscription Management
+            Subscription Booking Management
           </Typography>
 
           {/* Search and Buttons Row */}
@@ -1216,6 +1333,44 @@ const OrderListTable = ({ orderData }) => {
               >
                 New Subscription
               </Button>
+            </Box>
+          </Box>
+
+          {/* Booking Source Filter (User vs Vendor) - Pill Style */}
+          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
+            <Box
+              sx={{
+                backgroundColor: '#f1f5f9',
+                p: 0.5,
+                borderRadius: '12px',
+                display: 'inline-flex',
+                gap: 1
+              }}
+            >
+              {['user', 'vendor'].map(type => (
+                <Button
+                  key={type}
+                  onClick={() => setBookingTypeFilter(type)}
+                  sx={{
+                    textTransform: 'capitalize',
+                    color: bookingTypeFilter === type ? '#fff' : '#64748b',
+                    backgroundColor: bookingTypeFilter === type ? '#22c55e' : 'transparent',
+                    fontWeight: 600,
+                    borderRadius: '8px',
+                    px: 4,
+                    py: 1,
+                    fontSize: '0.95rem',
+                    boxShadow: bookingTypeFilter === type ? '0 4px 6px -1px rgb(0 0 0 / 0.1)' : 'none',
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      backgroundColor: bookingTypeFilter === type ? '#16a34a' : '#e2e8f0',
+                      color: bookingTypeFilter === type ? '#fff' : '#1e293b'
+                    }
+                  }}
+                >
+                  {type === 'user' ? 'User Bookings' : 'Vendor Bookings'}
+                </Button>
+              ))}
             </Box>
           </Box>
 

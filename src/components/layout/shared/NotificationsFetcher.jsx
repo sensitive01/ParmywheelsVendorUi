@@ -104,7 +104,15 @@ const NotificationsFetcher = () => {
     // Poll every minute
     const interval = setInterval(fetchNotifications, 60000)
 
-    return () => clearInterval(interval)
+    // Listen for updates from other components (e.g., Notifications Page)
+    const handleUpdate = () => fetchNotifications()
+
+    window.addEventListener('notification-update', handleUpdate)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('notification-update', handleUpdate)
+    }
   }, [fetchNotifications])
 
   // Handlers (kept but unused by new dropdown, but good for completeness or future use)
