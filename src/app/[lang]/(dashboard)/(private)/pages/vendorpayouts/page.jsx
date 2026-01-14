@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 import axios from 'axios'
 import {
@@ -59,8 +59,78 @@ const VendorPayOuts = () => {
     return today.toISOString().split('T')[0]
   }
 
-  const [startDate, setStartDate] = useState(getCurrentDate())
-  const [endDate, setEndDate] = useState(getCurrentDate())
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' })
+
+  const handleSort = key => {
+    let direction = 'asc'
+
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+
+    setSortConfig({ key, direction })
+  }
+
+  const parseDateTimeHelper = (dateStr, timeStr) => {
+    if (!dateStr) return null
+    let date = new Date()
+
+    // Parse Date
+    if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+      date = new Date(dateStr)
+    } else if (dateStr.match(/^\d{2}-\d{2}-\d{4}/)) {
+      const [day, month, year] = dateStr.split('-')
+
+      date = new Date(`${year}-${month}-${day}`)
+    } else {
+      date = new Date(dateStr)
+    }
+
+    // Parse Time if present (e.g., "7:17 AM")
+    if (timeStr) {
+      const [time, period] = timeStr.split(' ')
+
+      if (time && period) {
+        let [hours, minutes] = time.split(':')
+
+        hours = parseInt(hours)
+        minutes = parseInt(minutes)
+
+        if (period.toUpperCase() === 'PM' && hours < 12) hours += 12
+        if (period.toUpperCase() === 'AM' && hours === 12) hours = 0
+
+        date.setHours(hours, minutes, 0, 0)
+      }
+    } else {
+      date.setHours(0, 0, 0, 0)
+    }
+
+    return date
+  }
+
+  const sortedTransactions = useMemo(() => {
+    let sortableItems = [...transactions]
+
+    if (sortConfig.key !== null) {
+      sortableItems.sort((a, b) => {
+        if (sortConfig.key === 'date') {
+          const dateA = parseDateTimeHelper(a.date, a.time)
+          const dateB = parseDateTimeHelper(b.date, b.time)
+
+          if (!dateA || !dateB) return 0
+
+          return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA
+        }
+
+        return 0
+      })
+    }
+
+    return sortableItems
+  }, [transactions, sortConfig])
+
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
 
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -88,9 +158,24 @@ const VendorPayOuts = () => {
   const formatTimeForDisplay = timeString => {
     if (!timeString) return ''
 
-    // If time is in HH:MM:SS format, convert to 12-hour format
-    if (timeString.includes(':')) {
-      const parts = timeString.split(':')
+    // Clean up input string
+    let cleanTime = timeString.trim()
+
+    // If already has AM/PM, normalize it
+    if (cleanTime.match(/am|pm/i)) {
+      // Extract parts: digits and am/pm
+      const match = cleanTime.match(/(\d{1,2}:\d{2})\s*(am|pm)/i)
+
+      if (match) {
+        return `${match[1]} ${match[2].toUpperCase()}`
+      }
+
+      return cleanTime.toUpperCase()
+    }
+
+    // If time is in HH:MM:SS format (24h), convert to 12-hour format
+    if (cleanTime.includes(':')) {
+      const parts = cleanTime.split(':')
       let hours = parseInt(parts[0])
       const minutes = parts[1]
       const period = hours >= 12 ? 'PM' : 'AM'
@@ -100,7 +185,7 @@ const VendorPayOuts = () => {
       return `${hours}:${minutes} ${period}`
     }
 
-    return timeString
+    return cleanTime
   }
 
   const handleChangePage = (event, newPage) => {
@@ -157,7 +242,45 @@ const VendorPayOuts = () => {
           return
         }
 
-        const settlements = response.data.data
+        let settlements = response.data.data
+
+        // Helper to parse dates (handles DD-MM-YYYY and YYYY-MM-DD)
+        const parseSettlementDate = dateStr => {
+          if (!dateStr) return null
+
+          // If ISO format YYYY-MM-DD
+          if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+            return new Date(dateStr)
+          }
+
+          // If DD-MM-YYYY
+          if (dateStr.match(/^\d{2}-\d{2}-\d{4}/)) {
+            const [day, month, year] = dateStr.split('-')
+
+            return new Date(`${year}-${month}-${day}`)
+          }
+
+          return new Date(dateStr)
+        }
+
+        // Client-side filtering to ensure accuracy
+        if (dateFilter && startDate && endDate) {
+          const start = new Date(startDate)
+
+          start.setHours(0, 0, 0, 0)
+          const end = new Date(endDate)
+
+          end.setHours(0, 0, 0, 0)
+
+          settlements = settlements.filter(item => {
+            const itemDate = parseSettlementDate(item.date)
+
+            if (!itemDate || isNaN(itemDate.getTime())) return false
+            itemDate.setHours(0, 0, 0, 0)
+
+            return itemDate >= start && itemDate <= end
+          })
+        }
 
         const data = settlements.map((item, index) => ({
           id: item._id,
@@ -223,10 +346,8 @@ const VendorPayOuts = () => {
   }
 
   const handleClearFilters = () => {
-    const currentDate = getCurrentDate()
-
-    setStartDate(currentDate)
-    setEndDate(currentDate)
+    setStartDate('')
+    setEndDate('')
 
     if (session?.user?.id) {
       fetchTransactions(session.user.id, true)
@@ -461,7 +582,9 @@ const VendorPayOuts = () => {
               }}
             >
               <Typography variant='body2' fontWeight='medium' color='#1976d2'>
-                {`${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`}
+                {startDate && endDate
+                  ? `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`
+                  : 'All Dates'}
               </Typography>
             </Box>
           </Box>
@@ -487,7 +610,20 @@ const VendorPayOuts = () => {
                       <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
                         Order ID
                       </TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>Date</TableCell>
+                      <TableCell
+                        sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem', cursor: 'pointer' }}
+                        onClick={() => handleSort('date')}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          Date
+                          {sortConfig.key === 'date' && (
+                            <i
+                              className={sortConfig.direction === 'asc' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}
+                              style={{ fontSize: '1.2em' }}
+                            />
+                          )}
+                        </Box>
+                      </TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>Time</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 600, py: 2, fontSize: '0.95rem' }}>
                         Parking Amount
@@ -505,7 +641,7 @@ const VendorPayOuts = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {transactions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(transaction => (
+                    {sortedTransactions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(transaction => (
                       <TableRow
                         key={transaction.id}
                         hover
@@ -602,7 +738,7 @@ const VendorPayOuts = () => {
                 Cancel
               </Button>
               <Button onClick={handleClearFilters} color='secondary'>
-                Reset to Today
+                Clear Filter
               </Button>
               <Button
                 onClick={handleApplyDateFilter}

@@ -365,6 +365,23 @@ const OrderListTable = ({ orderData }) => {
 
   const open = Boolean(anchorEl)
 
+  // Persist booking type selection
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vendor_subscription_booking_tab_preference')
+
+      if (saved && (saved === 'user' || saved === 'vendor')) {
+        setBookingTypeFilter(saved)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vendor_subscription_booking_tab_preference', bookingTypeFilter)
+    }
+  }, [bookingTypeFilter])
+
   const handleMenuClick = event => {
     setAnchorEl(event.currentTarget)
   }
@@ -1336,43 +1353,34 @@ const OrderListTable = ({ orderData }) => {
             </Box>
           </Box>
 
-          {/* Booking Source Filter (User vs Vendor) - Pill Style */}
-          <Box sx={{ mb: 4, display: 'flex', justifyContent: 'center' }}>
-            <Box
-              sx={{
-                backgroundColor: '#f1f5f9',
-                p: 0.5,
-                borderRadius: '12px',
-                display: 'inline-flex',
-                gap: 1
-              }}
-            >
-              {['user', 'vendor'].map(type => (
-                <Button
-                  key={type}
-                  onClick={() => setBookingTypeFilter(type)}
-                  sx={{
-                    textTransform: 'capitalize',
-                    color: bookingTypeFilter === type ? '#fff' : '#64748b',
-                    backgroundColor: bookingTypeFilter === type ? '#22c55e' : 'transparent',
-                    fontWeight: 600,
-                    borderRadius: '8px',
-                    px: 4,
-                    py: 1,
-                    fontSize: '0.95rem',
-                    boxShadow: bookingTypeFilter === type ? '0 4px 6px -1px rgb(0 0 0 / 0.1)' : 'none',
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      backgroundColor: bookingTypeFilter === type ? '#16a34a' : '#e2e8f0',
-                      color: bookingTypeFilter === type ? '#fff' : '#1e293b'
-                    }
-                  }}
-                >
-                  {type === 'user' ? 'User Bookings' : 'Vendor Bookings'}
-                </Button>
-              ))}
-            </Box>
-          </Box>
+          {/* Booking Source Filter (User vs Vendor) */}
+          <div className='flex items-center gap-4 mb-4'>
+            <div className='flex items-center bg-gray-100 p-1 rounded-lg'>
+              <button
+                onClick={() => setBookingTypeFilter('user')}
+                className={classnames('px-4 py-2 rounded-md text-sm font-medium transition-all duration-200', {
+                  'bg-green-500 text-white shadow-sm': bookingTypeFilter === 'user',
+                  'text-gray-600 hover:text-gray-900': bookingTypeFilter !== 'user'
+                })}
+                style={{ backgroundColor: bookingTypeFilter === 'user' ? '#22c55e' : 'transparent' }}
+              >
+                User Bookings
+              </button>
+              <button
+                onClick={() => setBookingTypeFilter('vendor')}
+                className={classnames('px-4 py-2 rounded-md text-sm font-medium transition-all duration-200', {
+                  'bg-green-500 text-white shadow-sm': bookingTypeFilter === 'vendor',
+                  'text-gray-600 hover:text-gray-900': bookingTypeFilter !== 'vendor'
+                })}
+                style={{
+                  backgroundColor: bookingTypeFilter === 'vendor' ? '#22c55e' : 'transparent',
+                  color: bookingTypeFilter === 'vendor' ? '#fff' : ''
+                }}
+              >
+                Vendor Bookings
+              </button>
+            </div>
+          </div>
 
           {/* Status Tabs - Separate Row */}
           <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+
 import { useSession } from 'next-auth/react'
 import {
   Button,
@@ -17,6 +18,7 @@ import {
   Stack,
   Typography
 } from '@mui/material'
+
 import ExitVehicleCalculator from './ExitVehicleCalculator'
 import RenewSubscriptionDialog from './RenewSubscriptionDialog'
 
@@ -30,6 +32,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
   const [dateInput, setDateInput] = useState('')
   const [timeInput, setTimeInput] = useState('')
   const [loading, setLoading] = useState(false)
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -40,6 +43,10 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
   const [showRenewDialog, setShowRenewDialog] = useState(false)
 
   const isSubscription = bookingDetails?.sts?.toLowerCase() === 'subscription'
+
+  const [otp, setOtp] = useState('')
+  const [backendOtp, setBackendOtp] = useState('')
+  const isVendorBooking = !bookingDetails?.userid
 
   const handleClick = event => {
     setAnchorEl(event.currentTarget)
@@ -53,16 +60,32 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     setSnackbar(prev => ({ ...prev, open: false }))
   }
 
-  const handleActionClick = action => {
+  const fetchBookingOtp = async () => {
+    try {
+      const response = await fetch(`${API_URL}/vendor/getbooking/${bookingId}`)
+      const data = await response.json()
+
+      if (data?.data?.otp) {
+        setBackendOtp(data.data.otp)
+      }
+    } catch (error) {
+      console.error('Error fetching OTP:', error)
+    }
+  }
+
+  const handleActionClick = async action => {
     handleClose()
 
     if (action === 'renew') {
       setShowRenewDialog(true)
+
       return
     }
 
     setActionType(action)
     resetFields()
+    setOtp('')
+    setBackendOtp('')
 
     // Initialize with current date and time in required format
     const now = new Date()
@@ -79,6 +102,10 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     setDateInput(formattedDate)
     setTimeInput(formattedTime)
 
+    if (action === 'allowParking' && !isVendorBooking) {
+      await fetchBookingOtp()
+    }
+
     setOpenDialog(true)
   }
 
@@ -90,6 +117,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
   const handleDialogClose = () => {
     setOpenDialog(false)
     resetFields()
+    setOtp('')
   }
 
   const showSnackbar = (message, severity = 'success') => {
@@ -103,6 +131,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
   const handleSubmit = async () => {
     if (!bookingId) {
       showSnackbar('Booking ID is missing', 'error')
+
       return
     }
 
@@ -123,6 +152,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
           if (!dateInput || !timeInput) {
             showSnackbar('Approval date and time are required', 'error')
             setLoading(false)
+
             return
           }
 
@@ -149,7 +179,24 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
           if (!dateInput || !timeInput) {
             showSnackbar('Parking date and time are required', 'error')
             setLoading(false)
+
             return
+          }
+
+          if (!isVendorBooking) {
+            if (!otp) {
+              showSnackbar('First 3 digits of OTP are required', 'error')
+              setLoading(false)
+
+              return
+            }
+
+            if (otp.length !== 3 || !backendOtp || !backendOtp.startsWith(otp)) {
+              showSnackbar('OTP does not match the first 3 digits of booking OTP', 'error')
+              setLoading(false)
+
+              return
+            }
           }
 
           endpoint = `${API_URL}/vendor/allowparking/${bookingId}`
@@ -167,10 +214,12 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
 
       if (!response.ok) {
         const errorData = await response.json()
+
         throw new Error(errorData.message || 'Failed to update booking status')
       }
 
       const data = await response.json()
+
       showSnackbar(data.message || 'Status updated successfully')
       handleDialogClose()
       if (onUpdate) onUpdate()
@@ -229,6 +278,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
           break
       }
     }
+
     return actions
   }
 
@@ -242,6 +292,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     showSnackbar(message)
     setShowRenewDialog(false)
     if (onUpdate) onUpdate()
+
     // Refresh the page after a short delay
     setTimeout(() => {
       window.location.reload()
@@ -283,6 +334,29 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
               required
               disabled={loading}
             />
+            {actionType === 'allowParking' && !isVendorBooking && (
+              <TextField
+                label='Enter First 3 Digits of OTP'
+                value={otp}
+                onChange={e => {
+                  const val = e.target.value.replace(/\D/g, '').slice(0, 3)
+
+                  setOtp(val)
+                }}
+                error={!otp || (otp && backendOtp && !backendOtp.startsWith(otp))}
+                helperText={
+                  !otp
+                    ? 'First 3 digits of OTP are required'
+                    : otp && backendOtp && !backendOtp.startsWith(otp)
+                      ? 'OTP does not match the first 3 digits'
+                      : ''
+                }
+                fullWidth
+                required
+                disabled={loading}
+                inputProps={{ maxLength: 3 }}
+              />
+            )}
             <Typography variant='caption' color='text.secondary'>
               Format: Date (DD-MM-YYYY) and Time (hh:mm AM/PM)
             </Typography>

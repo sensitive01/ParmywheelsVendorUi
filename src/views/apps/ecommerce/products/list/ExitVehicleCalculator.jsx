@@ -579,22 +579,6 @@ const ExitVehicleCalculator = ({
       return
     }
 
-    // Only validate OTP for user bookings (not vendor bookings)
-    if (!isVendorBooking) {
-      if (!otp) {
-        setError('Last 3 digits of OTP are required')
-
-        return
-      }
-
-      // Check if entered OTP matches the last 3 digits of backend OTP
-      if (otp.length !== 3 || !backendOtp || !backendOtp.endsWith(otp)) {
-        setError('OTP does not match the last 3 digits of booking OTP')
-
-        return
-      }
-    }
-
     setLoading(true)
     setError('')
 
@@ -606,7 +590,7 @@ const ExitVehicleCalculator = ({
         is24Hours,
         isSubscription,
         vendorId,
-        otp: isVendorBooking ? null : backendOtp
+        otp: null
       })
 
       // Prepare body according to Flutter logic
@@ -619,7 +603,7 @@ const ExitVehicleCalculator = ({
         is24Hours,
         isSubscription,
         vendorId,
-        otp: isVendorBooking ? null : backendOtp
+        otp: null
       }
 
       if (!isVendorBooking) {
@@ -666,7 +650,6 @@ const ExitVehicleCalculator = ({
   }
 
   const isLoading = fetchingBookingDetails || loading
-  const otpValidated = isVendorBooking || (backendOtp && otp.length === 3 && backendOtp.endsWith(otp))
 
   return (
     <Box>
@@ -749,36 +732,6 @@ const ExitVehicleCalculator = ({
                   />
                 </Grid>
               )}
-
-              {!isVendorBooking && (
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label='Enter Last 3 Digits of OTP'
-                    type='text'
-                    value={otp}
-                    onChange={e => {
-                      const value = e.target.value.replace(/\D/g, '').slice(0, 3)
-
-                      setOtp(value)
-                    }}
-                    error={!otp || (otp && backendOtp && !backendOtp.endsWith(otp))}
-                    helperText={
-                      !otp
-                        ? 'Last 3 digits of OTP are required'
-                        : otp && backendOtp && !backendOtp.endsWith(otp)
-                          ? 'OTP does not match the last 3 digits'
-                          : ''
-                    }
-                    disabled={isLoading}
-                    required
-                    inputProps={{
-                      maxLength: 3,
-                      pattern: '\\d{3}'
-                    }}
-                  />
-                </Grid>
-              )}
             </Grid>
 
             {!isSubscription && (
@@ -837,7 +790,7 @@ const ExitVehicleCalculator = ({
           onClick={handleSubmit}
           variant='contained'
           color='primary'
-          disabled={isLoading || !vendorId || !otpValidated}
+          disabled={isLoading || !vendorId}
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
           {loading ? 'Processing...' : 'Confirm Exit'}

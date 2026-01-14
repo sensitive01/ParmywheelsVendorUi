@@ -185,6 +185,23 @@ const OrderListTable = ({ orderData }) => {
   const [anchorEl, setAnchorEl] = useState(null)
   const open = Boolean(anchorEl)
 
+  // Persist booking type selection
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vendor_booking_tab_preference')
+
+      if (saved && (saved === 'user' || saved === 'vendor')) {
+        setBookingTypeFilter(saved)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vendor_booking_tab_preference', bookingTypeFilter)
+    }
+  }, [bookingTypeFilter])
+
   const handleMenuClick = event => {
     setAnchorEl(event.currentTarget)
   }
@@ -265,26 +282,39 @@ const OrderListTable = ({ orderData }) => {
     }
   }
 
-  // Function to update booking status to Cancelled
-  const updateBookingStatus = async (bookingId, status) => {
+  // Function to cancel overdue bookings
+  const cancelOverdueBooking = async (bookingId, currentStatus) => {
     try {
-      const response = await fetch(`${API_URL}/vendor/updatebookingstatus/${bookingId}`, {
+      const status = currentStatus.toLowerCase()
+      let endpoint = `${API_URL}/vendor/cancelbooking/${bookingId}` // Default for pending
+
+      if (status === 'approved') {
+        endpoint = `${API_URL}/vendor/approvedcancelbooking/${bookingId}`
+      }
+
+      console.log(`Cancelling overdue booking: ${bookingId}, Status: ${status}`)
+
+      const response = await fetch(endpoint, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.accessToken}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({
+          vendorId: session?.user?.id
+        })
       })
 
-      console.log('exit vechicle ', response)
-
       if (!response.ok) {
-        throw new Error('Failed to update booking status')
+        const errorData = await response.json().catch(() => ({}))
+
+        console.error('Cancellation failed:', errorData)
+        throw new Error(errorData.message || 'Failed to cancel booking')
       }
 
       return true
     } catch (error) {
-      console.error('Error updating booking status:', error)
+      console.error('Error cancelling booking:', error)
 
       return false
     }
@@ -310,7 +340,7 @@ const OrderListTable = ({ orderData }) => {
         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000)
 
         if (now > tenMinutesAfter) {
-          const success = await updateBookingStatus(booking._id, 'Cancelled')
+          const success = await cancelOverdueBooking(booking._id, 'pending')
 
           if (success) {
             console.log(`Booking ${booking._id} has been cancelled.`)
@@ -342,7 +372,7 @@ const OrderListTable = ({ orderData }) => {
         const tenMinutesAfter = new Date(scheduledDateTime.getTime() + 10 * 60 * 1000)
 
         if (now > tenMinutesAfter) {
-          const success = await updateBookingStatus(booking._id, 'Cancelled')
+          const success = await cancelOverdueBooking(booking._id, 'approved')
 
           if (success) {
             console.log(`Booking ${booking._id} has been cancelled (10 minutes past the scheduled time).`)
@@ -1313,32 +1343,34 @@ const OrderListTable = ({ orderData }) => {
         </div>
 
         {/* Booking Source Filter (User vs Vendor) */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-            {['user', 'vendor'].map(type => (
-              <Button
-                key={type}
-                onClick={() => setBookingTypeFilter(type)}
-                sx={{
-                  textTransform: 'capitalize',
-                  color: bookingTypeFilter === type ? '#22c55e' : '#64748b',
-                  fontWeight: bookingTypeFilter === type ? 600 : 400,
-                  borderBottom: bookingTypeFilter === type ? '2px solid #22c55e' : '2px solid transparent',
-                  borderRadius: 0,
-                  px: 3,
-                  py: 1.5,
-                  fontSize: '1rem',
-                  '&:hover': {
-                    backgroundColor: '#f8fafc',
-                    color: '#22c55e'
-                  }
-                }}
-              >
-                {type === 'user' ? 'User Bookings' : 'Vendor Bookings'}
-              </Button>
-            ))}
-          </Box>
-        </Box>
+        {/* Booking Source Filter (User vs Vendor) */}
+        <div className='flex items-center gap-4 mb-4'>
+          <div className='flex items-center bg-gray-100 p-1 rounded-lg'>
+            <button
+              onClick={() => setBookingTypeFilter('user')}
+              className={classnames('px-4 py-2 rounded-md text-sm font-medium transition-all duration-200', {
+                'bg-green-500 text-white shadow-sm': bookingTypeFilter === 'user',
+                'text-gray-600 hover:text-gray-900': bookingTypeFilter !== 'user'
+              })}
+              style={{ backgroundColor: bookingTypeFilter === 'user' ? '#22c55e' : 'transparent' }}
+            >
+              User Bookings
+            </button>
+            <button
+              onClick={() => setBookingTypeFilter('vendor')}
+              className={classnames('px-4 py-2 rounded-md text-sm font-medium transition-all duration-200', {
+                'bg-green-500 text-white shadow-sm': bookingTypeFilter === 'vendor',
+                'text-gray-600 hover:text-gray-900': bookingTypeFilter !== 'vendor'
+              })}
+              style={{
+                backgroundColor: bookingTypeFilter === 'vendor' ? '#22c55e' : 'transparent',
+                color: bookingTypeFilter === 'vendor' ? '#fff' : ''
+              }}
+            >
+              Vendor Bookings
+            </button>
+          </div>
+        </div>
 
         {/* Status Tabs and Action Buttons */}
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>

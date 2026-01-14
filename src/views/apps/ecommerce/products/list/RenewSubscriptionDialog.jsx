@@ -98,8 +98,10 @@ const RenewSubscriptionDialog = ({
     const baseRate = monthlyCharge ? parseFloat(monthlyCharge.amount) : 0
 
     const payable = Math.ceil(baseRate * months)
-    const gstAmount = Math.ceil((payable * gstData.gst) / 100)
-    const handling = Math.ceil(gstData.handlingfee)
+
+    // As per user request, GST and Handling Fee should not be charged for renewal
+    const gstAmount = 0
+    const handling = 0
     const total = payable + gstAmount + handling
 
     setAmounts({ payable, gst: gstAmount, handling, total })
@@ -182,14 +184,7 @@ const RenewSubscriptionDialog = ({
                 <Typography variant='body2'>Subscription Fee ({months} months)</Typography>
                 <Typography variant='body2'>₹{amounts.payable.toFixed(2)}</Typography>
               </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant='body2'>GST ({gstData.gst}%)</Typography>
-                <Typography variant='body2'>₹{amounts.gst.toFixed(2)}</Typography>
-              </Box>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant='body2'>Handling Fee</Typography>
-                <Typography variant='body2'>₹{amounts.handling.toFixed(2)}</Typography>
-              </Box>
+
               <Divider sx={{ my: 1 }} />
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <Typography variant='subtitle1' fontWeight={600}>
@@ -200,8 +195,6 @@ const RenewSubscriptionDialog = ({
                 </Typography>
               </Box>
             </Box>
-
-          
           </Box>
         )}
       </DialogContent>

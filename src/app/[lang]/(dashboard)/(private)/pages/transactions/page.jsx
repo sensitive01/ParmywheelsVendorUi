@@ -100,45 +100,123 @@ const TransactionsPage = () => {
     }
   }
 
+  // Sort State
+  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' })
+
+  const handleSort = key => {
+    let direction = 'asc'
+
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc'
+    }
+
+    setSortConfig({ key, direction })
+  }
+
+  // Helper date parser
+  const parseTransactionDate = dateStr => {
+    if (!dateStr || dateStr === 'N/A') return null
+
+    // Try standard ISO first if it matches
+    if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      return new Date(dateStr)
+    }
+
+    const formats = ['dd-MM-yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy']
+
+    for (const fmt of formats) {
+      const d = parse(dateStr, fmt, new Date())
+
+      if (isValid(d)) {
+        return d
+      }
+    }
+
+    return null
+  }
+
   // Filter Logic
   const getFilteredTransactions = isUserBooking => {
     const data = isUserBooking ? userTransactions : vendorTransactions
 
-    if (!startDate || !endDate) return data
+    // 1. Filter by Date Range
+    const filtered =
+      !startDate || !endDate
+        ? data
+        : data.filter(item => {
+            const dateStr = item.parkingDate || item.bookingDate
+            const parsedDate = parseTransactionDate(dateStr)
 
-    return data.filter(item => {
-      // Logic to parse 'parkingDate' or 'bookingDate'
-      // Flutter code checks item['parkingDate'] or 'bookingDate'
-      // JSON Keys in Flutter: bookingDate maps to parkingDate.
-      // Let's assume the API returns 'parkingDate' as "dd-MM-yyyy" or "yyyy-MM-dd".
+            if (!parsedDate) return false
 
-      const dateStr = item.parkingDate || item.bookingDate
+            // Normalize to start of day
+            const check = new Date(parsedDate)
 
-      if (!dateStr || dateStr === 'N/A') return false
+            check.setHours(0, 0, 0, 0)
+            const start = new Date(startDate)
 
-      let parsedDate = null
+            start.setHours(0, 0, 0, 0)
+            const end = new Date(endDate)
 
-      // Try parsing formats
-      const formats = ['dd-MM-yyyy', 'yyyy-MM-dd', 'MM/dd/yyyy']
+            end.setHours(0, 0, 0, 0)
 
-      for (const fmt of formats) {
-        const d = parse(dateStr, fmt, new Date())
+            return check >= start && check <= end
+          })
 
-        if (isValid(d)) {
-          parsedDate = d
-          break
+    // 2. Sort Logic
+    return filtered.sort((a, b) => {
+      // Default Sort (createdAt desc) if no specific sort key or if key is 'createdAt'
+      if (sortConfig.key === 'createdAt') {
+        const dir = sortConfig.direction === 'asc' ? 1 : -1
+
+        // Priority 1: CreatedAt
+        if (a.createdAt && b.createdAt) {
+          const dateA = new Date(a.createdAt)
+          const dateB = new Date(b.createdAt)
+
+          if (dateA.getTime() !== dateB.getTime()) {
+            return (dateA - dateB) * dir
+          }
         }
+
+        // Priority 2: Parking Date (Fallback if createdAt missing or equal)
+        const parkA = parseTransactionDate(a.parkingDate || a.bookingDate)
+        const parkB = parseTransactionDate(b.parkingDate || b.bookingDate)
+
+        if (parkA && parkB && parkA.getTime() !== parkB.getTime()) {
+          return (parkA - parkB) * dir
+        }
+
+        // Priority 3: Exit Date (Fallback)
+        const exitA = parseTransactionDate(a.exitdate)
+        const exitB = parseTransactionDate(b.exitdate)
+
+        if (exitA && exitB) {
+          return (exitA - exitB) * dir
+        }
+
+        return 0
       }
 
-      if (!parsedDate) return false
+      if (sortConfig.key === 'parkingDate') {
+        const dateA = parseTransactionDate(a.parkingDate || a.bookingDate)
+        const dateB = parseTransactionDate(b.parkingDate || b.bookingDate)
 
-      // Check range
-      // Normalize to start of day
-      const check = new Date(parsedDate.setHours(0, 0, 0, 0))
-      const start = new Date(startDate.setHours(0, 0, 0, 0))
-      const end = new Date(endDate.setHours(0, 0, 0, 0))
+        if (!dateA || !dateB) return 0
 
-      return check >= start && check <= end
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA
+      }
+
+      if (sortConfig.key === 'exitDate') {
+        const dateA = parseTransactionDate(a.exitdate)
+        const dateB = parseTransactionDate(b.exitdate)
+
+        if (!dateA || !dateB) return 0
+
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA
+      }
+
+      return 0
     })
   }
 
@@ -150,33 +228,11 @@ const TransactionsPage = () => {
     const sum = field => data.reduce((acc, curr) => acc + (parseFloat(curr[field] || 0) || 0), 0)
 
     return {
-      totalAmount: sum('totalamout'), // User: totalamout, Vendor: amount?? Flutter logic: User total=totalamout. Vendor total=receivable??
-      // Flutter User: Total: totalamout.
-      // Flutter Vendor: Total: receivable (called 'bookingamout' var but used in Total card).
-      // Wait, let's verify Flutter logic for Vendor Total Card.
-      // "Total: ₹${bookingamout.toStringAsFixed(2)}"
-      // bookingamout = getbookingAmount(isUserBooking) -> sums 'receivable' (recievableamount)??
-      // Wait, getbookingAmount function:
-      // return getFilteredTransactions(isUserBooking).fold(0.0, (sum, transaction) {
-      //   return sum + (double.tryParse(transaction.receivable) ?? 0.0);
-      // });
-      // So for Vendor, Total Card shows Receivable.
-
-      // Let's verify field names from Flutter:
-      // isUserBooking:
-      //   platformFee: 'releasefee'
-      //   receivable: 'recievableamount'
-      //   totalAmount: 'totalamout'
-      //   gst: 'gstamout'
-      // Vendor:
-      //   amount: 'amount'
-      //   platformFee: 'releasefee'
-      //   receivable: 'recievableamount'
-
+      totalAmount: sum('totalamout'),
       platformFee: sum('releasefee'),
       receivable: sum('recievableamount'),
       gst: sum('gstamout'),
-      vendorTotal: sum('amount') // Corrected: Vendor Total should be sum of amounts collected (amount), not just receivable.
+      vendorTotal: sum('amount')
     }
   }
 
@@ -377,9 +433,45 @@ const TransactionsPage = () => {
                     <TableRow>
                       <TableCell sx={{ color: 'white' }}>S.No</TableCell>
                       <TableCell sx={{ color: 'white' }}>Vehicle Number</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Parking Date</TableCell>
+
+                      {/* Sortable Parking Date */}
+                      <TableCell
+                        sx={{ color: 'white', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => handleSort('parkingDate')}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          Parking Date
+                          {sortConfig.key === 'parkingDate' && (
+                            <i
+                              className={sortConfig.direction === 'asc' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}
+                            />
+                          )}
+                          {sortConfig.key !== 'parkingDate' && (
+                            <i className='ri-arrow-up-down-line' style={{ opacity: 0.5, fontSize: '0.8em' }} />
+                          )}
+                        </Box>
+                      </TableCell>
+
                       <TableCell sx={{ color: 'white' }}>Parking Time</TableCell>
-                      <TableCell sx={{ color: 'white' }}>Exit Date</TableCell>
+
+                      {/* Sortable Exit Date */}
+                      <TableCell
+                        sx={{ color: 'white', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => handleSort('exitDate')}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          Exit Date
+                          {sortConfig.key === 'exitDate' && (
+                            <i
+                              className={sortConfig.direction === 'asc' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}
+                            />
+                          )}
+                          {sortConfig.key !== 'exitDate' && (
+                            <i className='ri-arrow-up-down-line' style={{ opacity: 0.5, fontSize: '0.8em' }} />
+                          )}
+                        </Box>
+                      </TableCell>
+
                       <TableCell sx={{ color: 'white' }}>Exit Time</TableCell>
                       {isUser ? (
                         <>
