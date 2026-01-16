@@ -101,7 +101,7 @@ const TransactionsPage = () => {
   }
 
   // Sort State
-  const [sortConfig, setSortConfig] = useState({ key: 'createdAt', direction: 'desc' })
+  const [sortConfig, setSortConfig] = useState({ key: 'bookingDate', direction: 'desc' })
 
   const handleSort = key => {
     let direction = 'asc'
@@ -198,6 +198,15 @@ const TransactionsPage = () => {
         return 0
       }
 
+      if (sortConfig.key === 'bookingDate') {
+        const dateA = parseTransactionDate(a.bookingDate)
+        const dateB = parseTransactionDate(b.bookingDate)
+
+        if (!dateA || !dateB) return 0
+
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA
+      }
+
       if (sortConfig.key === 'parkingDate') {
         const dateA = parseTransactionDate(a.parkingDate || a.bookingDate)
         const dateB = parseTransactionDate(b.parkingDate || b.bookingDate)
@@ -246,7 +255,7 @@ const TransactionsPage = () => {
       ? [
           'S.No',
           'Vehicle Number',
-          'Parking Date',
+          'Booking Date',
           'Parking Time',
           'Exit Date',
           'Exit Time',
@@ -260,7 +269,7 @@ const TransactionsPage = () => {
       : [
           'S.No',
           'Vehicle Number',
-          'Parking Date',
+          'Booking Date',
           'Parking Time',
           'Exit Date',
           'Exit Time',
@@ -274,7 +283,7 @@ const TransactionsPage = () => {
         return [
           index + 1,
           item.vehiclenumber,
-          item.parkingDate,
+          item.bookingDate || item.parkingDate,
           item.parkingTime,
           item.exitdate, // Flutter matches exitdate
           item.exittime,
@@ -289,7 +298,7 @@ const TransactionsPage = () => {
         return [
           index + 1,
           item.vehiclenumber, // Flutter uses vehiclenumber for vendor too in table
-          item.parkingDate,
+          item.bookingDate || item.parkingDate,
           item.parkingTime,
           item.exitdate,
           item.exittime,
@@ -434,6 +443,24 @@ const TransactionsPage = () => {
                       <TableCell sx={{ color: 'white' }}>S.No</TableCell>
                       <TableCell sx={{ color: 'white' }}>Vehicle Number</TableCell>
 
+                      {/* Sortable Booking Date */}
+                      <TableCell
+                        sx={{ color: 'white', cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => handleSort('bookingDate')}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          Booking Date
+                          {sortConfig.key === 'bookingDate' && (
+                            <i
+                              className={sortConfig.direction === 'asc' ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}
+                            />
+                          )}
+                          {sortConfig.key !== 'bookingDate' && (
+                            <i className='ri-arrow-up-down-line' style={{ opacity: 0.5, fontSize: '0.8em' }} />
+                          )}
+                        </Box>
+                      </TableCell>
+
                       {/* Sortable Parking Date */}
                       <TableCell
                         sx={{ color: 'white', cursor: 'pointer', userSelect: 'none' }}
@@ -493,6 +520,7 @@ const TransactionsPage = () => {
                         <TableRow key={index} hover>
                           <TableCell>{index + 1}</TableCell>
                           <TableCell>{row.vehiclenumber}</TableCell>
+                          <TableCell>{row.bookingDate}</TableCell>
                           <TableCell>{row.parkingDate}</TableCell>
                           <TableCell>{row.parkingTime}</TableCell>
                           <TableCell>{row.exitdate}</TableCell>
@@ -513,7 +541,7 @@ const TransactionsPage = () => {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={isUser ? 12 : 9} align='center'>
+                        <TableCell colSpan={isUser ? 13 : 10} align='center'>
                           <Typography sx={{ py: 4, color: 'text.secondary' }}>No transactions found</Typography>
                         </TableCell>
                       </TableRow>

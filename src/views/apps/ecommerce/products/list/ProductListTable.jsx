@@ -21,7 +21,18 @@ import CardHeader from '@mui/material/CardHeader'
 import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
 import CircularProgress from '@mui/material/CircularProgress'
-import { Menu, MenuItem, Tabs, Tab, Box } from '@mui/material'
+import {
+  Menu,
+  MenuItem,
+  Tabs,
+  Tab,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions
+} from '@mui/material'
 
 // Third-party Imports
 import classnames from 'classnames'
@@ -184,6 +195,36 @@ const OrderListTable = ({ orderData }) => {
   const vendorId = session?.user?.id
   const [anchorEl, setAnchorEl] = useState(null)
   const open = Boolean(anchorEl)
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false)
+
+  const handleNewBooking = async () => {
+    if (!vendorId) return
+
+    try {
+      // Optional: Show loading indicator specifically for this action if desired,
+      // but simpler to just run it. We will use the main loading state if it's quick.
+      // Or local loading state. Main loading might hide the table which is jarring.
+      // I'll skip setting main loading to true to avoid UI flicker of table,
+      // as this is a quick check.
+
+      const response = await fetch(`${API_URL}/vendor/fetchsubscription/${vendorId}`)
+      const result = await response.json()
+
+      if (response.ok && result?.vendor?.subscription === 'true') {
+        router.push(getLocalizedUrl('/pages/wizard-examples/property-listing', locale))
+      } else {
+        setSubscriptionDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error)
+      setSubscriptionDialogOpen(true) // Assume no subscription on error/fail
+    }
+  }
+
+  const handleRenewSubscription = () => {
+    setSubscriptionDialogOpen(false)
+    router.push(getLocalizedUrl('/pages/currentplan', locale))
+  }
 
   // Persist booking type selection
   useEffect(() => {
@@ -1422,8 +1463,7 @@ const OrderListTable = ({ orderData }) => {
             </Menu>
             <Button
               variant='contained'
-              component={Link}
-              href={getLocalizedUrl('/pages/wizard-examples/property-listing', locale)}
+              onClick={handleNewBooking}
               startIcon={<i className='ri-add-line' />}
               className='flex-1 sm:flex-none'
             >
@@ -1526,6 +1566,27 @@ const OrderListTable = ({ orderData }) => {
           </>
         )}
       </div>
+      <Dialog
+        open={subscriptionDialogOpen}
+        onClose={() => setSubscriptionDialogOpen(false)}
+        aria-labelledby='subscription-dialog-title'
+        aria-describedby='subscription-dialog-description'
+      >
+        <DialogTitle id='subscription-dialog-title'>Subscription Required</DialogTitle>
+        <DialogContent>
+          <DialogContentText id='subscription-dialog-description'>
+            Currently you don't have any active subscription. Please renew to create new bookings.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubscriptionDialogOpen(false)} color='secondary'>
+            Cancel
+          </Button>
+          <Button onClick={handleRenewSubscription} variant='contained' color='primary' autoFocus>
+            Renew
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   )
 }

@@ -278,13 +278,48 @@ const SubscriptionPlan = () => {
         throw new Error('Failed to load Razorpay SDK')
       }
 
+      const razorpayKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+
+      if (!razorpayKey) {
+        console.error('Razorpay key is missing')
+        setNotification({
+          open: true,
+          message: 'Payment gateway configuration is missing. Please contact administrator.',
+          type: 'error'
+        })
+        setProcessingPayment(false)
+
+        return false
+      }
+
+      // Step 1: Create Order on Backend
+      const orderPayload = {
+        amount: amountInPaisa,
+        vendor_id: vendorId,
+        plan_id: planId,
+        transaction_name: 'VendorPlanPurchase'
+      }
+
+      console.log('Creating order with payload:', orderPayload)
+      const orderRes = await axios.post(`${API_URL}/vendor/create-order`, orderPayload)
+
+      console.log('Order creation response:', orderRes.data)
+
+      if (!orderRes.data || !orderRes.data.success) {
+        throw new Error(orderRes.data?.message || 'Failed to create payment order')
+      }
+
+      const razorpayOrderId = orderRes.data.order.id
+
+      // Step 2: Initialize Razorpay with Order ID
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: amountInPaisa,
         currency: 'INR',
         name: 'ASN Subscription',
         description: 'Payment for subscription plan',
         image: '/logo.png',
+        order_id: razorpayOrderId, // Important: Assoc payment with order
         prefill: {
           name: session?.user?.name || '',
           email: session?.user?.email || '',
@@ -299,12 +334,14 @@ const SubscriptionPlan = () => {
         },
         handler: async function (response) {
           try {
+            console.log('Razorpay response:', response)
+
             const paymentDetails = {
               payment_id: response.razorpay_payment_id,
-              order_id: response.razorpay_order_id || `order_${Date.now()}`,
-              signature: response.razorpay_signature || '',
+              order_id: response.razorpay_order_id,
+              signature: response.razorpay_signature,
               plan_id: planId,
-              amount: (amountInPaisa / 100).toString(), // Store in rupees in database
+              amount: (amountInPaisa / 100).toString(),
               transaction_name: 'Plan Purchase',
               payment_status: 'success'
             }
@@ -663,8 +700,8 @@ const SubscriptionPlan = () => {
                 ?.features.map((feature, index) => (
                   <Grid item xs={12} sm={6} key={index}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                       <CheckIcon sx={{ color: '#41b983', mr: 2 }} />
-                       <Typography variant="body1">{feature}</Typography>
+                      <CheckIcon sx={{ color: '#41b983', mr: 2 }} />
+                      <Typography variant='body1'>{feature}</Typography>
                     </Box>
                   </Grid>
                 ))}
@@ -672,32 +709,36 @@ const SubscriptionPlan = () => {
         </Box>
 
         <Paper
-            elevation={0}
-            sx={{
-              p: 3,
-              mt: 6,
-              borderRadius: 4,
-              bgcolor: '#f8f9fa',
-              border: '1px solid #e0e0e0',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1
-            }}
-          >
-            <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#718096', mr: 1 }} />
-              All payments are processed securely by Razorpay
+          elevation={0}
+          sx={{
+            p: 3,
+            mt: 6,
+            borderRadius: 4,
+            bgcolor: '#f8f9fa',
+            border: '1px solid #e0e0e0',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1
+          }}
+        >
+          <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box component='span' sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#718096', mr: 1 }} />
+            All payments are processed securely by Razorpay
+          </Typography>
+          <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box component='span' sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#718096', mr: 1 }} />
+            Your payment information is never stored on our servers
+          </Typography>
+          {subscriptionDays > 0 && (
+            <Typography
+              variant='body2'
+              color='text.secondary'
+              sx={{ mt: 1, fontWeight: 'bold', color: '#2d3748', display: 'flex', alignItems: 'center' }}
+            >
+              <Box component='span' sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#41b983', mr: 1 }} />
+              Your existing subscription ({subscriptionDays} days) will be extended
             </Typography>
-            <Typography variant='body2' color='text.secondary' sx={{ display: 'flex', alignItems: 'center' }}>
-              <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#718096', mr: 1 }} />
-              Your payment information is never stored on our servers
-            </Typography>
-            {subscriptionDays > 0 && (
-              <Typography variant='body2' color='text.secondary' sx={{ mt: 1, fontWeight: 'bold', color: '#2d3748', display: 'flex', alignItems: 'center' }}>
-                 <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#41b983', mr: 1 }} />
-                 Your existing subscription ({subscriptionDays} days) will be extended
-              </Typography>
-            )}
+          )}
         </Paper>
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 6, alignItems: 'center' }}>
@@ -732,9 +773,9 @@ const SubscriptionPlan = () => {
               fontWeight: 700,
               boxShadow: '0 4px 14px rgba(65, 185, 131, 0.4)',
               '&:hover': {
-                 bgcolor: '#369a6e',
-                 transform: 'translateY(-2px)',
-                 boxShadow: '0 6px 20px rgba(65, 185, 131, 0.6)'
+                bgcolor: '#369a6e',
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 20px rgba(65, 185, 131, 0.6)'
               },
               '&.Mui-disabled': {
                 bgcolor: '#a0aec0',

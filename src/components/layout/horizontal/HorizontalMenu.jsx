@@ -1,9 +1,14 @@
 // Next Imports
-import { useParams } from 'next/navigation'
+import { useState } from 'react'
+
+import { useParams, useRouter } from 'next/navigation'
+
+import { useSession } from 'next-auth/react'
 
 // MUI Imports
 import { useTheme } from '@mui/material/styles'
 import Chip from '@mui/material/Chip'
+import { Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, Button } from '@mui/material'
 
 // Component Imports
 import HorizontalNav, { Menu, SubMenu, MenuItem } from '@menu/horizontal-menu'
@@ -44,6 +49,35 @@ const HorizontalMenu = ({ dictionary }) => {
   // Vars
   const { transitionDuration } = verticalNavOptions
   const { lang: locale } = params
+  const router = useRouter()
+  const { data: session } = useSession()
+  const vendorId = session?.user?.id
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false)
+  const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+  const handleNewBookingClick = async e => {
+    e.preventDefault()
+    if (!vendorId) return
+
+    try {
+      const response = await fetch(`${API_URL}/vendor/fetchsubscription/${vendorId}`)
+      const result = await response.json()
+
+      if (response.ok && result?.vendor?.subscription === 'true') {
+        router.push(`/${locale}/pages/wizard-examples/property-listing`)
+      } else {
+        setSubscriptionDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error)
+      setSubscriptionDialogOpen(true)
+    }
+  }
+
+  const handleRenewSubscription = () => {
+    setSubscriptionDialogOpen(false)
+    router.push(`/${locale}/pages/currentplan`)
+  }
 
   return (
     <HorizontalNav
@@ -75,7 +109,7 @@ const HorizontalMenu = ({ dictionary }) => {
           {dictionary['navigation'].dashboards}
         </MenuItem>
         <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
-          <MenuItem href={`/${locale}/pages/wizard-examples/property-listing`}>New Bookings</MenuItem>
+          <MenuItem onClick={handleNewBookingClick}>{dictionary['navigation'].NewBookings || 'New Bookings'}</MenuItem>
           <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
           <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
             {dictionary['navigation'].SubscriptionBooking}
@@ -146,6 +180,27 @@ const HorizontalMenu = ({ dictionary }) => {
           icon={<i className='ri-search-line' style={{ color: '#black', fontSize: '24px' }} />}
         ></MenuItem>
       </Menu>
+      <Dialog
+        open={subscriptionDialogOpen}
+        onClose={() => setSubscriptionDialogOpen(false)}
+        aria-labelledby='subscription-dialog-title'
+        aria-describedby='subscription-dialog-description'
+      >
+        <DialogTitle id='subscription-dialog-title'>Subscription Required</DialogTitle>
+        <DialogContent>
+          <DialogContentText id='subscription-dialog-description'>
+            Currently you don't have any active subscription. Please renew to create new bookings.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubscriptionDialogOpen(false)} color='secondary'>
+            Cancel
+          </Button>
+          <Button onClick={handleRenewSubscription} variant='contained' color='primary' autoFocus>
+            Renew
+          </Button>
+        </DialogActions>
+      </Dialog>
     </HorizontalNav>
   )
 }

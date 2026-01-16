@@ -27,6 +27,7 @@ import Grid from '@mui/material/Grid'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
+import DialogContentText from '@mui/material/DialogContentText'
 import DialogActions from '@mui/material/DialogActions'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
@@ -364,6 +365,30 @@ const OrderListTable = ({ orderData }) => {
   const [anchorEl, setAnchorEl] = useState(null)
 
   const open = Boolean(anchorEl)
+  const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false)
+
+  const handleNewSubscription = async () => {
+    if (!vendorId) return
+
+    try {
+      const response = await fetch(`${API_URL}/vendor/fetchsubscription/${vendorId}`)
+      const result = await response.json()
+
+      if (response.ok && result?.vendor?.subscription === 'true') {
+        router.push(getLocalizedUrl('/pages/subscription-booking', locale))
+      } else {
+        setSubscriptionDialogOpen(true)
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error)
+      setSubscriptionDialogOpen(true)
+    }
+  }
+
+  const handleRenewSubscription = () => {
+    setSubscriptionDialogOpen(false)
+    router.push(getLocalizedUrl('/pages/currentplan', locale))
+  }
 
   // Persist booking type selection
   useEffect(() => {
@@ -1338,8 +1363,7 @@ const OrderListTable = ({ orderData }) => {
               </Button>
               <Button
                 variant='contained'
-                component={Link}
-                href={getLocalizedUrl('/pages/subscription-booking', locale)}
+                onClick={handleNewSubscription}
                 startIcon={<i className='ri-add-line' />}
                 sx={{
                   backgroundColor: '#22c55e',
@@ -1543,6 +1567,27 @@ const OrderListTable = ({ orderData }) => {
           )}
         </CardContent>
       </Card>
+      <Dialog
+        open={subscriptionDialogOpen}
+        onClose={() => setSubscriptionDialogOpen(false)}
+        aria-labelledby='subscription-dialog-title'
+        aria-describedby='subscription-dialog-description'
+      >
+        <DialogTitle id='subscription-dialog-title'>Subscription Required</DialogTitle>
+        <DialogContent>
+          <DialogContentText id='subscription-dialog-description'>
+            Currently you don't have any active subscription. Please renew to create new subscriptions.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSubscriptionDialogOpen(false)} color='secondary'>
+            Cancel
+          </Button>
+          <Button onClick={handleRenewSubscription} variant='contained' color='primary' autoFocus>
+            Renew
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
