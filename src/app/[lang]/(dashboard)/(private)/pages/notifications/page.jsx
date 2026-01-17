@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+
 import { useSession } from 'next-auth/react'
 import {
   Box,
@@ -81,14 +82,17 @@ export default function NotificationsPage() {
         if (response.status === 404 || data?.message === 'No notifications found') {
           setAllNotifications([])
           setLoading(false)
+
           return
         }
+
         throw new Error(data?.message || 'Failed to fetch notifications')
       }
 
       if (data?.success === false) {
         setAllNotifications([])
         setLoading(false)
+
         return
       }
 
@@ -96,6 +100,7 @@ export default function NotificationsPage() {
 
       // 1. General/Existing
       let generic = []
+
       if (data.notifications && Array.isArray(data.notifications)) generic = data.notifications
       else if (data.data && Array.isArray(data.data)) generic = data.data
 
@@ -140,19 +145,21 @@ export default function NotificationsPage() {
             let displayMessage = `Ticket "${item.description}" updated`
 
             if (lastMessage) {
-               if (isFromAdmin) {
-                   displayTitle = 'New Message from Admin'
-                   // Show the actual admin message
-                   const msgText = lastMessage.message || 'Sent an attachment'
-                   displayMessage = `Admin: ${msgText}`
-               } else {
-                   // If the last message was sent by the vendor
-                   displayTitle = 'Support Request Sent'
-                   displayMessage = `You: ${lastMessage.message || 'Sent an attachment'}`
-               }
+              if (isFromAdmin) {
+                displayTitle = 'New Message from Admin'
+
+                // Show the actual admin message
+                const msgText = lastMessage.message || 'Sent an attachment'
+
+                displayMessage = `Admin: ${msgText}`
+              } else {
+                // If the last message was sent by the vendor
+                displayTitle = 'Support Request Sent'
+                displayMessage = `You: ${lastMessage.message || 'Sent an attachment'}`
+              }
             } else {
-               // Fallback if no chat messages exist (just a created ticket)
-               displayTitle = `Support Ticket - ${item.status || 'Active'}`
+              // Fallback if no chat messages exist (just a created ticket)
+              displayTitle = `Support Ticket - ${item.status || 'Active'}`
             }
 
             return {
@@ -160,6 +167,7 @@ export default function NotificationsPage() {
               title: displayTitle,
               message: displayMessage,
               time: item.updatedAt,
+
               // 'isVendorRead' false means UNREAD for vendor -> so read: false
               read: item.isVendorRead,
               type: 'help',
@@ -178,9 +186,24 @@ export default function NotificationsPage() {
             title: 'Callback Request Update',
             message: `Request for ${item.department} has been viewed by Admin.`,
             time: item.updatedAt || item.createdAt,
-            // Check 'isVendorRead' for unread status
             read: item.isVendorRead,
             type: 'adv',
+            original: item
+          }))
+        ]
+      }
+
+      // 5. KYC Status
+      if (data.kycNotifications && Array.isArray(data.kycNotifications)) {
+        combined = [
+          ...combined,
+          ...data.kycNotifications.map(item => ({
+            _id: item._id,
+            title: 'KYC Status Update',
+            message: `Your ${item.idProof} (${item.idProofNumber}) status is ${item.status}.`,
+            time: item.updatedAt || item.createdAt,
+            read: item.isVendorRead,
+            type: 'kyc',
             original: item
           }))
         ]
@@ -208,6 +231,7 @@ export default function NotificationsPage() {
     }
 
     const total = filtered.length
+
     setTotalItems(total)
     setTotalPages(Math.ceil(total / itemsPerPage))
 
@@ -224,10 +248,12 @@ export default function NotificationsPage() {
 
   const confirmDelete = async () => {
     const notificationId = notificationToDelete
+
     if (!notificationId) return
 
     try {
       setDeletingId(notificationId)
+
       const response = await fetch(`${API_BASE_URL}/vendor/delete-my-notification/${notificationId}`, {
         method: 'DELETE',
         headers: {
@@ -265,6 +291,7 @@ export default function NotificationsPage() {
     try {
       setIsDeletingAll(true)
       const vendorId = session?.user?._id || session?.user?.id
+
       if (!vendorId) throw new Error('Vendor ID not found in session')
 
       const response = await fetch(`${API_BASE_URL}/vendor/notifications/vendor/${vendorId}`, {
@@ -312,6 +339,7 @@ export default function NotificationsPage() {
   const formatDate = dateString => {
     if (!dateString) return ''
     const date = new Date(dateString)
+
     return isNaN(date.getTime())
       ? ''
       : date.toLocaleString('en-US', {
@@ -325,16 +353,29 @@ export default function NotificationsPage() {
 
   const getNotificationColor = notification => {
     const title = notification.title?.toLowerCase() || ''
+
     if (title.includes('expiring soon') || title.includes('expiring in')) return 'warning'
     if (title.includes('expired')) return 'error'
+
     return 'info'
   }
 
   if (loading && notifications.length === 0) {
     return (
-      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '400px', gap: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '400px',
+          gap: 2
+        }}
+      >
         <CircularProgress size={50} />
-        <Typography variant='body2' color='text.secondary'>Loading notifications...</Typography>
+        <Typography variant='body2' color='text.secondary'>
+          Loading notifications...
+        </Typography>
       </Box>
     )
   }
@@ -342,60 +383,188 @@ export default function NotificationsPage() {
   if (error) {
     return (
       <Box sx={{ p: 3, maxWidth: 600, mx: 'auto', mt: 4 }}>
-        <Alert severity='error' sx={{ mb: 3 }}>{error}</Alert>
-        <Button variant='contained' onClick={fetchNotifications} startIcon={<RefreshIcon />} fullWidth>Retry</Button>
+        <Alert severity='error' sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+        <Button variant='contained' onClick={fetchNotifications} startIcon={<RefreshIcon />} fullWidth>
+          Retry
+        </Button>
       </Box>
     )
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3, md: 4 }, maxWidth: '1200px', mx: 'auto', width: '100%', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        p: { xs: 2, sm: 3, md: 4 },
+        maxWidth: '1200px',
+        mx: 'auto',
+        width: '100%',
+        minHeight: '100vh',
+        bgcolor: 'background.default'
+      }}
+    >
       {/* Header Section */}
-      <Box sx={{ mb: 4, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2 }}>
+      <Box
+        sx={{
+          mb: 4,
+          display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: 2
+        }}
+      >
         <Box>
-          <Typography variant='h4' component='h1' fontWeight='bold' sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+          <Typography
+            variant='h4'
+            component='h1'
+            fontWeight='bold'
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}
+          >
             <NotificationsActiveIcon sx={{ fontSize: 32, color: 'primary.main' }} />
             Notifications
           </Typography>
-          {totalItems > 0 && <Typography variant='body2' color='text.secondary'>{totalItems} total notification{totalItems !== 1 ? 's' : ''}</Typography>}
+          {totalItems > 0 && (
+            <Typography variant='body2' color='text.secondary'>
+              {totalItems} total notification{totalItems !== 1 ? 's' : ''}
+            </Typography>
+          )}
         </Box>
 
         <Stack direction='row' spacing={1}>
           {allNotifications.length > 0 && (
-            <Button variant='outlined' color='error' onClick={() => setShowDeleteAllDialog(true)} startIcon={<DeleteSweepIcon />} disabled={loading || isDeletingAll} size={isMobile ? 'small' : 'medium'}>
+            <Button
+              variant='outlined'
+              color='error'
+              onClick={() => setShowDeleteAllDialog(true)}
+              startIcon={<DeleteSweepIcon />}
+              disabled={loading || isDeletingAll}
+              size={isMobile ? 'small' : 'medium'}
+            >
               {isDeletingAll ? 'Clearing...' : isMobile ? 'Clear' : 'Clear All'}
             </Button>
           )}
-          <Button variant='outlined' onClick={fetchNotifications} startIcon={<RefreshIcon />} disabled={loading} size={isMobile ? 'small' : 'medium'}>
+          <Button
+            variant='outlined'
+            onClick={fetchNotifications}
+            startIcon={<RefreshIcon />}
+            disabled={loading}
+            size={isMobile ? 'small' : 'medium'}
+          >
             {loading ? 'Refreshing...' : 'Refresh'}
           </Button>
         </Stack>
       </Box>
 
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={tabValue} onChange={handleTabChange} aria-label='notification tabs' variant='scrollable' scrollButtons='auto' textColor='primary' indicatorColor='primary'>
-          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center' }}>All <Chip size='small' label={allNotifications.length} color={tabValue === 'all' ? 'primary' : 'default'} sx={{ ml: 1, height: 20, cursor: 'pointer' }} /></Box>} value='all' />
-          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center' }}>Bank Updates <Chip size='small' label={allNotifications.filter(n => n.type === 'bank').length} color={tabValue === 'bank' ? 'primary' : 'default'} sx={{ ml: 1, height: 20, cursor: 'pointer' }} /></Box>} value='bank' />
-          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center' }}>Support <Chip size='small' label={allNotifications.filter(n => n.type === 'help').length} color={tabValue === 'help' ? 'primary' : 'default'} sx={{ ml: 1, height: 20, cursor: 'pointer' }} /></Box>} value='help' />
-          <Tab label={<Box sx={{ display: 'flex', alignItems: 'center' }}>Callbacks <Chip size='small' label={allNotifications.filter(n => n.type === 'adv').length} color={tabValue === 'adv' ? 'primary' : 'default'} sx={{ ml: 1, height: 20, cursor: 'pointer' }} /></Box>} value='adv' />
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          aria-label='notification tabs'
+          variant='scrollable'
+          scrollButtons='auto'
+          textColor='primary'
+          indicatorColor='primary'
+        >
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                All{' '}
+                <Chip
+                  size='small'
+                  label={allNotifications.length}
+                  color={tabValue === 'all' ? 'primary' : 'default'}
+                  sx={{ ml: 1, height: 20, cursor: 'pointer' }}
+                />
+              </Box>
+            }
+            value='all'
+          />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                Bank Updates{' '}
+                <Chip
+                  size='small'
+                  label={allNotifications.filter(n => n.type === 'bank').length}
+                  color={tabValue === 'bank' ? 'primary' : 'default'}
+                  sx={{ ml: 1, height: 20, cursor: 'pointer' }}
+                />
+              </Box>
+            }
+            value='bank'
+          />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                Support{' '}
+                <Chip
+                  size='small'
+                  label={allNotifications.filter(n => n.type === 'help').length}
+                  color={tabValue === 'help' ? 'primary' : 'default'}
+                  sx={{ ml: 1, height: 20, cursor: 'pointer' }}
+                />
+              </Box>
+            }
+            value='help'
+          />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                Callbacks{' '}
+                <Chip
+                  size='small'
+                  label={allNotifications.filter(n => n.type === 'adv').length}
+                  color={tabValue === 'adv' ? 'primary' : 'default'}
+                  sx={{ ml: 1, height: 20, cursor: 'pointer' }}
+                />
+              </Box>
+            }
+            value='adv'
+          />
+          <Tab
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                KYC Status{' '}
+                <Chip
+                  size='small'
+                  label={allNotifications.filter(n => n.type === 'kyc').length}
+                  color={tabValue === 'kyc' ? 'primary' : 'default'}
+                  sx={{ ml: 1, height: 20, cursor: 'pointer' }}
+                />
+              </Box>
+            }
+            value='kyc'
+          />
         </Tabs>
       </Box>
 
       {/* Notifications List */}
       {notifications.length === 0 && totalItems === 0 ? (
-        <Card elevation={0} sx={{ textAlign: 'center', py: 8, border: '2px dashed', borderColor: 'divider', bgcolor: 'background.paper' }}>
+        <Card
+          elevation={0}
+          sx={{ textAlign: 'center', py: 8, border: '2px dashed', borderColor: 'divider', bgcolor: 'background.paper' }}
+        >
           <NotificationsIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
-          <Typography variant='h6' color='text.secondary' gutterBottom>No notifications yet</Typography>
-          <Typography variant='body2' color='text.secondary'>You're all caught up! New notifications will appear here.</Typography>
+          <Typography variant='h6' color='text.secondary' gutterBottom>
+            No notifications yet
+          </Typography>
+          <Typography variant='body2' color='text.secondary'>
+            You're all caught up! New notifications will appear here.
+          </Typography>
         </Card>
       ) : (
         <>
           <Stack spacing={2} sx={{ mb: 4 }}>
             {notifications.map((notification, index) => (
               <Fade in={true} timeout={300 + index * 100} key={notification._id || notification.id || index}>
-                <Card elevation={2}
+                <Card
+                  elevation={2}
                   sx={{
-                    position: 'relative', overflow: 'visible', transition: 'all 0.3s ease',
+                    position: 'relative',
+                    overflow: 'visible',
+                    transition: 'all 0.3s ease',
                     border: '1px solid',
                     borderColor: notification.read ? 'divider' : 'primary.light',
                     bgcolor: notification.read ? 'background.paper' : 'action.hover',
@@ -406,13 +575,37 @@ export default function NotificationsPage() {
                     <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-                          <Typography variant='h6' sx={{ fontWeight: notification.read ? 500 : 700, fontSize: { xs: '1rem', sm: '1.1rem' }, color: 'text.primary', flex: 1, minWidth: 0 }}>
+                          <Typography
+                            variant='h6'
+                            sx={{
+                              fontWeight: notification.read ? 500 : 700,
+                              fontSize: { xs: '1rem', sm: '1.1rem' },
+                              color: 'text.primary',
+                              flex: 1,
+                              minWidth: 0
+                            }}
+                          >
                             {notification.title}
                           </Typography>
-                          <Chip label={getNotificationColor(notification) === 'warning' ? 'Warning' : getNotificationColor(notification) === 'error' ? 'Expired' : 'Info'} color={getNotificationColor(notification)} size='small' sx={{ fontWeight: 600 }} />
+                          <Chip
+                            label={
+                              getNotificationColor(notification) === 'warning'
+                                ? 'Warning'
+                                : getNotificationColor(notification) === 'error'
+                                  ? 'Expired'
+                                  : 'Info'
+                            }
+                            color={getNotificationColor(notification)}
+                            size='small'
+                            sx={{ fontWeight: 600 }}
+                          />
                         </Box>
 
-                        <Typography variant='body2' color='text.secondary' sx={{ mb: 2, lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                        <Typography
+                          variant='body2'
+                          color='text.secondary'
+                          sx={{ mb: 2, lineHeight: 1.6, whiteSpace: 'pre-line' }}
+                        >
                           {notification.message}
                         </Typography>
 
@@ -422,9 +615,21 @@ export default function NotificationsPage() {
                         </Box>
                       </Box>
 
-                      <IconButton size='small' onClick={() => handleDelete(notification._id || notification.id)} disabled={deletingId === (notification._id || notification.id)} color='error' sx={{ '&:hover': { backgroundColor: 'error.light', color: 'error.contrastText' } }}>
-                        {deletingId === (notification._id || notification.id) ? <CircularProgress size={20} /> : <DeleteIcon fontSize='small' />}
-                      </IconButton>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <IconButton
+                          size='small'
+                          onClick={() => handleDelete(notification._id || notification.id)}
+                          disabled={deletingId === (notification._id || notification.id)}
+                          color='error'
+                          sx={{ '&:hover': { backgroundColor: 'error.light', color: 'error.contrastText' } }}
+                        >
+                          {deletingId === (notification._id || notification.id) ? (
+                            <CircularProgress size={20} />
+                          ) : (
+                            <DeleteIcon fontSize='small' />
+                          )}
+                        </IconButton>
+                      </Box>
                     </Box>
                   </CardContent>
                 </Card>
@@ -435,13 +640,42 @@ export default function NotificationsPage() {
           {totalPages > 1 && (
             <Card elevation={1} sx={{ mt: 3 }}>
               <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-                  <Button variant='outlined' onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1 || loading} startIcon={<ChevronLeftIcon />} sx={{ minWidth: 100 }}>Previous</Button>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 2
+                  }}
+                >
+                  <Button
+                    variant='outlined'
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1 || loading}
+                    startIcon={<ChevronLeftIcon />}
+                    sx={{ minWidth: 100 }}
+                  >
+                    Previous
+                  </Button>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant='body1' fontWeight='600'>Page {currentPage} of {totalPages}</Typography>
-                    <Typography variant='caption' color='text.secondary'>Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</Typography>
+                    <Typography variant='body1' fontWeight='600'>
+                      Page {currentPage} of {totalPages}
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)}{' '}
+                      of {totalItems}
+                    </Typography>
                   </Box>
-                  <Button variant='outlined' onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage >= totalPages || loading} endIcon={<ChevronRightIcon />} sx={{ minWidth: 100 }}>Next</Button>
+                  <Button
+                    variant='outlined'
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages || loading}
+                    endIcon={<ChevronRightIcon />}
+                    sx={{ minWidth: 100 }}
+                  >
+                    Next
+                  </Button>
                 </Box>
               </CardContent>
             </Card>
@@ -450,25 +684,81 @@ export default function NotificationsPage() {
       )}
 
       {/* Delete Dialogs and Snackbar (Unchanged) */}
-      <Dialog open={showDeleteDialog} onClose={() => !deletingId && setShowDeleteDialog(false)} maxWidth='sm' fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle sx={{ pb: 1 }}><Typography variant='h6' fontWeight='bold'>Delete Notification</Typography></DialogTitle>
+      <Dialog
+        open={showDeleteDialog}
+        onClose={() => !deletingId && setShowDeleteDialog(false)}
+        maxWidth='sm'
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant='h6' fontWeight='bold'>
+            Delete Notification
+          </Typography>
+        </DialogTitle>
         <Divider />
-        <DialogContent sx={{ pt: 3 }}><Typography>Are you sure you want to delete this notification? This action cannot be undone.</Typography></DialogContent>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography>Are you sure you want to delete this notification? This action cannot be undone.</Typography>
+        </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={() => setShowDeleteDialog(false)} disabled={!!deletingId} variant='outlined'>Cancel</Button>
-          <Button onClick={confirmDelete} color='error' variant='contained' disabled={!!deletingId} startIcon={deletingId ? <CircularProgress size={20} /> : <DeleteIcon />}>{deletingId ? 'Deleting...' : 'Delete'}</Button>
+          <Button onClick={() => setShowDeleteDialog(false)} disabled={!!deletingId} variant='outlined'>
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmDelete}
+            color='error'
+            variant='contained'
+            disabled={!!deletingId}
+            startIcon={deletingId ? <CircularProgress size={20} /> : <DeleteIcon />}
+          >
+            {deletingId ? 'Deleting...' : 'Delete'}
+          </Button>
         </DialogActions>
       </Dialog>
-      <Dialog open={showDeleteAllDialog} onClose={() => !isDeletingAll && setShowDeleteAllDialog(false)} maxWidth='sm' fullWidth PaperProps={{ sx: { borderRadius: 2 } }}>
-        <DialogTitle sx={{ pb: 1 }}><Typography variant='h6' fontWeight='bold'>Clear All Notifications</Typography></DialogTitle>
+      <Dialog
+        open={showDeleteAllDialog}
+        onClose={() => !isDeletingAll && setShowDeleteAllDialog(false)}
+        maxWidth='sm'
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 2 } }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Typography variant='h6' fontWeight='bold'>
+            Clear All Notifications
+          </Typography>
+        </DialogTitle>
         <Divider />
-        <DialogContent sx={{ pt: 3 }}><Typography>Are you sure you want to clear all <strong>{totalItems}</strong> notification{totalItems !== 1 ? 's' : ''}? This action cannot be undone.</Typography></DialogContent>
+        <DialogContent sx={{ pt: 3 }}>
+          <Typography>
+            Are you sure you want to clear all <strong>{totalItems}</strong> notification{totalItems !== 1 ? 's' : ''}?
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={() => setShowDeleteAllDialog(false)} disabled={isDeletingAll} variant='outlined'>Cancel</Button>
-          <Button onClick={handleDeleteAll} color='error' variant='contained' disabled={isDeletingAll} startIcon={isDeletingAll ? <CircularProgress size={20} /> : <DeleteSweepIcon />}>{isDeletingAll ? 'Clearing...' : 'Clear All'}</Button>
+          <Button onClick={() => setShowDeleteAllDialog(false)} disabled={isDeletingAll} variant='outlined'>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAll}
+            color='error'
+            variant='contained'
+            disabled={isDeletingAll}
+            startIcon={isDeletingAll ? <CircularProgress size={20} /> : <DeleteSweepIcon />}
+          >
+            {isDeletingAll ? 'Clearing...' : 'Clear All'}
+          </Button>
         </DialogActions>
       </Dialog>
-      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}><Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant='filled' sx={{ width: '100%' }}>{snackbar.message}</Alert></Snackbar>
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} variant='filled' sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

@@ -91,6 +91,16 @@ const NotificationsFetcher = () => {
           allNotifs = [...allNotifs, ...advNotifs]
         }
 
+        // 5. KYC Status
+        if (data.kycNotifications && Array.isArray(data.kycNotifications)) {
+          const kycNotifs = data.kycNotifications.map(item => ({
+            id: item._id,
+            read: item.isVendorRead
+          }))
+
+          allNotifs = [...allNotifs, ...kycNotifs]
+        }
+
         setNotifications(allNotifs)
       }
     } catch (error) {
