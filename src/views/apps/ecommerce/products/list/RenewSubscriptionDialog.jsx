@@ -112,9 +112,56 @@ const RenewSubscriptionDialog = ({
   }, [months, chargesData, gstData, calculateAmounts])
 
   const calculateNewEndDate = () => {
-    let baseDate = new Date()
-    const targetDate = new Date(baseDate.setMonth(baseDate.getMonth() + months))
+    const today = new Date()
 
+    today.setHours(0, 0, 0, 0)
+
+    let baseDate = new Date(today)
+
+    // Check for existing subscription end date
+    // Note: The data sometimes has a typo 'subsctiptionenddate'
+    const currentEndStr = bookingDetails?.subsctiptionenddate || bookingDetails?.subscriptionEndDate
+
+    if (currentEndStr) {
+      try {
+        // Helper to parse "DD-MM-YYYY HH:mm PM" or "DD-MM-YYYY"
+        const datePart = currentEndStr.toString().trim().split(' ')[0]
+
+        if (datePart.includes('-')) {
+          const [day, month, year] = datePart.split('-').map(Number)
+
+          // Month is 0-indexed in JS
+          const currentEndDate = new Date(year, month - 1, day)
+
+          currentEndDate.setHours(0, 0, 0, 0)
+
+          // If subscription is still active (end date is today or future), use it as base
+          if (currentEndDate >= today) {
+            baseDate = currentEndDate
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing current subscription end date:', e)
+      }
+    }
+
+    // Add months to the base date
+    const targetDate = new Date(baseDate)
+
+    // Store original day to handle month length differences (e.g. Jan 31 -> Feb 28)
+    const originalDay = targetDate.getDate()
+
+    // Add months
+    targetDate.setMonth(targetDate.getMonth() + months)
+
+    // Check if day rollover occurred (e.g. adding 1 month to Jan 31 resulted in March 2/3)
+    // If so, set to last day of previous month
+    if (targetDate.getDate() !== originalDay) {
+      // Set to 0th day of current month, which is last day of previous month
+      targetDate.setDate(0)
+    }
+
+    // Format DD-MM-YYYY
     return `${targetDate.getDate().toString().padStart(2, '0')}-${(targetDate.getMonth() + 1).toString().padStart(2, '0')}-${targetDate.getFullYear()}`
   }
 

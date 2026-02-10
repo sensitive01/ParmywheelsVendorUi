@@ -152,11 +152,15 @@ const ExitVehicleCalculator = ({
       setFetchingBookingDetails(true)
       console.log(`Fetching booking details for ID: ${id} from direct API`)
 
-      const response = await fetch(`${API_URL}/vendor/getbooking/${id}`)
+      const headers = { 'Content-Type': 'application/json' }
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch booking details')
+      if (session?.accessToken) {
+        headers['Authorization'] = `Bearer ${session.accessToken}`
       }
+
+      const response = await fetch(`${API_URL}/vendor/getbooking/${id}`, { headers })
+
+
 
       const data = await response.json()
 
@@ -185,7 +189,7 @@ const ExitVehicleCalculator = ({
       return data.data
     } catch (err) {
       console.error('Error fetching booking details from direct API:', err)
-      setError('Failed to fetch booking details: ' + (err.message || ''))
+     
 
       return null
     } finally {
@@ -195,8 +199,14 @@ const ExitVehicleCalculator = ({
 
   const fetchFullDayModes = async () => {
     try {
+      const headers = { 'Content-Type': 'application/json' }
+
+      if (session?.accessToken) {
+        headers['Authorization'] = `Bearer ${session.accessToken}`
+      }
+
       console.log(`Fetching full day modes for vendor: ${vendorId}`)
-      const response = await fetch(`${API_URL}/vendor/getfullday/${vendorId}`)
+      const response = await fetch(`${API_URL}/vendor/getfullday/${vendorId}`, { headers })
 
       if (!response.ok) {
         throw new Error('Failed to fetch full day modes')
@@ -220,7 +230,13 @@ const ExitVehicleCalculator = ({
 
   const fetchGstData = async () => {
     try {
-      const response = await fetch(`${API_URL}/vendor/getgstfee`)
+      const headers = { 'Content-Type': 'application/json' }
+
+      if (session?.accessToken) {
+        headers['Authorization'] = `Bearer ${session.accessToken}`
+      }
+
+      const response = await fetch(`${API_URL}/vendor/getgstfee`, { headers })
 
       if (response.ok) {
         const data = await response.json()
@@ -237,6 +253,8 @@ const ExitVehicleCalculator = ({
 
   useEffect(() => {
     const getBookingDetails = async () => {
+      setError('')
+
       if (bookingDetails) {
         setBookingData(bookingDetails)
         setIsVendorBooking(!bookingDetails.userid)
@@ -262,11 +280,15 @@ const ExitVehicleCalculator = ({
         setFetchingBookingDetails(true)
         console.log(`Falling back to original API for ID: ${bookingId}`)
 
-        const response = await fetch(`${API_URL}/vendor/getbookingdetails/${bookingId}`)
+        const headers = { 'Content-Type': 'application/json' }
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch booking details')
+        if (session?.accessToken) {
+          headers['Authorization'] = `Bearer ${session.accessToken}`
         }
+
+        const response = await fetch(`${API_URL}/vendor/getbookingdetails/${bookingId}`, { headers })
+
+
 
         const data = await response.json()
 
@@ -294,7 +316,7 @@ const ExitVehicleCalculator = ({
     if (bookingId) {
       getBookingDetails()
     }
-  }, [bookingId, bookingDetails])
+  }, [bookingId, bookingDetails, session?.accessToken])
 
   useEffect(() => {
     if (vendorId) {

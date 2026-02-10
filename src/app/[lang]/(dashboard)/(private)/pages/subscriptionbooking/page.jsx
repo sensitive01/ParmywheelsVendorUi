@@ -219,50 +219,47 @@ const pick = v => {
   return v.toString().toLowerCase().trim()
 }
 
-const calculateSubscriptionDaysLeft = (bookingDate, subscriptionType, sts, subscriptionEndDate) => {
-  if (sts?.toLowerCase() !== 'subscription') return null
+const calculateSubscriptionDaysLeft = (parkedDate, subscriptionEndDate) => {
+  if (!parkedDate || !subscriptionEndDate) return null
 
-  const currentDate = new Date()
-  let endDate
+  // Helper to parse "DD-MM-YYYY" string to Date object
+  const parseDate = dateStr => {
+    if (!dateStr) return null
 
-  // Prioritize explicit subscription end date
-  if (subscriptionEndDate) {
-    endDate = parseBookingDate(subscriptionEndDate)
-  }
+    try {
+      // Handle potential time component "12-03-2026 08:01 PM"
+      const datePart = dateStr.toString().trim().split(' ')[0]
 
-  // Fallback to calculation if calculation failed or end date not provided
-  if (!endDate) {
-    const startDate = parseBookingDate(bookingDate)
+      if (datePart.includes('-')) {
+        const [day, month, year] = datePart.split('-').map(Number)
 
-    if (!startDate) return null
-
-    let durationInDays = 30
-
-    if (subscriptionType) {
-      switch (subscriptionType.toLowerCase()) {
-        case 'weekly':
-          durationInDays = 7
-          break
-        case 'monthly':
-          durationInDays = 30
-          break
-        case 'yearly':
-          durationInDays = 365
-          break
+        return new Date(year, month - 1, day)
       }
-    }
 
-    endDate = new Date(startDate)
-    endDate.setDate(startDate.getDate() + durationInDays)
+      return new Date(datePart)
+    } catch (e) {
+      console.error('Error parsing date:', e, dateStr)
+
+      return null
+    }
   }
+
+  const startDate = parseDate(parkedDate)
+  const endDate = parseDate(subscriptionEndDate)
+
+  if (!startDate || !endDate) return null
 
   // Normalize dates to start of day for accurate comparison
-  currentDate.setHours(0, 0, 0, 0)
+  startDate.setHours(0, 0, 0, 0)
   endDate.setHours(0, 0, 0, 0)
 
-  if (currentDate > endDate) return { days: 0, expired: true }
+  // Calculate difference in milliseconds
+  const diffTime = endDate.getTime() - startDate.getTime()
 
-  const daysLeft = Math.floor((endDate - currentDate) / (1000 * 60 * 60 * 24))
+  // Convert to days
+  const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  if (daysLeft < 0) return { days: 0, expired: true }
 
   return { days: daysLeft, expired: false }
 }
@@ -922,12 +919,8 @@ const OrderListTable = ({ orderData }) => {
         id: 'subscriptionLeft',
         header: 'Subscription Left',
         cell: ({ row }) => {
-          const dateToUse = row.original.parkingDate || row.original.bookingDate
-
           const subscriptionStatus = calculateSubscriptionDaysLeft(
-            dateToUse,
-            row.original.subsctiptiontype,
-            row.original.sts,
+            row.original.parkedDate,
             row.original.subsctiptionenddate
           )
 
@@ -1102,12 +1095,7 @@ const OrderListTable = ({ orderData }) => {
       csvRows.push(headers.join(','))
 
       exportData.forEach(row => {
-        const daysLeft = calculateSubscriptionDaysLeft(
-          row.parkingDate || row.bookingDate,
-          row.subsctiptiontype,
-          row.sts,
-          row.subsctiptionenddate
-        )
+        const daysLeft = calculateSubscriptionDaysLeft(row.parkedDate, row.subsctiptionenddate)
 
         const daysLeftText = daysLeft?.expired
           ? 'Expired'
@@ -1215,12 +1203,7 @@ const OrderListTable = ({ orderData }) => {
               <tbody>
                 ${exportData
                   .map(row => {
-                    const daysLeft = calculateSubscriptionDaysLeft(
-                      row.parkingDate || row.bookingDate,
-                      row.subsctiptiontype,
-                      row.sts,
-                      row.subsctiptionenddate
-                    )
+                    const daysLeft = calculateSubscriptionDaysLeft(row.parkedDate, row.subsctiptionenddate)
 
                     const daysLeftClass = daysLeft?.expired ? 'expired' : daysLeft?.days <= 3 ? 'warning' : 'good'
 
