@@ -65,8 +65,16 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
       const response = await fetch(`${API_URL}/vendor/getbooking/${bookingId}`)
       const data = await response.json()
 
+      console.log('Fetched Booking Data:', data)
+
       if (data?.data?.otp) {
-        setBackendOtp(data.data.otp)
+        setBackendOtp(String(data.data.otp))
+      } else if (data?.otp) {
+        // Handle potential flat structure
+        setBackendOtp(String(data.otp))
+      } else if (data?.booking?.otp) {
+        // Handle potential nested booking structure
+        setBackendOtp(String(data.booking.otp))
       }
     } catch (error) {
       console.error('Error fetching OTP:', error)
@@ -103,6 +111,10 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
     setTimeInput(formattedTime)
 
     if (action === 'allowParking' && !isVendorBooking) {
+      // Use bookingDetails.otp as initial value if available, while fetching fresh one
+      if (bookingDetails?.otp) {
+        setBackendOtp(String(bookingDetails.otp))
+      }
       await fetchBookingOtp()
     }
 
@@ -191,7 +203,9 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
               return
             }
 
-            if (otp.length !== 3 || !backendOtp || !backendOtp.startsWith(otp)) {
+            console.log('Verifying OTP - Input:', otp, 'Backend:', backendOtp)
+
+            if (otp.length !== 3 || !backendOtp || !String(backendOtp).trim().startsWith(String(otp).trim())) {
               showSnackbar('OTP does not match the first 3 digits of booking OTP', 'error')
               setLoading(false)
 
@@ -343,11 +357,11 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
 
                   setOtp(val)
                 }}
-                error={!otp || (otp && backendOtp && !backendOtp.startsWith(otp))}
+                error={!otp || (otp && backendOtp && !String(backendOtp).trim().startsWith(String(otp).trim()))}
                 helperText={
                   !otp
                     ? 'First 3 digits of OTP are required'
-                    : otp && backendOtp && !backendOtp.startsWith(otp)
+                    : otp && backendOtp && !String(backendOtp).trim().startsWith(String(otp).trim())
                       ? 'OTP does not match the first 3 digits'
                       : ''
                 }

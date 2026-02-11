@@ -159,6 +159,7 @@ const VendorRequests = () => {
 
   const handleAllowParkingClick = booking => {
     const today = new Date()
+
     const todayStr =
       String(today.getDate()).padStart(2, '0') +
       '-' +
@@ -178,7 +179,7 @@ const VendorRequests = () => {
       setOtpError('')
       setOtpModalOpen(true)
     } else {
-      processAllowParking(booking.id)
+      processAllowParking(booking.id || booking._id)
     }
   }
 
@@ -206,8 +207,12 @@ const VendorRequests = () => {
   }
 
   const handleVerifyOtp = () => {
-    if (selectedBooking && otp === selectedBooking.otp.substring(0, 3)) {
-      processAllowParking(selectedBooking.id)
+    const bookingOtp = String(selectedBooking?.otp || '').trim()
+    console.log('Booking OTP:', bookingOtp)
+    const inputOtp = String(otp).trim()
+
+    if (selectedBooking && inputOtp === bookingOtp.substring(0, 3)) {
+      processAllowParking(selectedBooking.id || selectedBooking._id)
     } else {
       setOtpError('Invalid OTP')
     }
@@ -238,6 +243,7 @@ const VendorRequests = () => {
 
         if (subTab === 0) {
           const today = new Date()
+
           const todayStr =
             String(today.getDate()).padStart(2, '0') +
             '-' +

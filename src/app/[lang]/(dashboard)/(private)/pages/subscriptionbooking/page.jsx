@@ -231,9 +231,19 @@ const calculateSubscriptionDaysLeft = (parkedDate, subscriptionEndDate) => {
       const datePart = dateStr.toString().trim().split(' ')[0]
 
       if (datePart.includes('-')) {
-        const [day, month, year] = datePart.split('-').map(Number)
+        const parts = datePart.split('-')
 
-        return new Date(year, month - 1, day)
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          const [year, month, day] = parts.map(Number)
+
+          return new Date(year, month - 1, day)
+        } else {
+          // DD-MM-YYYY
+          const [day, month, year] = parts.map(Number)
+
+          return new Date(year, month - 1, day)
+        }
       }
 
       return new Date(datePart)
