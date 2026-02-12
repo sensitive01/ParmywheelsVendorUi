@@ -24,7 +24,7 @@ import RenewSubscriptionDialog from './RenewSubscriptionDialog'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdate }) => {
+const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdate, allowRenew }) => {
   const { data: session } = useSession()
   const [anchorEl, setAnchorEl] = useState(null)
   const [openDialog, setOpenDialog] = useState(false)
@@ -115,6 +115,7 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
       if (bookingDetails?.otp) {
         setBackendOtp(String(bookingDetails.otp))
       }
+
       await fetchBookingOtp()
     }
 
@@ -267,10 +268,11 @@ const BookingActionButton = ({ bookingId, currentStatus, bookingDetails, onUpdat
           { action: 'cancelApproved', label: 'Cancel Booking', color: 'error' }
         )
       } else if (status === 'parked') {
-        actions.push(
-          { action: 'exitVehicle', label: 'Exit Subscription', color: 'warning' },
-          { action: 'renew', label: 'Renew Subscription', color: 'primary' }
-        )
+        actions.push({ action: 'exitVehicle', label: 'Exit Subscription', color: 'warning' })
+
+        if (allowRenew) {
+          actions.push({ action: 'renew', label: 'Renew Subscription', color: 'primary' })
+        }
       }
     } else {
       // Regular Actions

@@ -263,12 +263,22 @@ const calculateSubscriptionDaysLeft = (parkedDate, subscriptionEndDate) => {
   startDate.setHours(0, 0, 0, 0)
   endDate.setHours(0, 0, 0, 0)
 
+  const today = new Date()
+
+  today.setHours(0, 0, 0, 0)
+
+  // Use today as the start date if the parking started in the past
+  const effectiveStartDate = startDate < today ? today : startDate
+
   // Calculate difference in milliseconds
-  const diffTime = endDate.getTime() - startDate.getTime()
+  const diffTime = endDate.getTime() - effectiveStartDate.getTime()
 
   // Convert to days
   const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
+  if (endDate < today) return { days: 0, expired: true }
+
+  // If daysLeft < 0 but we haven't expired (e.g. slight time diffs not caught), cap at 0
   if (daysLeft < 0) return { days: 0, expired: true }
 
   return { days: daysLeft, expired: false }
@@ -1012,6 +1022,7 @@ const OrderListTable = ({ orderData }) => {
             currentStatus={row.original.status}
             bookingDetails={row.original}
             onUpdate={fetchData}
+            allowRenew={bookingTypeFilter === 'vendor'}
           />
         ),
         enableSorting: false
