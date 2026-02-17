@@ -134,7 +134,7 @@ const PublicScannerPage = () => {
       setLoading(true)
 
       // Call API to notify vendor backend
-      const response = await axios.post(`${API_URL}/vendor/request-vehicle-return`, {
+      const response = await axios.post(`${API_URL}/vendor/requestVehicleReturn`, {
         vendorId: vendorId,
         vehicleNumber: vehicleNumber,
         bookingId: bookingData?._id,
@@ -193,7 +193,7 @@ const PublicScannerPage = () => {
         {/* Logo Area */}
         <Box sx={{ mb: 4, textAlign: 'center' }}>
           <img
-            src="/login.png"
+            src="/public/login.png"
             alt='ParkMyWheels'
             style={{ height: 50, marginBottom: 8, objectFit: 'contain' }}
             onError={e => {
