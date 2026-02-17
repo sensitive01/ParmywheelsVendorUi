@@ -1,10 +1,20 @@
 'use client'
 
 // MUI Imports
+import { useEffect, useState } from 'react'
+
+import { useParams } from 'next/navigation'
+
 import Grid from '@mui/material/Grid2'
 import { Typography, Button, Menu, MenuItem } from '@mui/material'
 
 // Components Imports
+import { useSession } from 'next-auth/react'
+
+import axios from 'axios'
+
+import QRCode from 'qrcode'
+
 import Award from '@views/dashboards/crm/Award'
 import CardStatVertical from '@components/card-statistics/Vertical'
 import StackedBarChart from '@views/dashboards/crm/StackedBarChart'
@@ -12,9 +22,6 @@ import DonutChart from '@views/dashboards/crm/DonutChart'
 import OrganicSessions from '@views/dashboards/crm/OrganicSessions'
 
 // Third-party Imports
-import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
-import axios from 'axios'
 
 const DashboardCRM = () => {
   // State for booking counts
@@ -31,6 +38,7 @@ const DashboardCRM = () => {
   const [loading, setLoading] = useState(true)
   const { data: session } = useSession()
   const vendorId = session?.user?.id
+  const { lang: locale } = useParams()
 
   const [bookings, setBookings] = useState([])
   const [downloadAnchorEl, setDownloadAnchorEl] = useState(null)
@@ -41,6 +49,7 @@ const DashboardCRM = () => {
     const fetchBookings = async () => {
       if (!vendorId) {
         setLoading(false)
+
         return
       }
 
@@ -56,6 +65,7 @@ const DashboardCRM = () => {
         )
 
         const bookings = response.data.bookings
+
         setBookings(Array.isArray(bookings) ? bookings : [])
 
         if (Array.isArray(bookings)) {
@@ -72,6 +82,7 @@ const DashboardCRM = () => {
 
           bookings.forEach(booking => {
             const status = booking.status?.trim().toLowerCase()
+
             const normalizedKey =
               status === 'completed'
                 ? 'COMPLETED'
@@ -114,6 +125,35 @@ const DashboardCRM = () => {
   const handleDownloadClick = event => setDownloadAnchorEl(event.currentTarget)
   const handleDownloadClose = () => setDownloadAnchorEl(null)
 
+  const handleDownloadQR = async () => {
+    if (!vendorId) return
+
+    try {
+      // Generate QR Code with URL to the scanner page
+      const baseUrl = window.location.origin
+      const qrData = `${baseUrl}/${locale || 'en'}/pages/scan/${vendorId}`
+
+      const qrCodeUrl = await QRCode.toDataURL(qrData, {
+        width: 300,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        }
+      })
+
+      const link = document.createElement('a')
+
+      link.href = qrCodeUrl
+      link.download = `vendor_scanner_qr.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (err) {
+      console.error('Error generating QR code:', err)
+    }
+  }
+
   const exportToCSV = () => {
     if (!bookings || bookings.length === 0) return handleDownloadClose()
 
@@ -129,6 +169,7 @@ const DashboardCRM = () => {
       'Status',
       'Type'
     ]
+
     const rows = bookings.map(b => [
       b._id ?? '',
       b.bookingDate ?? '',
@@ -157,6 +198,7 @@ const DashboardCRM = () => {
 
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
+
     link.setAttribute('href', encodedUri)
     link.setAttribute('download', 'vendor_bookings_report.csv')
     document.body.appendChild(link)
@@ -168,8 +210,10 @@ const DashboardCRM = () => {
 
   const loadXLSX = async () => {
     if (typeof window !== 'undefined' && window.XLSX) return window.XLSX
+
     return new Promise((resolve, reject) => {
       const script = document.createElement('script')
+
       script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
       script.async = true
       script.onload = () => resolve(window.XLSX)
@@ -194,6 +238,7 @@ const DashboardCRM = () => {
       'Status',
       'Type'
     ]
+
     const groups = {
       Pending: [],
       Approved: [],
@@ -205,6 +250,7 @@ const DashboardCRM = () => {
 
     bookings.forEach(b => {
       const raw = (b.status || '').toString().trim().toLowerCase()
+
       const key =
         raw === 'completed'
           ? 'COMPLETED'
@@ -217,6 +263,7 @@ const DashboardCRM = () => {
                 : raw === 'parked'
                   ? 'Parked'
                   : null
+
       const row = [
         b._id ?? '',
         b.bookingDate ?? '',
@@ -229,14 +276,17 @@ const DashboardCRM = () => {
         b.status ?? '',
         b.sts ?? ''
       ]
+
       if (key && groups[key]) groups[key].push(row)
       if (b.sts === 'Subscription') groups['Subscriptions'].push(row)
     })
 
     const wb = XLSX.utils.book_new()
+
     Object.entries(groups).forEach(([sheetName, rows]) => {
       const aoa = [header, ...rows]
       const ws = XLSX.utils.aoa_to_sheet(aoa)
+
       XLSX.utils.book_append_sheet(wb, ws, sheetName)
     })
 
@@ -269,8 +319,10 @@ const DashboardCRM = () => {
             .join(',')
         )
         .join('\n')
+
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
+
     link.setAttribute('href', encodedUri)
     link.setAttribute('download', 'vendor_dashboard_summary.csv')
     document.body.appendChild(link)
@@ -293,6 +345,9 @@ const DashboardCRM = () => {
       {/* Download Report Button */}
       <Grid size={{ xs: 12 }}>
         <div className='flex items-center justify-end gap-2'>
+          <Button variant='contained' size='small' onClick={handleDownloadQR}>
+            <i className='ri-qr-code-line mr-2'></i> Download QR
+          </Button>
           <Button variant='contained' size='small' onClick={handleDownloadClick}>
             Download Report
           </Button>
