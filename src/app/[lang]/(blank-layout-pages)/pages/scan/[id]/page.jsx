@@ -796,7 +796,7 @@ const PublicScannerPage = () => {
                     '&:hover': { borderColor: '#ccc', bgcolor: '#f9f9f9', color: '#333' }
                   }}
                 >
-                  Scan Another Vehicle
+                  Check Another Vehicle
                 </Button>
               </Box>
             </Box>
