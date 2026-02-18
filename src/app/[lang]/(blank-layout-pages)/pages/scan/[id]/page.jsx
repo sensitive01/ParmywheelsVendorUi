@@ -373,7 +373,6 @@ const PublicScannerPage = () => {
           position: 'relative'
         }}
       >
-        }} >
         <Box
           sx={{
             height: 80,
