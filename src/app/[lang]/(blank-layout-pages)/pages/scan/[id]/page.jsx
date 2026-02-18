@@ -21,7 +21,6 @@ import {
   InputLabel
 } from '@mui/material'
 
-// Icons
 import HomeIcon from '@mui/icons-material/Home'
 import LocalParkingIcon from '@mui/icons-material/LocalParking'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
@@ -29,12 +28,10 @@ import PersonIcon from '@mui/icons-material/Person'
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
 import CircleIcon from '@mui/icons-material/Circle'
 
-// Utils
 import { showNotification } from '@/utils/requestNotificationPermission'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-// BRAND COLORS
 const BRAND_MAIN = '#329a73'
 const BRAND_DARK = '#257a5a'
 const BRAND_LIGHT = '#e8f5e9'
@@ -45,7 +42,6 @@ const PublicScannerPage = () => {
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
 
-  // Inputs
   const [valetToken, setValetToken] = useState('')
   const [plateNumber, setPlateNumber] = useState('')
 
@@ -58,23 +54,22 @@ const PublicScannerPage = () => {
   const [viewState, setViewState] = useState('search') // 'search' | 'result'
   const [qrCodeUrl, setQrCodeUrl] = useState('')
 
-  // Timers
   const [returnTimer, setReturnTimer] = useState(0)
   const [parkingDuration, setParkingDuration] = useState('00 h 00 m 00 s')
   const [isRestoringSession, setIsRestoringSession] = useState(true)
 
   // --- PERSISTENCE LOGIC (Load data on Mount) ---
   useEffect(() => {
-    if (!vendorId) return // Wait for vendorId to be available
+    if (!vendorId) {
+      return
+    }
 
-    // Check localStorage for existing session
-    const savedSession = localStorage.getItem(`valet_session_${vendorId}`)
+    try {
+      const savedSession = localStorage.getItem(`valet_session_${vendorId}`)
 
-    if (savedSession) {
-      try {
+      if (savedSession) {
         const parsed = JSON.parse(savedSession)
 
-        // Restore session if within reasonable time (e.g., 2 hours) or active request
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7200000) {
           setValetToken(parsed.valetToken || '')
           setPlateNumber(parsed.plateNumber || '')
@@ -91,15 +86,14 @@ const PublicScannerPage = () => {
         } else {
           localStorage.removeItem(`valet_session_${vendorId}`)
         }
-      } catch (e) {
-        console.error('Failed to restore session', e)
       }
+    } catch (e) {
+      console.error('Failed to restore session', e)
+    } finally {
+      setIsRestoringSession(false)
     }
-
-    setIsRestoringSession(false)
   }, [vendorId])
 
-  // --- PERSISTENCE LOGIC (Save state on Change) ---
   useEffect(() => {
     if (viewState === 'result' && bookingData) {
       const sessionData = {
@@ -109,26 +103,28 @@ const PublicScannerPage = () => {
         successMessage,
         timestamp: Date.now(),
 
-        // Save future timestamp for timer
         returnTimerEnd: returnTimer > 0 ? Date.now() + returnTimer * 1000 : null
       }
 
       localStorage.setItem(`valet_session_${vendorId}`, JSON.stringify(sessionData))
     } else if (viewState === 'search') {
-      // Clear session if user goes back to search manually
-      // Optional: You might want to keep inputs, but typically 'back' means reset.
-      // For now, let's only clear if explicitly "searching again" via handleSearchAgain logic which clears inputs.
     }
   }, [viewState, bookingData, successMessage, valetToken, plateNumber, vendorId, returnTimer])
 
-  // 1. Fetch Vendor Data
   useEffect(() => {
     const fetchVendorData = async () => {
       if (!vendorId) return
 
       try {
         setVendorLoading(true)
-        const response = await fetch(`${API_URL}/vendor/fetch-vendor-data?id=${vendorId}`)
+
+        const response = await fetch(`${API_URL}/vendor/fetch-vendor-data?id=${vendorId}&t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: {
+            Pragma: 'no-cache',
+            'Cache-Control': 'no-cache, no-store, must-revalidate'
+          }
+        })
 
         if (response.ok) {
           const result = await response.json()
@@ -145,7 +141,6 @@ const PublicScannerPage = () => {
     fetchVendorData()
   }, [vendorId])
 
-  // 2. Return Timer Logic
   useEffect(() => {
     let interval = null
 
@@ -161,13 +156,14 @@ const PublicScannerPage = () => {
     return () => clearInterval(interval)
   }, [returnTimer, successMessage])
 
-  // 3. Parking Duration Logic
   useEffect(() => {
     let interval = null
 
     if (bookingData && viewState === 'result') {
       const updateDuration = () => {
         try {
+          if (!bookingData.parkingDate || !bookingData.parkingTime) return
+
           const dateParts = bookingData.parkingDate.split('-')
           const timeParts = bookingData.parkingTime.match(/(\d+):(\d+)\s*(AM|PM)/)
 
@@ -212,7 +208,6 @@ const PublicScannerPage = () => {
     return () => clearInterval(interval)
   }, [bookingData, viewState])
 
-  // 4. QR Code Generation
   useEffect(() => {
     if (bookingData && bookingData._id) {
       import('qrcode').then(QRCode => {
@@ -227,7 +222,6 @@ const PublicScannerPage = () => {
     }
   }, [bookingData])
 
-  // --- Handlers ---
   const fetchBookingDetails = async () => {
     if (!plateNumber || !valetToken) {
       setError('Please enter both Token and Vehicle Number')
@@ -248,7 +242,10 @@ const PublicScannerPage = () => {
       setError(null)
       setSuccessMessage(null)
 
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { Pragma: 'no-cache' }
+      })
 
       if (!response.ok) throw new Error('Failed to fetch bookings')
 
@@ -285,11 +282,6 @@ const PublicScannerPage = () => {
   const handleGetVehicle = async () => {
     if (returnTimer > 0) return
 
-    showNotification('Return Request', {
-      body: `${bookingData?.vehicleNumber} requested`,
-      icon: '/images/avatars/1.png'
-    })
-
     try {
       setLoading(true)
 
@@ -324,7 +316,6 @@ const PublicScannerPage = () => {
     setSuccessMessage(null)
     setReturnTimer(0)
 
-    // Clear Session
     localStorage.removeItem(`valet_session_${vendorId}`)
   }
 
@@ -346,7 +337,6 @@ const PublicScannerPage = () => {
 
   const returnTimeParts = getTimerParts(returnTimer)
 
-  // --- RENDER ---
   if (isRestoringSession) {
     return (
       <Box sx={{ width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -383,7 +373,7 @@ const PublicScannerPage = () => {
           position: 'relative'
         }}
       >
-        {/* HEADER */}
+        }} >
         <Box
           sx={{
             height: 80,
@@ -420,7 +410,6 @@ const PublicScannerPage = () => {
 
           <Box sx={{ width: 40 }} />
         </Box>
-
         {/* CONTENT - Flex Centered if Search */}
         <Box
           sx={{
@@ -435,7 +424,6 @@ const PublicScannerPage = () => {
             WebkitOverflowScrolling: 'touch'
           }}
         >
-          {/* SEARCH VIEW */}
           {viewState === 'search' && (
             <Box sx={{ textAlign: 'center', width: '100%' }}>
               <Typography variant='h5' sx={{ color: '#1a1b2e', fontWeight: 800, mb: 1 }}>
@@ -445,9 +433,7 @@ const PublicScannerPage = () => {
                 Please enter your details below
               </Typography>
 
-              {/* DUAL INPUTS */}
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 4 }}>
-                {/* Token Input */}
                 <Box sx={{ flex: '0 0 30%' }}>
                   <InputLabel sx={{ mb: 1, fontSize: '0.85rem', fontWeight: 700, color: '#333' }}>TOKEN</InputLabel>
                   <TextField
@@ -468,7 +454,6 @@ const PublicScannerPage = () => {
                   />
                 </Box>
 
-                {/* Vehicle Input */}
                 <Box sx={{ flex: 1 }}>
                   <InputLabel sx={{ mb: 1, fontSize: '0.85rem', fontWeight: 700, color: '#333' }}>
                     VEHICLE NUMBER
@@ -519,10 +504,8 @@ const PublicScannerPage = () => {
             </Box>
           )}
 
-          {/* RESULT VIEW */}
           {viewState === 'result' && bookingData && (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 3 }}>
-              {/* 1. INFO CARD - Updated Layout */}
               <Paper
                 elevation={0}
                 sx={{
@@ -536,7 +519,6 @@ const PublicScannerPage = () => {
                 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* Conditional Display: Token & Vehicle */}
                   {valetToken && (
                     <Box>
                       <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
@@ -600,7 +582,6 @@ const PublicScannerPage = () => {
                 </Box>
               </Paper>
 
-              {/* 2. TIMELINE CARD - Removed "Serviced By" */}
               <Paper
                 elevation={0}
                 sx={{
@@ -631,7 +612,6 @@ const PublicScannerPage = () => {
                     <Typography variant='body2' sx={{ color: '#333' }}>
                       {bookingData.parkingDate} {bookingData.parkingTime}
                     </Typography>
-                    {/* removed serviced by */}
                   </Box>
                 </Box>
 
@@ -663,7 +643,6 @@ const PublicScannerPage = () => {
                 </Box>
               </Paper>
 
-              {/* 3. ACTION / TIMER CARD */}
               <Paper
                 elevation={0}
                 sx={{
@@ -732,8 +711,6 @@ const PublicScannerPage = () => {
             </Box>
           )}
         </Box>
-
-        {/* BOTTOM NAV */}
         <Paper
           elevation={0}
           sx={{
