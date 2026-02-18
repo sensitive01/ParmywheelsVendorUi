@@ -61,9 +61,12 @@ const PublicScannerPage = () => {
   // Timers
   const [returnTimer, setReturnTimer] = useState(0)
   const [parkingDuration, setParkingDuration] = useState('00 h 00 m 00 s')
+  const [isRestoringSession, setIsRestoringSession] = useState(true)
 
   // --- PERSISTENCE LOGIC (Load data on Mount) ---
   useEffect(() => {
+    if (!vendorId) return // Wait for vendorId to be available
+
     // Check localStorage for existing session
     const savedSession = localStorage.getItem(`valet_session_${vendorId}`)
 
@@ -92,6 +95,8 @@ const PublicScannerPage = () => {
         console.error('Failed to restore session', e)
       }
     }
+
+    setIsRestoringSession(false)
   }, [vendorId])
 
   // --- PERSISTENCE LOGIC (Save state on Change) ---
@@ -150,10 +155,11 @@ const PublicScannerPage = () => {
       }, 1000)
     } else {
       clearInterval(interval)
+      if (successMessage) setSuccessMessage(null)
     }
 
     return () => clearInterval(interval)
-  }, [returnTimer])
+  }, [returnTimer, successMessage])
 
   // 3. Parking Duration Logic
   useEffect(() => {
@@ -223,13 +229,13 @@ const PublicScannerPage = () => {
 
   // --- Handlers ---
   const fetchBookingDetails = async () => {
-    if (!plateNumber) {
-      setError('Please enter vehicle number')
+    if (!plateNumber || !valetToken) {
+      setError('Please enter both Token and Vehicle Number')
 
       return
     }
 
-    const searchTerm = valetToken ? `${valetToken}-${plateNumber}` : plateNumber
+    const searchTerm = `${valetToken}-${plateNumber}`
 
     if (!vendorId) {
       setError('Vendor ID missing link')
@@ -264,27 +270,6 @@ const PublicScannerPage = () => {
             setError(`No active bookings found`)
           }
         } else {
-          // Fallback Search: If using Token-Plate fails, try searching JUST by Plate Number
-          // This handles cases where user enters Token but backend stored it differently or user made a mistake
-          if (valetToken) {
-            const plateMatches = result.bookings.filter(b =>
-              b.vehicleNumber?.toString().toLowerCase().includes(plateNumber.toString().toLowerCase())
-            )
-
-            if (plateMatches.length > 0) {
-              const activeBooking =
-                plateMatches.find(b => ['parked', 'pending', 'approved'].includes(b.status?.toLowerCase())) ||
-                plateMatches[0]
-
-              if (activeBooking) {
-                setBookingData(activeBooking)
-                setViewState('result')
-
-                return // Exit
-              }
-            }
-          }
-
           setError(`Vehicle not found: ${searchTerm}`)
         }
       } else {
@@ -362,6 +347,14 @@ const PublicScannerPage = () => {
   const returnTimeParts = getTimerParts(returnTimer)
 
   // --- RENDER ---
+  if (isRestoringSession) {
+    return (
+      <Box sx={{ width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
   return (
     <Box
       sx={{
@@ -402,13 +395,7 @@ const PublicScannerPage = () => {
             flexShrink: 0
           }}
         >
-          {viewState === 'result' ? (
-            <IconButton onClick={handleSearchAgain} sx={{ color: '#333' }}>
-              <ArrowBackIosNewIcon />
-            </IconButton>
-          ) : (
-            <Box sx={{ width: 40 }} />
-          )}
+          <Box sx={{ width: 40 }} />
 
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Box
@@ -488,7 +475,7 @@ const PublicScannerPage = () => {
                   </InputLabel>
                   <TextField
                     fullWidth
-                    placeholder='KA 01 AB 1234'
+                    placeholder='Last 4 digits'
                     value={plateNumber}
                     onChange={e => setPlateNumber(e.target.value.toUpperCase())}
                     variant='outlined'
@@ -509,7 +496,7 @@ const PublicScannerPage = () => {
                 size='large'
                 variant='contained'
                 onClick={fetchBookingDetails}
-                disabled={loading || !plateNumber}
+                disabled={loading || !plateNumber || !valetToken}
                 sx={{
                   height: 56,
                   borderRadius: 3,
@@ -549,8 +536,8 @@ const PublicScannerPage = () => {
                 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {/* Conditional Display: Token OR Vehicle */}
-                  {valetToken ? (
+                  {/* Conditional Display: Token & Vehicle */}
+                  {valetToken && (
                     <Box>
                       <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
                         Token Number
@@ -559,16 +546,18 @@ const PublicScannerPage = () => {
                         #{valetToken}
                       </Typography>
                     </Box>
-                  ) : (
-                    <Box>
-                      <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
-                        Vehicle
-                      </Typography>
-                      <Typography variant='h5' sx={{ color: '#111', fontWeight: 800 }}>
-                        {bookingData.vehicleNumber}
-                      </Typography>
-                    </Box>
                   )}
+
+                  <Box>
+                    <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
+                      Vehicle Number
+                    </Typography>
+                    <Typography variant={valetToken ? 'h6' : 'h5'} sx={{ color: '#111', fontWeight: 800 }}>
+                      {bookingData.vehicleNumber.includes('-')
+                        ? bookingData.vehicleNumber.split('-').slice(1).join('-')
+                        : bookingData.vehicleNumber}
+                    </Typography>
+                  </Box>
 
                   <Box>
                     <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
