@@ -164,27 +164,46 @@ const PublicScannerPage = () => {
         try {
           if (!bookingData.parkingDate || !bookingData.parkingTime) return
 
-          const dateParts = bookingData.parkingDate.split('-')
-          const timeParts = bookingData.parkingTime.match(/(\d+):(\d+)\s*(AM|PM)/)
+          const parseDateTime = (dateStr, timeStr) => {
+            const dateParts = dateStr.split('-')
+            const timeParts = timeStr.match(/(\d+):(\d+)\s*(AM|PM|am|pm)/i)
 
-          if (dateParts.length === 3 && timeParts) {
-            let hours = parseInt(timeParts[1])
-            const minutes = parseInt(timeParts[2])
-            const ampm = timeParts[3]
+            if (dateParts.length === 3 && timeParts) {
+              let hours = parseInt(timeParts[1])
+              const minutes = parseInt(timeParts[2])
+              const ampm = timeParts[3].toUpperCase()
 
-            if (ampm === 'PM' && hours < 12) hours += 12
-            if (ampm === 'AM' && hours === 12) hours = 0
+              if (ampm === 'PM' && hours < 12) hours += 12
+              if (ampm === 'AM' && hours === 12) hours = 0
 
-            const parkedTime = new Date(
-              parseInt(dateParts[2]),
-              parseInt(dateParts[1]) - 1,
-              parseInt(dateParts[0]),
-              hours,
-              minutes
-            )
+              return new Date(
+                parseInt(dateParts[2]),
+                parseInt(dateParts[1]) - 1,
+                parseInt(dateParts[0]),
+                hours,
+                minutes
+              )
+            }
 
-            const now = new Date()
-            const diffMs = now - parkedTime
+            return null
+          }
+
+          const parkedTime = parseDateTime(bookingData.parkingDate, bookingData.parkingTime)
+
+          let endTime = new Date()
+
+          if (
+            bookingData.status?.toLowerCase() === 'completed' &&
+            bookingData.exitvehicledate &&
+            bookingData.exitvehicletime
+          ) {
+            const exitTime = parseDateTime(bookingData.exitvehicledate, bookingData.exitvehicletime)
+
+            if (exitTime) endTime = exitTime
+          }
+
+          if (parkedTime) {
+            const diffMs = endTime - parkedTime
             const diffSeconds = Math.max(0, Math.floor(diffMs / 1000))
 
             const h = Math.floor(diffSeconds / 3600)
@@ -202,7 +221,10 @@ const PublicScannerPage = () => {
       }
 
       updateDuration()
-      interval = setInterval(updateDuration, 1000)
+
+      if (bookingData.status?.toLowerCase() === 'parked') {
+        interval = setInterval(updateDuration, 1000)
+      }
     }
 
     return () => clearInterval(interval)
@@ -581,66 +603,115 @@ const PublicScannerPage = () => {
                 </Box>
               </Paper>
 
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: 3,
-                  bgcolor: '#e6f4ea',
-                  border: '1px solid #dcefe3',
-                  p: 2.5,
-                  position: 'relative'
-                }}
-              >
-                <Box sx={{ position: 'absolute', top: 35, bottom: 35, left: 29, width: 2, bgcolor: '#ccc' }} />
-
-                <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
-                  <CircleIcon
-                    sx={{
-                      fontSize: 14,
-                      color: 'transparent',
-                      border: '2px solid #555',
-                      borderRadius: '50%',
-                      mt: 0.5,
-                      zIndex: 1
-                    }}
-                  />
-                  <Box sx={{ ml: 2 }}>
-                    <Typography variant='body2' sx={{ fontWeight: 700, color: '#111' }}>
-                      Pickup (Parked)
+              {bookingData?.status?.toLowerCase() === 'completed' ? (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 3,
+                    bgcolor: '#e6f4ea',
+                    border: '1px solid #dcefe3',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant='h6' sx={{ color: '#1a1b2e', fontWeight: 800 }}>
+                      Status:
                     </Typography>
-                    <Typography variant='body2' sx={{ color: '#333' }}>
-                      {bookingData.parkingDate} {bookingData.parkingTime}
+                    <Typography variant='h6' sx={{ color: BRAND_MAIN, fontWeight: 800, textTransform: 'capitalize' }}>
+                      Completed
                     </Typography>
                   </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                  <CircleIcon
-                    sx={{
-                      fontSize: 14,
-                      color: successMessage ? BRAND_MAIN : 'transparent',
-                      border: `2px solid ${successMessage ? BRAND_MAIN : '#555'}`,
-                      borderRadius: '50%',
-                      mt: 0.5,
-                      zIndex: 1
-                    }}
-                  />
-                  <Box sx={{ ml: 2 }}>
-                    <Typography variant='body2' sx={{ fontWeight: 700, color: '#111' }}>
-                      Return
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant='body2' sx={{ color: '#555', fontWeight: 600 }}>
+                      Exit Date & Time:
                     </Typography>
-                    {successMessage ? (
-                      <Typography variant='caption' sx={{ color: BRAND_MAIN, fontWeight: 700 }}>
-                        Requested
-                      </Typography>
-                    ) : (
-                      <Typography variant='caption' sx={{ color: '#666' }}>
-                        -
-                      </Typography>
-                    )}
+                    <Typography variant='body1' sx={{ color: '#111', fontWeight: 700 }}>
+                      {bookingData.exitvehicledate} {bookingData.exitvehicletime}
+                    </Typography>
                   </Box>
-                </Box>
-              </Paper>
+                </Paper>
+              ) : bookingData?.status?.toLowerCase() === 'parked' ? (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    borderRadius: 3,
+                    bgcolor: '#e6f4ea',
+                    border: '1px solid #dcefe3',
+                    p: 2.5,
+                    position: 'relative'
+                  }}
+                >
+                  <Box sx={{ position: 'absolute', top: 35, bottom: 35, left: 29, width: 2, bgcolor: '#ccc' }} />
+
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
+                    <CircleIcon
+                      sx={{
+                        fontSize: 14,
+                        color: 'transparent',
+                        border: '2px solid #555',
+                        borderRadius: '50%',
+                        mt: 0.5,
+                        zIndex: 1
+                      }}
+                    />
+                    <Box sx={{ ml: 2 }}>
+                      <Typography variant='body2' sx={{ fontWeight: 700, color: '#111' }}>
+                        Pickup (Parked)
+                      </Typography>
+                      <Typography variant='body2' sx={{ color: '#333' }}>
+                        {bookingData.parkingDate} {bookingData.parkingTime}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                    <CircleIcon
+                      sx={{
+                        fontSize: 14,
+                        color: successMessage ? BRAND_MAIN : 'transparent',
+                        border: `2px solid ${successMessage ? BRAND_MAIN : '#555'}`,
+                        borderRadius: '50%',
+                        mt: 0.5,
+                        zIndex: 1
+                      }}
+                    />
+                    <Box sx={{ ml: 2 }}>
+                      <Typography variant='body2' sx={{ fontWeight: 700, color: '#111' }}>
+                        Return
+                      </Typography>
+                      {successMessage ? (
+                        <Typography variant='caption' sx={{ color: BRAND_MAIN, fontWeight: 700 }}>
+                          Requested
+                        </Typography>
+                      ) : (
+                        <Typography variant='caption' sx={{ color: '#666' }}>
+                          -
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Paper>
+              ) : (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 3,
+                    bgcolor: '#fff0f0',
+                    border: '1px solid #ffcccc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Typography variant='h6' sx={{ color: '#d32f2f', fontWeight: 800 }}>
+                    Not Parked
+                  </Typography>
+                </Paper>
+              )}
 
               <Paper
                 elevation={0}
@@ -700,13 +771,34 @@ const PublicScannerPage = () => {
                       fontWeight: 700,
                       textTransform: 'none',
                       boxShadow: '0 8px 24px rgba(26, 27, 46, 0.2)',
-                      '&:hover': { bgcolor: '#000' }
+                      '&:hover': { bgcolor: '#000' },
+                      display: bookingData?.status?.toLowerCase() === 'completed' ? 'none' : 'flex'
                     }}
                   >
-                    {loading ? <CircularProgress size={26} color='inherit' /> : 'Request Return'}
+                    {loading ? <CircularProgress size={26} color='inherit' /> : 'Get my Vehicle'}
                   </Button>
                 )}
               </Paper>
+              <Box sx={{ mt: 2, pb: 2 }}>
+                <Button
+                  fullWidth
+                  variant='outlined'
+                  onClick={handleSearchAgain}
+                  sx={{
+                    height: 56,
+                    borderRadius: 3,
+                    borderColor: '#e0e0e0',
+                    color: '#555',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    bgcolor: 'white',
+                    '&:hover': { borderColor: '#ccc', bgcolor: '#f9f9f9', color: '#333' }
+                  }}
+                >
+                  Scan Another Vehicle
+                </Button>
+              </Box>
             </Box>
           )}
         </Box>
