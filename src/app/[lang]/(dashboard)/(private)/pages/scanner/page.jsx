@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 
 import { useSession } from 'next-auth/react'
-import { Html5QrcodeScanner } from 'html5-qrcode'
+
+// import { Html5QrcodeScanner } from 'html5-qrcode'
 
 // MUI Imports
 import Box from '@mui/material/Box'
@@ -63,16 +64,37 @@ const ScannerPage = () => {
   useEffect(() => {
     let scanner = null
 
-    if (isScannerActive) {
-      // Small delay to ensure DOM element exists
-      const timer = setTimeout(() => {
+    // Helper to initialize scanner
+    const startScanner = async () => {
+      if (isScannerActive) {
         try {
+          // Dynamic import to avoid SSR issues
+          const { Html5QrcodeScanner } = await import('html5-qrcode')
+
+          // Small delay to ensure DOM element exists
+          await new Promise(resolve => setTimeout(resolve, 100))
+
           const readerElement = document.getElementById('reader')
 
           if (readerElement) {
+            // Check if scanner is already running to avoid duplicates
+            if (scannerRef.current) {
+              await scannerRef.current.clear().catch(err => console.warn('Cleanup error:', err))
+            }
+
             scanner = new Html5QrcodeScanner(
               'reader',
-              { fps: 10, qrbox: { width: 250, height: 250 } },
+              {
+                fps: 10,
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0,
+                disableFlip: false,
+
+                // iOS specific optimization: prefer back camera
+                videoConstraints: {
+                  facingMode: 'environment'
+                }
+              },
               /* verbose= */ false
             )
 
@@ -81,21 +103,24 @@ const ScannerPage = () => {
           }
         } catch (err) {
           console.error('Error starting scanner:', err)
-        }
-      }, 100)
 
-      return () => {
-        clearTimeout(timer)
-
-        if (scannerRef.current) {
-          try {
-            scannerRef.current.clear().catch(error => {
-              console.error('Failed to clear scanner', error)
-            })
-          } catch (e) {
-            console.error('Error clearing scanner', e)
+          // Show user friendly error for camera permissions
+          if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
+            alert('Camera access failure. Please ensure you are using HTTPS and have granted camera permissions.')
           }
         }
+      }
+    }
+
+    startScanner()
+
+    // Cleanup function
+    return () => {
+      if (scannerRef.current) {
+        scannerRef.current.clear().catch(error => {
+          console.warn('Failed to clear scanner', error)
+        })
+        scannerRef.current = null
       }
     }
   }, [isScannerActive])
