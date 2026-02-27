@@ -91,8 +91,10 @@ const PublicScannerPage = () => {
         if (parsed.timestamp && Date.now() - parsed.timestamp < 7200000) {
           setValetToken(parsed.valetToken || '')
           setPlateNumber(parsed.plateNumber || '')
-          setBookingData(parsed.bookingData)
-          setSuccessMessage(parsed.successMessage)
+
+          // Show historical data immediately for better UX
+          if (parsed.bookingData) setBookingData(parsed.bookingData)
+          if (parsed.successMessage) setSuccessMessage(parsed.successMessage)
 
           if (parsed.returnTimerEnd) {
             const remaining = Math.floor((parsed.returnTimerEnd - Date.now()) / 1000)
@@ -101,6 +103,11 @@ const PublicScannerPage = () => {
           }
 
           setViewState('result')
+
+          // CRITICAL: Immediately re-verify with the API to prevent stale "Parked" status
+          if (parsed.valetToken && parsed.plateNumber) {
+            fetchBookingDetails(parsed.valetToken, parsed.plateNumber, true)
+          }
         } else {
           localStorage.removeItem(`valet_session_${vendorId}`)
         }
@@ -111,6 +118,19 @@ const PublicScannerPage = () => {
       setIsRestoringSession(false)
     }
   }, [vendorId])
+
+  // Periodic refresh while on result page to detect when vendor exits vehicle
+  useEffect(() => {
+    let refreshInterval = null
+
+    if (viewState === 'result' && bookingData && bookingData.status?.toLowerCase() === 'parked') {
+      refreshInterval = setInterval(() => {
+        fetchBookingDetails(valetToken, plateNumber, true)
+      }, 30000) // Re-check every 30s
+    }
+
+    return () => clearInterval(refreshInterval)
+  }, [viewState, bookingData, valetToken, plateNumber])
 
   useEffect(() => {
     if (viewState === 'result' && bookingData) {
@@ -162,6 +182,14 @@ const PublicScannerPage = () => {
   useEffect(() => {
     let interval = null
 
+    // Stop and clear timer if vehicle is completed
+    if (bookingData?.status?.toLowerCase() === 'completed') {
+      if (returnTimer !== 0) setReturnTimer(0)
+      if (successMessage) setSuccessMessage(null)
+
+      return
+    }
+
     if (returnTimer > 0) {
       interval = setInterval(() => {
         setReturnTimer(prev => prev - 1)
@@ -172,7 +200,7 @@ const PublicScannerPage = () => {
     }
 
     return () => clearInterval(interval)
-  }, [returnTimer, successMessage])
+  }, [returnTimer, successMessage, bookingData])
 
   useEffect(() => {
     let interval = null
@@ -262,25 +290,32 @@ const PublicScannerPage = () => {
     }
   }, [bookingData])
 
-  const fetchBookingDetails = async () => {
-    if (!plateNumber || !valetToken) {
-      setError('Please enter both Token and Vehicle Number')
+  const fetchBookingDetails = async (token = null, plate = null, isSilent = false) => {
+    // If called from an event handler (like onClick), 'token' will be the event object.
+    // We only want to use the 'token' argument if it's a string or number.
+    const cleanToken = typeof token === 'string' || typeof token === 'number' ? token : null
+    const cleanPlate = typeof plate === 'string' || typeof plate === 'number' ? plate : null
+
+    const finalToken = cleanToken || valetToken
+    const finalPlate = cleanPlate || plateNumber
+
+    if (!finalPlate || !finalToken) {
+      if (!isSilent) setError('Please enter both Token and Vehicle Number')
 
       return
     }
 
-    const searchTerm = `${valetToken}-${plateNumber}`
+    const searchTerm = `${finalToken}-${finalPlate}`
 
     if (!vendorId) {
-      setError('Vendor ID missing link')
+      if (!isSilent) setError('Vendor ID missing link')
 
       return
     }
 
     try {
-      setLoading(true)
-      setError(null)
-      setSuccessMessage(null)
+      if (!isSilent) setLoading(true)
+      if (!isSilent) setError(null)
 
       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?t=${Date.now()}`, {
         cache: 'no-store',
@@ -297,25 +332,32 @@ const PublicScannerPage = () => {
         )
 
         if (matches.length > 0) {
+          // Find active booking first, else latest
           const activeBooking =
             matches.find(b => ['parked', 'pending', 'approved'].includes(b.status?.toLowerCase())) || matches[0]
 
           if (activeBooking) {
-            setBookingData(activeBooking)
+            // Update storage if status changed
+            if (activeBooking.status !== bookingData?.status) {
+              setBookingData(activeBooking)
+            } else {
+              setBookingData(activeBooking) // Refresh the full object
+            }
+
             setViewState('result')
           } else {
-            setError(`No active bookings found`)
+            if (!isSilent) setError(`No active bookings found`)
           }
         } else {
-          setError(`Vehicle not found: ${searchTerm}`)
+          if (!isSilent) setError(`Vehicle not found: ${searchTerm}`)
         }
       } else {
-        setError('No bookings found')
+        if (!isSilent) setError('No bookings found')
       }
     } catch (err) {
-      setError('Error fetching details')
+      if (!isSilent) setError('Error fetching details')
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
     }
   }
 
@@ -379,7 +421,7 @@ const PublicScannerPage = () => {
 
   if (isRestoringSession) {
     return (
-      <Box sx={{ width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <Box sx={{ width: '100vw', height: '100dvh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <CircularProgress />
       </Box>
     )
@@ -388,22 +430,23 @@ const PublicScannerPage = () => {
   return (
     <Box
       sx={{
-        width: '100vw',
-        minHeight: '100vh',
+        width: '100%',
+        minHeight: '100dvh',
         bgcolor: '#f5f5f5',
         display: 'flex',
         justifyContent: 'center',
-        alignItems: 'center',
-        pt: 'env(safe-area-inset-top)',
-        pb: 'env(safe-area-inset-bottom)'
+        alignItems: isDesktop ? 'center' : 'stretch',
+        pt: isDesktop ? 4 : 'env(safe-area-inset-top)',
+        pb: isDesktop ? 4 : 'env(safe-area-inset-bottom)'
       }}
     >
       <Box
         sx={{
           width: '100%',
           maxWidth: '500px',
-          height: '100vh',
-          maxHeight: isDesktop ? '95vh' : '100vh',
+          height: isDesktop ? 'auto' : '100dvh',
+          minHeight: isDesktop ? '600px' : '100dvh',
+          maxHeight: isDesktop ? '95vh' : '100dvh',
           bgcolor: 'white',
           borderRadius: isDesktop ? 4 : 0,
           boxShadow: isDesktop ? '0 20px 40px rgba(0,0,0,0.1)' : 'none',
@@ -454,7 +497,7 @@ const PublicScannerPage = () => {
           sx={{
             flex: 1,
             overflowY: 'auto',
-            px: 3,
+            px: { xs: 2.5, sm: 3 },
             pb: 12,
             bgcolor: viewState === 'result' ? '#f8f8f8' : 'white',
             display: 'flex',
@@ -519,7 +562,7 @@ const PublicScannerPage = () => {
                 fullWidth
                 size='large'
                 variant='contained'
-                onClick={fetchBookingDetails}
+                onClick={() => fetchBookingDetails()}
                 disabled={loading || !plateNumber || !valetToken}
                 sx={{
                   height: 56,
@@ -811,7 +854,7 @@ const PublicScannerPage = () => {
                   mt: 1
                 }}
               >
-                {successMessage ? (
+                {successMessage && bookingData?.status?.toLowerCase() !== 'completed' ? (
                   <Box
                     sx={{
                       textAlign: 'center',
@@ -955,8 +998,8 @@ const PublicScannerPage = () => {
               backgroundImage: 'none',
               display: 'flex',
               flexDirection: 'column',
-              height: isDesktop ? '92vh' : '100vh',
-              maxHeight: '100vh'
+              height: isDesktop ? '92vh' : '100dvh',
+              maxHeight: '100dvh'
             }
           }}
         >
