@@ -338,17 +338,35 @@ export default function NotificationsPage() {
 
   const formatDate = dateString => {
     if (!dateString) return ''
+
+    // 1. Handle existing DD-MM-YYYY strings (e.g., "27-02-2026 12:28 PM")
+    if (typeof dateString === 'string' && /^\d{2}-\d{2}-\d{4}/.test(dateString)) {
+      const parts = dateString.split(' ')
+      const dateParts = parts[0].split('-')
+      const dd = dateParts[0]
+      const mm = dateParts[1]
+      const yy = dateParts[2].slice(-2)
+      const timePart = parts.slice(1).join(' ') // "12:28 PM"
+
+      return `${dd}-${mm}-${yy} | ${timePart}`
+    }
+
+    // 2. Handle ISO strings and Date objects
     const date = new Date(dateString)
 
-    return isNaN(date.getTime())
-      ? ''
-      : date.toLocaleString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
+    if (isNaN(date.getTime())) return dateString
+
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = String(date.getFullYear()).slice(-2)
+
+    const time = date.toLocaleString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    })
+
+    return `${day}-${month}-${year} | ${time}`
   }
 
   const getNotificationColor = notification => {
