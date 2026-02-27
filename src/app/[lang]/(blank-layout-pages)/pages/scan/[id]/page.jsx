@@ -18,8 +18,17 @@ import {
   Grid,
   useTheme,
   useMediaQuery,
-  InputLabel
+  InputLabel,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider
 } from '@mui/material'
+
+import CloseIcon from '@mui/icons-material/Close'
+import ImageIcon from '@mui/icons-material/Image'
+import ZoomInIcon from '@mui/icons-material/ZoomIn'
+import ZoomOutIcon from '@mui/icons-material/ZoomOut'
 
 import HomeIcon from '@mui/icons-material/Home'
 import LocalParkingIcon from '@mui/icons-material/LocalParking'
@@ -27,6 +36,9 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import PersonIcon from '@mui/icons-material/Person'
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew'
 import CircleIcon from '@mui/icons-material/Circle'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import FullscreenIcon from '@mui/icons-material/Fullscreen'
 
 import { showNotification } from '@/utils/requestNotificationPermission'
 
@@ -53,6 +65,12 @@ const PublicScannerPage = () => {
   const [successMessage, setSuccessMessage] = useState(null)
   const [viewState, setViewState] = useState('search') // 'search' | 'result'
   const [qrCodeUrl, setQrCodeUrl] = useState('')
+
+  const [openImages, setOpenImages] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [zoom, setZoom] = useState(1)
+  const [mousePos, setMousePos] = useState({ x: 50, y: 50 })
+  const [isHovering, setIsHovering] = useState(false)
 
   const [returnTimer, setReturnTimer] = useState(0)
   const [parkingDuration, setParkingDuration] = useState('00 h 00 m 00 s')
@@ -579,6 +597,77 @@ const PublicScannerPage = () => {
                       {parkingDuration}
                     </Typography>
                   </Box>
+
+                  {bookingData?.vehicleImages?.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography
+                        variant='caption'
+                        sx={{
+                          color: '#555',
+                          fontWeight: 700,
+                          mb: 1,
+                          display: 'block',
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5
+                        }}
+                      >
+                        Vehicle Photos
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          gap: 1,
+                          overflowX: 'auto',
+                          pb: 1,
+                          '&::-webkit-scrollbar': { height: 4 },
+                          '&::-webkit-scrollbar-thumb': { bgcolor: '#ccc', borderRadius: 2 }
+                        }}
+                      >
+                        {bookingData.vehicleImages.map((img, idx) => (
+                          <Box
+                            key={idx}
+                            onClick={() => {
+                              setSelectedImage(img)
+                              setOpenImages(true)
+                              setZoom(1)
+                            }}
+                            sx={{
+                              width: 80,
+                              height: 80,
+                              borderRadius: 2,
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                              cursor: 'pointer',
+                              position: 'relative',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                              border: '2px solid white',
+                              '&:hover': { transform: 'scale(1.05)', transition: '0.2s' }
+                            }}
+                          >
+                            <img
+                              src={img}
+                              alt={`Vehicle ${idx}`}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                bottom: 0,
+                                right: 0,
+                                bgcolor: 'rgba(0,0,0,0.6)',
+                                color: 'white',
+                                p: 0.5,
+                                display: 'flex',
+                                borderRadius: '4px 0 0 0'
+                              }}
+                            >
+                              <FullscreenIcon sx={{ fontSize: 14 }} />
+                            </Box>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
                 </Box>
 
                 <Box
@@ -851,6 +940,276 @@ const PublicScannerPage = () => {
             ))}
           </Grid>
         </Paper>
+        {/* Image Dialog */}
+        <Dialog
+          open={openImages}
+          onClose={() => setOpenImages(false)}
+          maxWidth='lg'
+          fullWidth
+          fullScreen={!isDesktop}
+          PaperProps={{
+            sx: {
+              borderRadius: isDesktop ? 4 : 0,
+              overflow: 'hidden',
+              bgcolor: '#000',
+              backgroundImage: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              height: isDesktop ? '92vh' : '100vh',
+              maxHeight: '100vh'
+            }
+          }}
+        >
+          <DialogContent
+            sx={{
+              p: 0,
+              bgcolor: '#000',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '100%',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Standard Header (Maintains correct spacing) */}
+            <Box
+              sx={{
+                p: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                bgcolor: '#0a0a0a',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                color: 'white',
+                pt: !isDesktop ? 'max(16px, env(safe-area-inset-top))' : 2.5,
+                flexShrink: 0
+              }}
+            >
+              <Box>
+                <Typography variant='subtitle1' sx={{ fontWeight: 800, lineHeight: 1, letterSpacing: 0.5 }}>
+                  Vehicle Gallery
+                </Typography>
+                <Typography variant='caption' sx={{ opacity: 0.7, fontWeight: 700 }}>
+                  {bookingData?.vehicleImages?.indexOf(selectedImage) + 1} / {bookingData?.vehicleImages?.length}
+                </Typography>
+              </Box>
+              <IconButton
+                onClick={() => setOpenImages(false)}
+                sx={{
+                  color: 'white',
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' },
+                  width: 42,
+                  height: 42
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            <Box
+              sx={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                overflow: 'hidden',
+                touchAction: 'none',
+                bgcolor: '#000',
+                minHeight: 0 // Flex child requires this for internal height calculation
+              }}
+            >
+              {isDesktop && bookingData?.vehicleImages?.length > 1 && (
+                <>
+                  <IconButton
+                    onClick={() => {
+                      const idx = bookingData.vehicleImages.indexOf(selectedImage)
+                      const newIdx = (idx - 1 + bookingData.vehicleImages.length) % bookingData.vehicleImages.length
+
+                      setSelectedImage(bookingData.vehicleImages[newIdx])
+                      setZoom(1)
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      left: 24,
+                      zIndex: 40,
+                      color: 'white',
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
+                    }}
+                  >
+                    <ChevronLeftIcon fontSize='large' />
+                  </IconButton>
+                  <IconButton
+                    onClick={() => {
+                      const idx = bookingData.vehicleImages.indexOf(selectedImage)
+                      const newIdx = (idx + 1) % bookingData.vehicleImages.length
+
+                      setSelectedImage(bookingData.vehicleImages[newIdx])
+                      setZoom(1)
+                    }}
+                    sx={{
+                      position: 'absolute',
+                      right: 24,
+                      zIndex: 40,
+                      color: 'white',
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' }
+                    }}
+                  >
+                    <ChevronRightIcon fontSize='large' />
+                  </IconButton>
+                </>
+              )}
+
+              <Box
+                onMouseMove={e => {
+                  if (!isDesktop) return
+                  const { left, top, width, height } = e.currentTarget.getBoundingClientRect()
+                  const x = ((e.clientX - left) / width) * 100
+                  const y = ((e.clientY - top) / height) * 100
+
+                  setMousePos({ x, y })
+                  setIsHovering(true)
+                }}
+                onMouseLeave={() => setIsHovering(false)}
+                onTouchStart={e => {
+                  if (isDesktop) return
+                  setIsHovering(true)
+                  const touch = e.touches[0]
+                  const { left, top, width, height } = e.currentTarget.getBoundingClientRect()
+                  const x = ((touch.clientX - left) / width) * 100
+                  const y = ((touch.clientY - top) / height) * 100
+
+                  setMousePos({ x, y })
+                }}
+                onTouchMove={e => {
+                  if (isDesktop) return
+                  const touch = e.touches[0]
+                  const { left, top, width, height } = e.currentTarget.getBoundingClientRect()
+                  const x = Math.min(100, Math.max(0, ((touch.clientX - left) / width) * 100))
+                  const y = Math.min(100, Math.max(0, ((touch.clientY - top) / height) * 100))
+
+                  setMousePos({ x, y })
+                }}
+                onTouchEnd={() => !isDesktop && setIsHovering(false)}
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  overflow: 'hidden',
+                  cursor: isDesktop ? 'crosshair' : 'zoom-in',
+                  p: isDesktop ? 3 : 1,
+                  touchAction: 'none' // Prevent page scroll when zooming
+                }}
+              >
+                <img
+                  src={selectedImage}
+                  alt='Vehicle'
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    transform: isHovering ? `scale(2.5)` : `scale(${zoom})`,
+                    transition: isHovering ? 'none' : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transformOrigin: isHovering ? `${mousePos.x}% ${mousePos.y}%` : 'center center',
+                    objectFit: 'contain',
+                    userSelect: 'none',
+                    WebkitUserDrag: 'none',
+                    boxShadow: isHovering ? 'none' : '0 4px 30px rgba(0,0,0,0.5)',
+                    borderRadius: 4
+                  }}
+                />
+              </Box>
+
+              {/* Floating Zoom UI */}
+              <Paper
+                elevation={10}
+                sx={{
+                  position: 'absolute',
+                  bottom: isDesktop ? 30 : 50,
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  p: 0.6,
+                  borderRadius: 8,
+                  bgcolor: 'rgba(28, 28, 30, 0.85)',
+                  backdropFilter: 'blur(15px)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  zIndex: 50
+                }}
+              >
+                <IconButton
+                  onClick={() => setZoom(prev => Math.max(1, prev - 0.5))}
+                  disabled={zoom <= 1}
+                  size='small'
+                  sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.2)' } }}
+                >
+                  <ZoomOutIcon />
+                </IconButton>
+                <Typography
+                  variant='caption'
+                  sx={{ color: 'white', fontWeight: 900, px: 2, minWidth: 45, textAlign: 'center' }}
+                >
+                  {Math.round(zoom * 100)}%
+                </Typography>
+                <IconButton
+                  onClick={() => setZoom(prev => Math.min(4, prev + 1))}
+                  disabled={zoom >= 4}
+                  size='small'
+                  sx={{ color: 'white', '&.Mui-disabled': { color: 'rgba(255,255,255,0.2)' } }}
+                >
+                  <ZoomInIcon />
+                </IconButton>
+              </Paper>
+            </Box>
+
+            {/* Thumbnail Strip with Safe Area Padding */}
+            <Box
+              sx={{
+                p: 2,
+                bgcolor: '#0a0a0a',
+                display: 'flex',
+                gap: 1.5,
+                overflowX: 'auto',
+                justifyContent: isDesktop ? 'center' : 'flex-start',
+                borderTop: '1px solid rgba(255,255,255,0.1)',
+                zIndex: 60,
+                pb: !isDesktop ? 'max(16px, env(safe-area-inset-bottom))' : 2,
+                '&::-webkit-scrollbar': { height: 4 },
+                '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,0.2)', borderRadius: 2 }
+              }}
+            >
+              {bookingData?.vehicleImages?.map((img, idx) => (
+                <Box
+                  key={idx}
+                  onClick={() => {
+                    setSelectedImage(img)
+                    setZoom(1)
+                  }}
+                  sx={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 1.5,
+                    overflow: 'hidden',
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                    border: selectedImage === img ? `3px solid ${BRAND_MAIN}` : '2px solid transparent',
+                    opacity: selectedImage === img ? 1 : 0.4,
+                    transition: '0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transform: selectedImage === img ? 'scale(1.1)' : 'scale(1)',
+                    boxShadow: selectedImage === img ? `0 0 15px ${BRAND_MAIN}55` : 'none'
+                  }}
+                >
+                  <img src={img} alt={`Thumb ${idx}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </Box>
+              ))}
+            </Box>
+          </DialogContent>
+        </Dialog>
       </Box>
     </Box>
   )
