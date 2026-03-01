@@ -140,7 +140,7 @@ const TransactionsPage = () => {
     const data = isUserBooking ? userTransactions : vendorTransactions
 
     // 1. Filter by Date Range
-    const filtered =
+    const dateFiltered =
       !startDate || !endDate
         ? data
         : data.filter(item => {
@@ -162,6 +162,32 @@ const TransactionsPage = () => {
 
             return check >= start && check <= end
           })
+
+    // 2. Deduplicate
+    const uniqueBookings = new Set()
+    const filtered = []
+
+    // We should sort by createdAt -> parkingDate desc before deduplicating to keep the latest revision
+    const sortedForDeduplication = [...dateFiltered].sort((a, b) => {
+      const ad = parseTransactionDate(a.createdAt || a.parkingDate || a.bookingDate) || 0
+      const bd = parseTransactionDate(b.createdAt || b.parkingDate || b.bookingDate) || 0
+
+      return bd - ad
+    })
+
+    sortedForDeduplication.forEach(item => {
+      // Use invoiceid if available, otherwise fallback to a composite key to identify the same booking session
+      const invId = item.invoiceid || item.invoiceId || item.orderid || item.orderId || null
+
+      // If no ID is available, use vehicleNumber + date + time as a surrogate key
+      const surrogateKey = `${item.vehiclenumber || item.vehicleNumber}_${item.parkingDate || item.bookingDate}_${item.parkingTime || item.bookingTime}`
+      const uniqueId = invId || surrogateKey
+
+      if (!uniqueBookings.has(uniqueId)) {
+        uniqueBookings.add(uniqueId)
+        filtered.push(item)
+      }
+    })
 
     // 2. Sort Logic
     return filtered.sort((a, b) => {

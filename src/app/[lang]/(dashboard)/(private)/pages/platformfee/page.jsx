@@ -149,10 +149,23 @@ const VehicleBookingTransactions = () => {
           return bd - ad
         })
 
-        const data = filtered.map((item, index) => ({
+        // Deduplicate by invoiceid to prevent repeated bookings
+        const uniqueInvoices = new Set()
+        const uniqueFiltered = []
+
+        filtered.forEach(item => {
+          const invId = item.invoiceid || item._id
+
+          if (!uniqueInvoices.has(invId)) {
+            uniqueInvoices.add(invId)
+            uniqueFiltered.push(item)
+          }
+        })
+
+        const data = uniqueFiltered.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
-          bookingId: item._id,
+          bookingId: item.invoiceid || item._id, // Show invoiceid as Booking ID for better identification
           parkingDate: item.parkingDate || 'N/A',
           parkingTime: item.parkingTime || 'N/A',
           bookingAmount: `₹${item.amount || 0}`,

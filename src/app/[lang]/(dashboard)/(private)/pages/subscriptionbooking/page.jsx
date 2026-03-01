@@ -453,14 +453,30 @@ const OrderListTable = ({ orderData }) => {
             ['pending', 'approved', 'cancelled', 'parked', 'completed'].includes(booking.status.toLowerCase())
         )
 
-        const sorted = [...subscriptionBookings].sort((a, b) => {
-          const ad = a.createdAt ? new Date(a.createdAt) : 0
-          const bd = b.createdAt ? new Date(b.createdAt) : 0
+        // Deduplicate
+        const uniqueBookings = new Set()
+        const deduplicated = []
+
+        // Sort descending by date/time before deduplicating
+        const sortedForDeduplication = [...subscriptionBookings].sort((a, b) => {
+          const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0
+          const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0
 
           return bd - ad
         })
 
-        setData(sorted)
+        sortedForDeduplication.forEach(item => {
+          const invId = item.invoiceid || item.invoiceId || item.orderid || item.orderId || null
+          const surrogateKey = `${item.vehicleNumber || item.vehiclenumber}_${item.parkingDate || item.bookingDate}_${item.parkingTime || item.bookingTime}`
+          const uniqueId = invId || surrogateKey
+
+          if (!uniqueBookings.has(uniqueId)) {
+            uniqueBookings.add(uniqueId)
+            deduplicated.push(item)
+          }
+        })
+
+        setData(deduplicated)
       } else {
         setData([])
         setFilteredData([])

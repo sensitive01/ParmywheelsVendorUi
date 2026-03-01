@@ -132,10 +132,23 @@ const UserBookings = () => {
           return bd - ad
         })
 
-        const data = sorted.map((item, index) => ({
+        // Deduplicate by invoiceid to prevent repeated bookings
+        const uniqueInvoices = new Set()
+        const uniqueDataFiltered = []
+
+        sorted.forEach(item => {
+          const invId = item.invoiceid || item._id
+
+          if (!uniqueInvoices.has(invId)) {
+            uniqueInvoices.add(invId)
+            uniqueDataFiltered.push(item)
+          }
+        })
+
+        const data = uniqueDataFiltered.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
-          bookingId: item._id,
+          bookingId: item.invoiceid || item._id, // Show invoiceid as Booking ID for better identification
           userid: item.userid, // Added for filtering
           bookingDate: item.bookingDate || 'N/A',
           parkingDate: item.parkingDate || 'N/A',
