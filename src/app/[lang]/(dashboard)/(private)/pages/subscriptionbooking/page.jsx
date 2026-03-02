@@ -383,6 +383,8 @@ const OrderListTable = ({ orderData }) => {
 
   const open = Boolean(anchorEl)
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [bookingToDelete, setBookingToDelete] = useState(null)
 
   const handleNewSubscription = async () => {
     if (!vendorId) return
@@ -432,19 +434,65 @@ const OrderListTable = ({ orderData }) => {
     setAnchorEl(null)
   }
 
-  const fetchData = async () => {
+  const handleDeleteBooking = async () => {
+    if (!bookingToDelete) return
+
+    try {
+      const response = await fetch(`${API_URL}/vendor/deletebooking/${bookingToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.accessToken}`
+        }
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+
+        throw new Error(errorData.message || 'Failed to delete booking')
+      }
+
+      // Update local state immediately for instant feedback
+      setData(prevData => prevData.filter(item => item._id !== bookingToDelete))
+
+      setDeleteDialogOpen(false)
+      setBookingToDelete(null)
+
+      // Re-fetch data silently from server to ensure synchronized state
+      fetchData(true)
+    } catch (error) {
+      console.error('Error deleting booking:', error)
+      setError(error.message || 'An error occurred while deleting the booking')
+    }
+  }
+
+  const fetchData = async (silent = false) => {
     if (!vendorId) return
 
     try {
-      setLoading(true)
+      if (!silent) setLoading(true)
       setError(null)
       const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+      const result = await response.json()
+
+      // If the API returns a 404, or the error message indicates no bookings, or bookings array is missing/empty
+      if (
+        response.status === 404 ||
+        (result &&
+          (result.error === 'No bookings found for this vendor' ||
+            String(result.error).toLowerCase().includes('no bookings'))) ||
+        (result && result.bookings && result.bookings.length === 0) ||
+        (result && !result.bookings && !result.error && response.ok)
+      ) {
+        setData([])
+        setFilteredData([])
+
+        return
+      }
 
       if (!response.ok) {
         throw new Error('Failed to fetch bookings')
       }
-
-      const result = await response.json()
 
       if (result && result.bookings) {
         const subscriptionBookings = result.bookings.filter(
@@ -485,7 +533,7 @@ const OrderListTable = ({ orderData }) => {
       console.error('Error fetching bookings:', error)
       setError(error.message)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
@@ -1003,6 +1051,45 @@ const OrderListTable = ({ orderData }) => {
             </Typography>
           )
         }
+      },
+      {
+        id: 'action',
+        header: 'Actions',
+        cell: ({ row }) => (
+          <div className='flex items-center'>
+            <OptionMenu
+              iconButtonProps={{ size: 'medium' }}
+              iconClassName='text-[22px]'
+              options={[
+                {
+                  text: 'View',
+                  icon: 'ri-eye-line',
+                  menuItemProps: {
+                    onClick: () => {
+                      const selectedId = row.original._id
+
+                      if (selectedId) {
+                        router.push(`/pages/bookingdetails/${selectedId}`)
+                      }
+                    }
+                  }
+                },
+                {
+                  text: 'Delete',
+                  icon: 'ri-delete-bin-7-line',
+                  menuItemProps: {
+                    onClick: () => {
+                      setBookingToDelete(row.original._id)
+                      setDeleteDialogOpen(true)
+                    },
+                    sx: { color: 'error.main', '& i, & .MuiTypography-root': { color: 'error.main' } }
+                  }
+                }
+              ]}
+            />
+          </div>
+        ),
+        enableSorting: false
       },
       {
         id: 'status',
@@ -1605,6 +1692,28 @@ const OrderListTable = ({ orderData }) => {
           </Button>
           <Button onClick={handleRenewSubscription} variant='contained' color='primary' autoFocus>
             Renew
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby='delete-dialog-title'
+        aria-describedby='delete-dialog-description'
+      >
+        <DialogTitle id='delete-dialog-title'>Delete Booking</DialogTitle>
+        <DialogContent>
+          <DialogContentText id='delete-dialog-description'>
+            Are you sure you want to delete this booking? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color='secondary'>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteBooking} variant='contained' color='error' autoFocus disabled={loading}>
+            {loading ? <CircularProgress size={20} /> : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>
