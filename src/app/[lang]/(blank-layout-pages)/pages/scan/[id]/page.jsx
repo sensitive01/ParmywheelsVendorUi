@@ -622,7 +622,7 @@ const PublicScannerPage = () => {
                     </Typography>
                     <Typography variant={valetToken ? 'h6' : 'h5'} sx={{ color: '#111', fontWeight: 800 }}>
                       {bookingData.vehicleNumber.includes('-')
-                        ? bookingData.vehicleNumber.split('-').slice(1).join('-')
+                        ? bookingData.vehicleNumber.split('-')[1]
                         : bookingData.vehicleNumber}
                     </Typography>
                   </Box>
