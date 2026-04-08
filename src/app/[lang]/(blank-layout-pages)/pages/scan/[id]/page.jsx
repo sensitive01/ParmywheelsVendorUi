@@ -327,9 +327,13 @@ const PublicScannerPage = () => {
       const result = await response.json()
 
       if (result && result.bookings) {
-        const matches = result.bookings.filter(
-          b => b.vehicleNumber?.toString().toLowerCase() === searchTerm.toString().toLowerCase()
-        )
+        const matches = result.bookings.filter(b => {
+          const vNum = b.vehicleNumber?.toString().toLowerCase() || ''
+          const sTerm = searchTerm.toString().toLowerCase()
+
+          // Match exact (token-plate) or matches token-plate-location
+          return vNum === sTerm || vNum.startsWith(sTerm + '-')
+        })
 
         if (matches.length > 0) {
           // Find active booking first, else latest
