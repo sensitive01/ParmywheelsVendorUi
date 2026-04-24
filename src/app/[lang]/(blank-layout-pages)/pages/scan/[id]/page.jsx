@@ -40,13 +40,24 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import FullscreenIcon from '@mui/icons-material/Fullscreen'
 
+import Brightness4Icon from '@mui/icons-material/Brightness4'
+import Brightness7Icon from '@mui/icons-material/Brightness7'
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar'
+import TwoWheelerIcon from '@mui/icons-material/TwoWheeler'
+import LocalShippingIcon from '@mui/icons-material/LocalShipping'
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+
 import { showNotification } from '@/utils/requestNotificationPermission'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-const BRAND_MAIN = '#329a73'
-const BRAND_DARK = '#257a5a'
-const BRAND_LIGHT = '#e8f5e9'
+const BRAND_GRADIENT = 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+const DARK_GRADIENT = 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
+const BLUE_GRADIENT = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
+const NEUTRAL_BG = '#0A0C10'
+const TEXT_DARK = '#FFFFFF'
+const TEXT_LIGHT = '#94A3B8'
+const BRAND_MAIN = '#10B981'
 
 const PublicScannerPage = () => {
   const params = useParams()
@@ -55,6 +66,7 @@ const PublicScannerPage = () => {
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
 
   const [valetToken, setValetToken] = useState('')
+  const [isBookingSuccess, setIsBookingSuccess] = useState(false)
   const [plateNumber, setPlateNumber] = useState('')
 
   const [loading, setLoading] = useState(false)
@@ -63,7 +75,24 @@ const PublicScannerPage = () => {
   const [vendorData, setVendorData] = useState(null)
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
+  const [mainMode, setMainMode] = useState('selection') // 'selection' | 'booking' | 'finding'
   const [viewState, setViewState] = useState('search') // 'search' | 'result'
+
+  // Booking specific states
+  const [vehicleType, setVehicleType] = useState('Car')
+  const [bookingType, setBookingType] = useState('Instant') // 'Instant' | 'Schedule' | 'Subscription'
+  const [bookingName, setBookingName] = useState('')
+  const [bookingMobile, setBookingMobile] = useState('')
+  const [bookingPlate, setBookingPlate] = useState('')
+  const [bookingDate, setBookingDate] = useState('') // Combined Fallback
+  const [bookingTime, setBookingTime] = useState('') // Combined Fallback
+  const [startDate, setStartDate] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [bookingCarType, setBookingCarType] = useState('')
+  const [charges, setCharges] = useState([])
+  const [availableSlots, setAvailableSlots] = useState(null)
   const [qrCodeUrl, setQrCodeUrl] = useState('')
 
   const [openImages, setOpenImages] = useState(false)
@@ -74,50 +103,9 @@ const PublicScannerPage = () => {
 
   const [returnTimer, setReturnTimer] = useState(0)
   const [parkingDuration, setParkingDuration] = useState('00 h 00 m 00 s')
-  const [isRestoringSession, setIsRestoringSession] = useState(true)
+  const [valetMode, setValetMode] = useState('dark') // 'dark' | 'light'
 
-  // --- PERSISTENCE LOGIC (Load data on Mount) ---
-  useEffect(() => {
-    if (!vendorId) {
-      return
-    }
-
-    try {
-      const savedSession = localStorage.getItem(`valet_session_${vendorId}`)
-
-      if (savedSession) {
-        const parsed = JSON.parse(savedSession)
-
-        if (parsed.timestamp && Date.now() - parsed.timestamp < 7200000) {
-          setValetToken(parsed.valetToken || '')
-          setPlateNumber(parsed.plateNumber || '')
-
-          // Show historical data immediately for better UX
-          if (parsed.bookingData) setBookingData(parsed.bookingData)
-          if (parsed.successMessage) setSuccessMessage(parsed.successMessage)
-
-          if (parsed.returnTimerEnd) {
-            const remaining = Math.floor((parsed.returnTimerEnd - Date.now()) / 1000)
-
-            if (remaining > 0) setReturnTimer(remaining)
-          }
-
-          setViewState('result')
-
-          // CRITICAL: Immediately re-verify with the API to prevent stale "Parked" status
-          if (parsed.valetToken && parsed.plateNumber) {
-            fetchBookingDetails(parsed.valetToken, parsed.plateNumber, true)
-          }
-        } else {
-          localStorage.removeItem(`valet_session_${vendorId}`)
-        }
-      }
-    } catch (e) {
-      console.error('Failed to restore session', e)
-    } finally {
-      setIsRestoringSession(false)
-    }
-  }, [vendorId])
+  // Fetch Vendor Data periodically
 
   // Periodic refresh while on result page to detect when vendor exits vehicle
   useEffect(() => {
@@ -132,22 +120,6 @@ const PublicScannerPage = () => {
     return () => clearInterval(refreshInterval)
   }, [viewState, bookingData, valetToken, plateNumber])
 
-  useEffect(() => {
-    if (viewState === 'result' && bookingData) {
-      const sessionData = {
-        valetToken,
-        plateNumber,
-        bookingData,
-        successMessage,
-        timestamp: Date.now(),
-
-        returnTimerEnd: returnTimer > 0 ? Date.now() + returnTimer * 1000 : null
-      }
-
-      localStorage.setItem(`valet_session_${vendorId}`, JSON.stringify(sessionData))
-    } else if (viewState === 'search') {
-    }
-  }, [viewState, bookingData, successMessage, valetToken, plateNumber, vendorId, returnTimer])
 
   useEffect(() => {
     const fetchVendorData = async () => {
@@ -178,6 +150,33 @@ const PublicScannerPage = () => {
 
     fetchVendorData()
   }, [vendorId])
+
+  // Fetch charges and slots for booking
+  useEffect(() => {
+    if (!vendorId || mainMode !== 'booking') return
+
+    const fetchBookingEssentials = async () => {
+      try {
+        // Fetch Charges
+        const chargesRes = await axios.get(`${API_URL}/vendor/getchargesdata/${vendorId}`)
+
+        if (chargesRes.data?.vendor?.charges) {
+          setCharges(chargesRes.data.vendor.charges)
+        }
+
+        // Fetch Slots
+        const slotsRes = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`)
+
+        if (slotsRes.data) {
+          setAvailableSlots(slotsRes.data)
+        }
+      } catch (e) {
+        console.error('Error fetching booking essentials:', e)
+      }
+    }
+
+    fetchBookingEssentials()
+  }, [vendorId, mainMode])
 
   useEffect(() => {
     let interval = null
@@ -423,253 +422,851 @@ const PublicScannerPage = () => {
 
   const returnTimeParts = getTimerParts(returnTimer)
 
-  if (isRestoringSession) {
-    return (
-      <Box sx={{ width: '100vw', height: '100dvh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <CircularProgress />
-      </Box>
-    )
-  }
 
   return (
     <Box
       sx={{
         width: '100%',
         minHeight: '100dvh',
-        bgcolor: '#f5f5f5',
+        background: '#05070A',
+        position: 'relative',
         display: 'flex',
         justifyContent: 'center',
-        alignItems: isDesktop ? 'center' : 'stretch',
-        pt: isDesktop ? 4 : 'env(safe-area-inset-top)',
-        pb: isDesktop ? 4 : 'env(safe-area-inset-bottom)'
+        alignItems: 'center',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-15%',
+          right: '-5%',
+          width: '70%',
+          height: '70%',
+          background: `radial-gradient(circle, ${BRAND_MAIN}15 0%, transparent 70%)`,
+          zIndex: 0,
+          filter: 'blur(80px)'
+        },
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: '-10%',
+          left: '-5%',
+          width: '60%',
+          height: '60%',
+          background: 'radial-gradient(circle, #3B82F610 0%, transparent 70%)',
+          zIndex: 0,
+          filter: 'blur(80px)'
+        }
       }}
     >
       <Box
         sx={{
           width: '100%',
-          maxWidth: '500px',
-          height: isDesktop ? 'auto' : '100dvh',
-          minHeight: isDesktop ? '600px' : '100dvh',
-          maxHeight: isDesktop ? '95vh' : '100dvh',
-          bgcolor: 'white',
-          borderRadius: isDesktop ? 4 : 0,
-          boxShadow: isDesktop ? '0 20px 40px rgba(0,0,0,0.1)' : 'none',
-          overflow: 'hidden',
+          maxWidth: '450px',
+          height: isDesktop ? '92vh' : '100dvh',
+          bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.015)' : '#FFFFFF',
+          backdropFilter: valetMode === 'dark' ? 'blur(40px)' : 'none',
+          border: valetMode === 'dark' ? '1px solid rgba(255,255,255,0.05)' : 'none',
+          position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          position: 'relative'
+          boxShadow: valetMode === 'dark' ? '0 40px 100px rgba(0,0,0,0.5)' : 'none',
+          borderRadius: isDesktop ? 10 : 0,
+          borderBottomLeftRadius: 0, // Enforce flat bottom always
+          borderBottomRightRadius: 0,
+          zIndex: 1,
+          overflow: 'hidden',
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          backgroundImage: valetMode === 'dark'
+            ? 'radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0, transparent 50%), radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.08) 0, transparent 50%)'
+            : 'none'
         }}
       >
         <Box
           sx={{
-            height: 80,
-            bgcolor: 'white',
+            pt: 4,
+            pb: 1,
+            px: 4,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            px: 2,
-            borderBottom: '1px solid #f0f0f0',
-            flexShrink: 0
+            position: 'relative'
           }}
         >
-          <Box sx={{ width: 40 }} />
+          {/* Theme Toggle Overlay */}
+          <IconButton
+            onClick={() => setValetMode(prev => prev === 'dark' ? 'light' : 'dark')}
+            sx={{
+              position: 'absolute',
+              right: 20,
+              top: 30,
+              bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+              color: valetMode === 'dark' ? 'white' : '#05070A',
+              '&:hover': { bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
+            }}
+          >
+            {valetMode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+          </IconButton>
 
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <Box
-              sx={{
-                width: 40,
-                height: 40,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              {vendorData?.image ? (
-                <img src={vendorData.image} alt='Logo' style={{ width: 30, height: 30, objectFit: 'contain' }} />
-              ) : (
-                <img src='/public/login.png' alt='PMW' style={{ height: 24, objectFit: 'contain' }} />
-              )}
-            </Box>
-            <Typography variant='caption' sx={{ fontWeight: 800, color: '#1a1b2e' }}>
-              {vendorData?.vendorName || 'PARKMYWHEELS'}
+          <Box
+            sx={{
+              width: 52,
+              height: 52,
+              borderRadius: '50%',
+              bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+              border: '1px solid',
+              borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 1.5,
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)',
+              overflow: 'hidden'
+            }}
+          >
+            {vendorData?.image ? (
+              <img src={vendorData.image} alt='Logo' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <DirectionsCarIcon sx={{ color: BRAND_MAIN, fontSize: 28 }} />
+            )}
+          </Box>
+          <Typography variant='h6' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', letterSpacing: 1, fontSize: '0.85rem', textAlign: 'center' }}>
+            {vendorData?.vendorName?.toUpperCase() || 'VALET ELITE'}
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+            <Box sx={{ width: 4, height: 4, borderRadius: '50%', bgcolor: BRAND_MAIN, boxShadow: `0 0 10px ${BRAND_MAIN}` }} />
+            <Typography variant='caption' sx={{ color: valetMode === 'dark' ? TEXT_LIGHT : '#64748b', fontWeight: 800, letterSpacing: 2, fontSize: '0.55rem', opacity: 0.8 }}>
+              PREMIUM CONCIERGE OPEN
             </Typography>
           </Box>
-
-          <Box sx={{ width: 40 }} />
         </Box>
         {/* CONTENT - Flex Centered if Search */}
+        {/* Obsidian Concierge Panels */}
         <Box
           sx={{
             flex: 1,
-            overflowY: 'auto',
-            px: { xs: 2.5, sm: 3 },
-            pb: 12,
-            bgcolor: viewState === 'result' ? '#f8f8f8' : 'white',
+            px: { xs: 2.5, sm: 4 },
+            pt: 2,
+            pb: 16,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: viewState === 'search' ? 'center' : 'flex-start',
-            WebkitOverflowScrolling: 'touch'
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            '&::-webkit-scrollbar': { display: 'none' }
           }}
         >
-          {viewState === 'search' && (
-            <Box sx={{ textAlign: 'center', width: '100%' }}>
-              <Typography variant='h5' sx={{ color: '#1a1b2e', fontWeight: 800, mb: 1 }}>
-                Valet Check-in
-              </Typography>
-              <Typography variant='body2' sx={{ color: '#666', mb: 4 }}>
-                Please enter your details below
-              </Typography>
+          {mainMode === 'selection' && viewState === 'search' && (
+            <Box sx={{ width: '100%', px: 1, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', pb: 8 }}>
+              {valetMode === 'dark' ? (
+                <>
+                  <Box sx={{ textAlign: 'center', mb: 4 }}>
+                    <Typography variant='h5' sx={{ fontWeight: 950, color: 'white', letterSpacing: -0.5 }}>
+                       Portal Selection
+                    </Typography>
+                    <Typography variant='caption' sx={{ color: 'white', opacity: 0.7, fontWeight: 700, letterSpacing: 1 }}>
+                      CHOOSE YOUR SERVICE TYPE BELOW
+                    </Typography>
+                  </Box>
 
-              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 4 }}>
-                <Box sx={{ flex: '0 0 30%' }}>
-                  <InputLabel sx={{ mb: 1, fontSize: '0.85rem', fontWeight: 700, color: '#333' }}>TOKEN</InputLabel>
-                  <TextField
-                    fullWidth
-                    placeholder='1'
-                    value={valetToken}
-                    onChange={e => setValetToken(e.target.value.toUpperCase())}
-                    variant='outlined'
-                    type='tel'
-                    InputProps={{
-                      sx: {
-                        borderRadius: 2,
-                        fontWeight: 700,
-                        bgcolor: '#fff',
-                        '& input': { textAlign: 'center', p: 1.5 }
-                      }
-                    }}
-                  />
-                </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                    {/* Book Slot - Portal */}
+                    <Box
+                      onClick={() => setMainMode('booking')}
+                      sx={{
+                        p: 3,
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        bgcolor: 'rgba(16, 185, 129, 0.05)',
+                        border: '1px solid rgba(16, 185, 129, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        transition: '0.4s',
+                        boxShadow: '0 15px 35px rgba(0,0,0,0.4)',
+                        '&:hover': { transform: 'translateY(-4px)', borderColor: BRAND_MAIN }
+                      }}
+                    >
+                      <Box sx={{ width: 68, height: 68, borderRadius: 5, bgcolor: BRAND_MAIN, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                        <DirectionsCarIcon sx={{ fontSize: 36 }} />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant='h5' sx={{ fontWeight: 950, color: 'white', letterSpacing: -0.5 }}>Book Slot</Typography>
+                        <Typography variant='caption' sx={{ color: 'white', opacity: 0.8, fontWeight: 800 }}>BOOK PARKING SLOTS</Typography>
+                      </Box>
+                    </Box>
 
-                <Box sx={{ flex: 1 }}>
-                  <InputLabel sx={{ mb: 1, fontSize: '0.85rem', fontWeight: 700, color: '#333' }}>
-                    VEHICLE NUMBER
-                  </InputLabel>
-                  <TextField
-                    fullWidth
-                    placeholder='Last 4 digits'
-                    value={plateNumber}
-                    onChange={e => setPlateNumber(e.target.value.toUpperCase())}
-                    variant='outlined'
-                    InputProps={{
-                      sx: {
-                        borderRadius: 2,
-                        fontWeight: 700,
-                        bgcolor: '#fff',
-                        '& input': { p: 1.5 }
-                      }
-                    }}
-                  />
+                    {/* Get My Vehicle - Portal */}
+                    <Box
+                      onClick={() => setMainMode('finding')}
+                      sx={{
+                        p: 3,
+                        borderRadius: 4,
+                        cursor: 'pointer',
+                        bgcolor: 'rgba(59, 130, 246, 0.05)',
+                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        transition: '0.4s',
+                        boxShadow: '0 15px 35px rgba(0,0,0,0.4)',
+                        '&:hover': { transform: 'translateY(-4px)', borderColor: '#3b82f6' }
+                      }}
+                    >
+                      <Box sx={{ width: 68, height: 68, borderRadius: 5, bgcolor: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                        <LocalParkingIcon sx={{ fontSize: 36 }} />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant='h5' sx={{ fontWeight: 950, color: 'white', letterSpacing: -0.5 }}>Get My Vehicle</Typography>
+                        <Typography variant='caption' sx={{ color: 'white', opacity: 0.8, fontWeight: 800 }}>GET MY VEHICLE</Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                </>
+              ) : (
+                <>
+                  <Box sx={{ textAlign: 'center', mb: 6 }}>
+                    <Typography variant='h5' sx={{ fontWeight: 950, color: '#05070A', letterSpacing: -1 }}>
+                      Valet Check-in
+                    </Typography>
+                    <Typography variant='caption' sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
+                      Please enter your details below
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant='caption' sx={{ fontWeight: 950, color: '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                          TOKEN
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          placeholder='1'
+                          value={valetToken}
+                          onChange={e => setValetToken(e.target.value)}
+                          variant='outlined'
+                          InputProps={{
+                            sx: {
+                              borderRadius: 10,
+                              fontWeight: 900,
+                              color: '#05070A',
+                              bgcolor: 'rgba(0,0,0,0.02)',
+                              fontSize: '1.1rem',
+                              textAlign: 'center',
+                              '& fieldset': { border: '1px solid #e2e8f0' }
+                            }
+                          }}
+                          inputProps={{ style: { textAlign: 'center' } }}
+                        />
+                      </Box>
+                      <Box sx={{ flex: 2.2 }}>
+                        <Typography variant='caption' sx={{ fontWeight: 950, color: '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                          VEHICLE NUMBER
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          placeholder='Last 4 digits'
+                          value={plateNumber}
+                          onChange={e => setPlateNumber(e.target.value.toUpperCase())}
+                          variant='outlined'
+                          InputProps={{
+                            sx: {
+                              borderRadius: 10,
+                              fontWeight: 900,
+                              color: '#05070A',
+                              bgcolor: 'rgba(0,0,0,0.02)',
+                              fontSize: '1.1rem',
+                              '& fieldset': { border: '1px solid #e2e8f0' }
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Box>
+
+                    <Button
+                      fullWidth
+                      size='large'
+                      variant='contained'
+                      onClick={() => fetchBookingDetails()}
+                      sx={{
+                        height: 72,
+                        borderRadius: 10,
+                        bgcolor: 'rgba(16, 185, 129, 0.45)', // Matching the lighter emerald from reference
+                        color: 'white',
+                        fontSize: '1.4rem',
+                        fontWeight: 950,
+                        textTransform: 'none',
+                        boxShadow: 'none',
+                        '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.6)' }
+                      }}
+                    >
+                      Find Vehicle
+                    </Button>
+                  </Box>
+                </>
+              )}
+            </Box>
+          )}
+
+
+              <Box sx={{ mt: 2, textAlign: 'center' }}>
+                <Typography variant='caption' sx={{ color: valetMode === 'dark' ? TEXT_LIGHT : '#475569', opacity: valetMode === 'dark' ? 0.3 : 0.6, letterSpacing: 8, fontWeight: 900, fontSize: '0.55rem' }}>
+                  PARKMYWHEELS
+                </Typography>
+              </Box>
+
+          {mainMode === 'booking' && viewState === 'search' && (
+            <Box sx={{ py: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 6 }}>
+                <IconButton
+                  onClick={() => setMainMode('selection')}
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    mr: 3,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'white',
+                    p: 1.5
+                  }}
+                  size='small'
+                >
+                  <ArrowBackIosNewIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+                <Box>
+                  <Typography variant='h4' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, letterSpacing: -1 }}>
+                    New <span style={{ color: valetMode === 'dark' ? 'white' : BRAND_MAIN }}>Booking</span>
+                  </Typography>
+                  <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 700, letterSpacing: 2, opacity: 0.6 }}>
+                    SECURE INDUCTION
+                  </Typography>
                 </Box>
               </Box>
 
-              <Button
-                fullWidth
-                size='large'
-                variant='contained'
-                onClick={() => fetchBookingDetails()}
-                disabled={loading || !plateNumber || !valetToken}
-                sx={{
-                  height: 56,
-                  borderRadius: 3,
-                  bgcolor: BRAND_MAIN,
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  textTransform: 'none',
-                  boxShadow: '0 8px 24px rgba(50, 154, 115, 0.3)',
-                  '&:hover': { bgcolor: BRAND_DARK }
-                }}
-              >
-                {loading ? <CircularProgress size={24} color='inherit' /> : 'Find Vehicle'}
-              </Button>
+              <Box sx={{ mb: 4, display: 'flex', bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)', p: 0.75, borderRadius: 5, border: valetMode === 'dark' ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0' }}>
+                {['Instant', 'Schedule', 'Subscription'].map(type => (
+                  <Box
+                    key={type}
+                    onClick={() => setBookingType(type)}
+                    sx={{
+                      flex: 1,
+                      py: 1.5,
+                      textAlign: 'center',
+                      borderRadius: 4.5,
+                      cursor: 'pointer',
+                      bgcolor: bookingType === type ? (valetMode === 'dark' ? 'white' : '#05070A') : 'transparent',
+                      color: bookingType === type ? (valetMode === 'dark' ? '#05070A' : 'white') : (valetMode === 'dark' ? 'white' : '#05070A'),
+                      fontWeight: 900,
+                      fontSize: '0.7rem',
+                      letterSpacing: 1,
+                      transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                    }}
+                  >
+                    {type.toUpperCase()}
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Vehicle Selection */}
+               <Box sx={{ mb: 4 }}>
+                <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 900, ml: 1, letterSpacing: 2, fontSize: '0.65rem' }}>
+                  VEHICLE CATEGORY
+                </Typography>
+                <Grid container spacing={2} sx={{ mt: 1 }}>
+                  {[
+                    { id: 'Car', label: 'Car', icon: DirectionsCarIcon },
+                    { id: 'Bike', label: 'Bike', icon: TwoWheelerIcon },
+                    { id: 'Others', label: 'Other', icon: LocalShippingIcon }
+                  ].map(type => (
+                    <Grid item xs={4} key={type.id}>
+                      <Box
+                        onClick={() => setVehicleType(type.id)}
+                        sx={{
+                          py: 2.5,
+                          borderRadius: 5,
+                          cursor: 'pointer',
+                          bgcolor: vehicleType === type.id ? (valetMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)') : (valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)'),
+                          color: valetMode === 'dark' ? 'white' : '#05070A',
+                          border: '1px solid',
+                          borderColor: vehicleType === type.id ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.1)'),
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 1.2,
+                          transition: 'all 0.3s',
+                          opacity: vehicleType === type.id ? 1 : 0.4
+                        }}
+                      >
+                        <type.icon sx={{ fontSize: 28, color: 'inherit' }} />
+                        <Typography variant='caption' sx={{ fontWeight: 900, fontSize: '0.65rem', letterSpacing: 1.5, color: 'inherit' }}>
+                          {type.label.toUpperCase()}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+                {/* Identification */}
+                <Box>
+                  <Typography variant='caption' sx={{ fontWeight: 900, color: valetMode === 'dark' ? 'white' : '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                    VEHICLE NUMBER
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    placeholder='VEHICLE NUMBER'
+                    value={bookingPlate}
+                    onChange={e => setBookingPlate(e.target.value.toUpperCase())}
+                    variant='outlined'
+                    InputProps={{
+                      sx: {
+                        borderRadius: 5,
+                        fontWeight: 900,
+                        color: valetMode === 'dark' ? 'white' : '#05070A',
+                        bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                        fontSize: '1.1rem',
+                        '& fieldset': { border: valetMode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0' },
+                        '&:hover fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A' },
+                        '&.Mui-focused fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A', boxShadow: valetMode === 'dark' ? '0 0 15px rgba(255,255,255,0.1)' : 'none' },
+                        '& input::placeholder': { color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.3 }
+                      }
+                    }}
+                  />
+                </Box>
+
+                {/* Contact */}
+                <Box>
+                  <Typography variant='caption' sx={{ fontWeight: 900, color: valetMode === 'dark' ? 'white' : '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                    CONTACT CHANNEL
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    placeholder='MOBILE +91'
+                    type='tel'
+                    value={bookingMobile}
+                    onChange={e => setBookingMobile(e.target.value)}
+                    variant='outlined'
+                    InputProps={{
+                      sx: {
+                        borderRadius: 5,
+                        fontWeight: 900,
+                        color: valetMode === 'dark' ? 'white' : '#05070A',
+                        bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                        fontSize: '1.1rem',
+                        '& fieldset': { border: valetMode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0' },
+                        '&:hover fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A' },
+                        '&.Mui-focused fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A', boxShadow: valetMode === 'dark' ? '0 0 15px rgba(255,255,255,0.1)' : 'none' },
+                        '& input::placeholder': { color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.3 }
+                      }
+                    }}
+                  />
+                </Box>
+
+                {/* Conditional Fields for Schedule */}
+                {bookingType === 'Schedule' && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+                    <Box>
+                      <Typography variant='caption' sx={{ fontWeight: 900, color: 'white', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                        SCHEDULE START
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                          type='date'
+                          fullWidth
+                          value={startDate}
+                          onChange={e => setStartDate(e.target.value)}
+                          variant='outlined'
+                          InputProps={{
+                            sx: {
+                              borderRadius: 5,
+                              fontWeight: 900,
+                              color: 'white',
+                              bgcolor: 'rgba(255,255,255,0.02)',
+                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
+                              '& input': { colorScheme: 'dark' }
+                            }
+                          }}
+                        />
+                        <TextField
+                          type='time'
+                          fullWidth
+                          value={startTime}
+                          onChange={e => setStartTime(e.target.value)}
+                          variant='outlined'
+                          InputProps={{
+                            sx: {
+                              borderRadius: 5,
+                              fontWeight: 900,
+                              color: 'white',
+                              bgcolor: 'rgba(255,255,255,0.02)',
+                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
+                              '& input': { colorScheme: 'dark' }
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant='caption' sx={{ fontWeight: 900, color: 'white', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                        SCHEDULE END
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <TextField
+                          type='date'
+                          fullWidth
+                          value={endDate}
+                          onChange={e => setEndDate(e.target.value)}
+                          variant='outlined'
+                          InputProps={{
+                            sx: {
+                              borderRadius: 5,
+                              fontWeight: 900,
+                              color: 'white',
+                              bgcolor: 'rgba(255,255,255,0.02)',
+                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
+                              '& input': { colorScheme: 'dark' }
+                            }
+                          }}
+                        />
+                        <TextField
+                          type='time'
+                          fullWidth
+                          value={endTime}
+                          onChange={e => setEndTime(e.target.value)}
+                          variant='outlined'
+                          InputProps={{
+                            sx: {
+                              borderRadius: 5,
+                              fontWeight: 900,
+                              color: 'white',
+                              bgcolor: 'rgba(255,255,255,0.02)',
+                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
+                              '& input': { colorScheme: 'dark' }
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+                )}
+
+                <Button
+                  fullWidth
+                  size='large'
+                  variant='contained'
+                  disabled={loading || !bookingPlate || (bookingType === 'Schedule' && (!startDate || !startTime))}
+                  onClick={async () => {
+                    setLoading(true)
+                    setError(null)
+                    try {
+                      if (vendorData?.parkingStatus === 'Closed') {
+                        setError('Parking is currently closed.')
+                        setLoading(false)
+
+                        return
+                      }
+
+                      const typeMap = { Car: 'Cars', Bike: 'Bikes', Others: 'Others' }
+                      const available = availableSlots?.[typeMap[vehicleType]] || 0
+
+                      if (available <= 0) {
+                        setError(`Full. No ${vehicleType} slots available.`)
+                        setLoading(false)
+
+                        return
+                      }
+
+                      const charge = charges.find(c => c.category === vehicleType && c.type === (bookingType === 'Subscription' ? 'Monthly' : 'Hourly'))
+                      const amount = charge ? charge.amount : '0'
+
+                      const now = new Date()
+                      const formattedDate = now.getDate().toString().padStart(2, '0') + '-' + (now.getMonth() + 1).toString().padStart(2, '0') + '-' + now.getFullYear()
+                      const formattedTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+
+                      const payload = {
+                        vendorId,
+                        vendorName: vendorData?.vendorName || 'Vendor',
+                        personName: bookingName || 'Customer',
+                        mobileNumber: bookingMobile,
+                        vehicleType,
+                        vehicleNumber: bookingPlate,
+                        bookingDate: bookingType === 'Schedule' ? bookingDate : formattedDate,
+                        bookingTime: bookingType === 'Schedule' ? bookingTime : formattedTime,
+                        approvedDate: formattedDate,
+                        approvedTime: formattedTime,
+                        parkedDate: formattedDate,
+                        parkedTime: formattedTime,
+                        parkingDate: formattedDate,
+                        parkingTime: formattedTime,
+                        status: bookingType === 'Instant' ? 'PARKED' : 'PENDING',
+                        sts: bookingType,
+                        bookType: bookingType === 'Subscription' ? 'Monthly' : 'Hourly',
+                        amount: amount
+                      }
+
+                      const res = await axios.post(`${API_URL}/vendor/vendorcreatebooking`, payload)
+
+                      if (res.data) {
+                        setBookingData(res.data)
+                        setIsBookingSuccess(true)
+                        setViewState('result')
+                        setMainMode('home')
+                      }
+                    } catch (err) {
+                      const backendMsg = err.response?.data?.message || err.response?.data?.error || 'System busy. Please try again.'
+                      setError(backendMsg)
+                    } finally {
+                      setLoading(false)
+                    }
+                  }}
+                  sx={{
+                    height: 64,
+                    borderRadius: 5,
+                    background: BRAND_GRADIENT,
+                    fontSize: '1.2rem',
+                    fontWeight: 900,
+                    textTransform: 'none',
+                    mt: 1,
+                    boxShadow: '0 15px 30px rgba(16, 185, 129, 0.25)',
+                    '&:hover': { background: BRAND_GRADIENT, opacity: 0.9 }
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} color='inherit' /> : `Confirm ${bookingType}`}
+                </Button>
+              </Box>
 
               {error && (
-                <Alert severity='error' sx={{ mt: 3, borderRadius: 2 }}>
+                <Alert
+                  severity='error'
+                  sx={{ mt: 4, borderRadius: 5, fontWeight: 800, bgcolor: 'rgba(255, 0, 0, 0.1)', color: '#ff4d4d', border: '1px solid rgba(255, 0, 0, 0.2)' }}
+                >
                   {error}
                 </Alert>
               )}
             </Box>
           )}
 
+          {mainMode === 'finding' && viewState === 'search' && (
+            <Box sx={{ width: '100%', py: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 5 }}>
+                <IconButton
+                  onClick={() => setMainMode('selection')}
+                  sx={{
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    mr: 2,
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'white'
+                  }}
+                  size='small'
+                >
+                  <ArrowBackIosNewIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+                <Typography variant='h4' sx={{ color: 'white', fontWeight: 900, letterSpacing: '-0.02em' }}>
+                  Get My Vehicle
+                </Typography>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <Box sx={{ p: 4, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 6, border: '1px dashed rgba(255,255,255,0.1)' }}>
+                  <Typography variant='body1' sx={{ color: TEXT_LIGHT, fontWeight: 700, textAlign: 'center' }}>
+                    Verify your valet token to see live status.
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant='caption' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                      TOKEN
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder='#'
+                      value={valetToken}
+                      onChange={e => setValetToken(e.target.value)}
+                      variant='outlined'
+                      InputProps={{
+                        sx: {
+                          borderRadius: 4,
+                          fontWeight: 900,
+                          color: valetMode === 'dark' ? 'white' : '#05070A',
+                          bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                          fontSize: '1.1rem',
+                          textAlign: 'center',
+                          '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                          '&:hover fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A' },
+                          '& input::placeholder': { opacity: 0.3 }
+                        }
+                      }}
+                      inputProps={{ style: { textAlign: 'center' } }}
+                    />
+                  </Box>
+                  <Box sx={{ flex: 2.2 }}>
+                    <Typography variant='caption' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                      VEHICLE NUMBER
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      placeholder='PLATE NO.'
+                      value={plateNumber}
+                      onChange={e => setPlateNumber(e.target.value.toUpperCase())}
+                      variant='outlined'
+                      InputProps={{
+                        sx: {
+                          borderRadius: 4,
+                          fontWeight: 900,
+                          color: valetMode === 'dark' ? 'white' : '#05070A',
+                          bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                          fontSize: '1.1rem',
+                          '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                          '&:hover fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A' },
+                          '& input::placeholder': { opacity: 0.3 }
+                        }
+                      }}
+                    />
+                  </Box>
+                </Box>
+
+                <Button
+                  fullWidth
+                  size='large'
+                  variant='contained'
+                  onClick={() => fetchBookingDetails()}
+                  disabled={loading || !plateNumber || !valetToken}
+                  sx={{
+                    height: 72,
+                    borderRadius: 5,
+                    bgcolor: BRAND_MAIN,
+                    color: 'white',
+                    fontSize: '1.2rem',
+                    fontWeight: 950,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    boxShadow: valetMode === 'dark' ? '0 20px 40px rgba(16, 185, 129, 0.2)' : '0 20px 40px rgba(16, 185, 129, 0.15)',
+                    '&:hover': { bgcolor: '#059669', transform: 'translateY(-2px)' },
+                    '&:disabled': { opacity: 0.4 }
+                  }}
+                >
+                  {loading ? <CircularProgress size={30} color='inherit' /> : 'FIND VEHICLE'}
+                </Button>
+              </Box>
+            </Box>
+          )}
+
           {viewState === 'result' && bookingData && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 3 }}>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2.5,
-                  borderRadius: 3,
-                  bgcolor: '#e6f4ea',
-                  border: '1px solid #dcefe3',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start'
-                }}
-              >
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {valetToken && (
-                    <Box>
-                      <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
-                        Token Number
-                      </Typography>
-                      <Typography variant='h4' sx={{ color: '#111', fontWeight: 800 }}>
-                        #{valetToken}
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, mt: 1, px: 1 }}>
+              {isBookingSuccess ? (
+                /* PURE SUCCESS MESSAGE VIEW FOR NEW ARRIVALS */
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, mt: 4, textAlign: 'center' }}>
+                  <Box
+                    sx={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: '50%',
+                      bgcolor: 'rgba(16, 185, 129, 0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      mx: 'auto',
+                      mb: 2,
+                      boxShadow: '0 20px 40px rgba(16, 185, 129, 0.15)'
+                    }}
+                  >
+                    <CheckCircleIcon sx={{ fontSize: 70, color: '#10B981' }} />
+                  </Box>
+
+                  <Box>
+                    <Typography variant='h2' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', mb: 1.5, letterSpacing: -1 }}>
+                      Booking Successful
+                    </Typography>
+                    <Typography variant='body1' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.6, fontWeight: 700, px: 4 }}>
+                      Your vehicle {bookingData?.vehicleNumber} has been secured successfully.
+                    </Typography>
+                  </Box>
+
+                  <Button
+                    fullWidth
+                    variant='contained'
+                    onClick={() => {
+                      setViewState('search')
+                      setMainMode('selection')
+                      setIsBookingSuccess(false)
+                      setSuccessMessage(null)
+                    }}
+                    sx={{
+                      height: 64,
+                      borderRadius: 5,
+                      background: BRAND_GRADIENT,
+                      fontWeight: 950,
+                      fontSize: '1.2rem',
+                      boxShadow: '0 20px 40px rgba(16, 185, 129, 0.2)'
+                    }}
+                  >
+                    Back to Home
+                  </Button>
+                </Box>
+              ) : (
+                /* FULL OPERATIONAL VIEW FOR PICKUPS/VEHICLE SEARCH */
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <Box
+                    sx={{
+                      p: 4,
+                      borderRadius: 4,
+                      background: valetMode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                      border: valetMode === 'dark' ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid #e2e8f0',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      boxShadow: valetMode === 'dark' ? '0 30px 60px rgba(0,0,0,0.5)' : 'none'
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+                      <Box>
+                        <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 900, letterSpacing: 2, opacity: 0.5 }}>
+                          TOKEN / VEHICLE
+                        </Typography>
+                        <Typography variant='h2' sx={{ color: BRAND_MAIN, fontWeight: 950, letterSpacing: '-0.05em', mt: 1, lineHeight: 1 }}>
+                          #{valetToken || 'VALET'}
+                        </Typography>
+                        <Typography variant='h4' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, mt: 0.5 }}>
+                          {bookingData?.vehicleNumber?.includes('-') ? bookingData.vehicleNumber.split('-')[1] : (bookingData?.vehicleNumber || 'PENDING')}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mt: 1 }}>
+                        <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 900, letterSpacing: 2, opacity: 0.5 }}>
+                          STAY DURATION
+                        </Typography>
+                        <Typography variant='h5' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, fontFamily: 'monospace', mt: 0.5 }}>
+                          {parkingDuration}
+                        </Typography>
+                      </Box>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        p: 2,
+                        bgcolor: 'white',
+                        borderRadius: 3.5,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        boxShadow: '0 0 40px rgba(255,255,255,0.1)'
+                      }}
+                    >
+                      {qrCodeUrl ? (
+                        <img src={qrCodeUrl} alt='QR' style={{ width: 100, height: 100 }} />
+                      ) : (
+                        <CircularProgress size={30} />
+                      )}
+                      <Typography variant='caption' sx={{ mt: 1.5, color: '#000', fontSize: '0.65rem', fontWeight: 950, letterSpacing: 1 }}>
+                        SCAN AT EXIT
                       </Typography>
                     </Box>
-                  )}
-
-                  <Box>
-                    <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
-                      Vehicle Number
-                    </Typography>
-                    <Typography variant={valetToken ? 'h6' : 'h5'} sx={{ color: '#111', fontWeight: 800 }}>
-                      {bookingData.vehicleNumber.includes('-')
-                        ? bookingData.vehicleNumber.split('-')[1]
-                        : bookingData.vehicleNumber}
-                    </Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
-                      Parking Date & Time
-                    </Typography>
-                    <Typography variant='body2' sx={{ color: '#333', fontWeight: 700 }}>
-                      {bookingData.parkingDate} {bookingData.parkingTime}
-                    </Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography variant='caption' sx={{ color: '#555', fontWeight: 600 }}>
-                      Duration
-                    </Typography>
-                    <Typography variant='body1' sx={{ color: '#333', fontWeight: 600, fontFamily: 'monospace' }}>
-                      {parkingDuration}
-                    </Typography>
                   </Box>
 
                   {bookingData?.vehicleImages?.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography
-                        variant='caption'
-                        sx={{
-                          color: '#555',
-                          fontWeight: 700,
-                          mb: 1,
-                          display: 'block',
-                          textTransform: 'uppercase',
-                          letterSpacing: 0.5
-                        }}
-                      >
-                        Vehicle Photos
+                    <Box>
+                      <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, ml: 1, letterSpacing: 2, opacity: 0.6 }}>
+                          VEHICLE CONDITION
                       </Typography>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          gap: 1,
-                          overflowX: 'auto',
-                          pb: 1,
-                          '&::-webkit-scrollbar': { height: 4 },
-                          '&::-webkit-scrollbar-thumb': { bgcolor: '#ccc', borderRadius: 2 }
-                        }}
-                      >
+                      <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', mt: 1.5, pb: 1, '&::-webkit-scrollbar': { display: 'none' } }}>
                         {bookingData.vehicleImages.map((img, idx) => (
                           <Box
                             key={idx}
@@ -679,314 +1276,209 @@ const PublicScannerPage = () => {
                               setZoom(1)
                             }}
                             sx={{
-                              width: 80,
-                              height: 80,
-                              borderRadius: 2,
+                              width: 110,
+                              height: 110,
+                              borderRadius: 5,
                               overflow: 'hidden',
                               flexShrink: 0,
                               cursor: 'pointer',
+                              border: '1px solid rgba(255,255,255,0.15)',
                               position: 'relative',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                              border: '2px solid white',
-                              '&:hover': { transform: 'scale(1.05)', transition: '0.2s' }
+                              '&:hover': { transform: 'translateY(-5px)', borderColor: 'white' }
                             }}
                           >
-                            <img
-                              src={img}
-                              alt={`Vehicle ${idx}`}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
-                            <Box
-                              sx={{
-                                position: 'absolute',
-                                bottom: 0,
-                                right: 0,
-                                bgcolor: 'rgba(0,0,0,0.6)',
-                                color: 'white',
-                                p: 0.5,
-                                display: 'flex',
-                                borderRadius: '4px 0 0 0'
-                              }}
-                            >
-                              <FullscreenIcon sx={{ fontSize: 14 }} />
-                            </Box>
+                            <img src={img} alt='Vehicle' style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }} />
                           </Box>
                         ))}
                       </Box>
                     </Box>
                   )}
-                </Box>
 
-                <Box
-                  sx={{
-                    p: 1.5,
-                    bgcolor: 'white',
-                    borderRadius: 3,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center'
-                  }}
-                >
-                  {qrCodeUrl ? (
-                    <img src={qrCodeUrl} alt='QR' style={{ width: 120, height: 120 }} />
-                  ) : (
-                    <CircularProgress size={30} />
-                  )}
-                  <Typography variant='caption' sx={{ mt: 1, color: '#666', fontSize: '0.65rem', fontWeight: 600 }}>
-                    Display at exit
-                  </Typography>
-                </Box>
-              </Paper>
-
-              {bookingData?.status?.toLowerCase() === 'completed' ? (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2.5,
-                    borderRadius: 3,
-                    bgcolor: '#e6f4ea',
-                    border: '1px solid #dcefe3',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1
-                  }}
-                >
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant='h6' sx={{ color: '#1a1b2e', fontWeight: 800 }}>
-                      Status:
-                    </Typography>
-                    <Typography variant='h6' sx={{ color: BRAND_MAIN, fontWeight: 800, textTransform: 'capitalize' }}>
-                      Completed
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mt: 1 }}>
-                    <Typography variant='body2' sx={{ color: '#555', fontWeight: 600 }}>
-                      Exit Date & Time:
-                    </Typography>
-                    <Typography variant='body1' sx={{ color: '#111', fontWeight: 700 }}>
-                      {bookingData.exitvehicledate} {bookingData.exitvehicletime}
-                    </Typography>
-                  </Box>
-                </Paper>
-              ) : bookingData?.status?.toLowerCase() === 'parked' ? (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    borderRadius: 3,
-                    bgcolor: '#e6f4ea',
-                    border: '1px solid #dcefe3',
-                    p: 2.5,
-                    position: 'relative'
-                  }}
-                >
-                  <Box sx={{ position: 'absolute', top: 35, bottom: 35, left: 29, width: 2, bgcolor: '#ccc' }} />
-
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 3 }}>
-                    <CircleIcon
-                      sx={{
-                        fontSize: 14,
-                        color: 'transparent',
-                        border: '2px solid #555',
-                        borderRadius: '50%',
-                        mt: 0.5,
-                        zIndex: 1
-                      }}
-                    />
-                    <Box sx={{ ml: 2 }}>
-                      <Typography variant='body2' sx={{ fontWeight: 700, color: '#111' }}>
-                        Pickup (Parked)
-                      </Typography>
-                      <Typography variant='body2' sx={{ color: '#333' }}>
-                        {bookingData.parkingDate} {bookingData.parkingTime}
-                      </Typography>
+                  {/* Status Timeline */}
+                  <Box sx={{ p: 4, borderRadius: 4, background: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: valetMode === 'dark' ? '1px solid rgba(255,255,255,0.05)' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+                       <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: BRAND_MAIN, boxShadow: `0 0 15px ${BRAND_MAIN}` }} />
+                       <Box sx={{ flex: 1 }}>
+                          <Typography variant='subtitle1' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, lineHeight: 1 }}>Parked & Secured</Typography>
+                          <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{bookingData.parkingDate} {bookingData.parkingTime}</Typography>
+                       </Box>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+                       <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: `2.5px solid ${successMessage ? BRAND_MAIN : (valetMode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)')}`, bgcolor: successMessage ? BRAND_MAIN : 'transparent' }} />
+                       <Box sx={{ flex: 1 }}>
+                          <Typography variant='subtitle1' sx={{ color: successMessage ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'), fontWeight: 950, lineHeight: 1 }}>Return Tracking</Typography>
+                          <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{successMessage ? 'Vehicle requested' : 'Pending request'}</Typography>
+                       </Box>
                     </Box>
                   </Box>
 
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start' }}>
-                    <CircleIcon
+                  {successMessage && successMessage !== 'BOOKING SUCCESSFUL' && (
+                    <Box
                       sx={{
-                        fontSize: 14,
-                        color: successMessage ? BRAND_MAIN : 'transparent',
-                        border: `2px solid ${successMessage ? BRAND_MAIN : '#555'}`,
-                        borderRadius: '50%',
-                        mt: 0.5,
-                        zIndex: 1
+                        textAlign: 'center',
+                        p: 4.5,
+                        bgcolor: 'rgba(16, 185, 129, 0.05)',
+                        borderRadius: 7,
+                        border: '1px solid rgba(16, 185, 129, 0.2)'
                       }}
-                    />
-                    <Box sx={{ ml: 2 }}>
-                      <Typography variant='body2' sx={{ fontWeight: 700, color: '#111' }}>
-                        Return
+                    >
+                      <Typography variant='caption' sx={{ color: 'white', mb: 2.5, fontWeight: 950, letterSpacing: 5, display: 'block', opacity: 0.5 }}>
+                        HAVE A PLEASANT TRIP
                       </Typography>
-                      {successMessage ? (
-                        <Typography variant='caption' sx={{ color: BRAND_MAIN, fontWeight: 700 }}>
-                          Requested
-                        </Typography>
-                      ) : (
-                        <Typography variant='caption' sx={{ color: '#666' }}>
-                          -
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
-                </Paper>
-              ) : (
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 2.5,
-                    borderRadius: 3,
-                    bgcolor: '#fff0f0',
-                    border: '1px solid #ffcccc',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <Typography variant='h6' sx={{ color: '#d32f2f', fontWeight: 800 }}>
-                    Not Parked
-                  </Typography>
-                </Paper>
-              )}
-
-              <Paper
-                elevation={0}
-                sx={{
-                  borderRadius: 3,
-                  bgcolor: '#f8f8f8',
-                  p: 0,
-                  mt: 1
-                }}
-              >
-                {successMessage && bookingData?.status?.toLowerCase() !== 'completed' ? (
-                  <Box
-                    sx={{
-                      textAlign: 'center',
-                      p: 2,
-                      bgcolor: '#fff',
-                      borderRadius: 3,
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
-                    }}
-                  >
-                    <Typography variant='body2' sx={{ color: '#666', mb: 1.5, fontWeight: 600 }}>
-                      Your car arrives in
-                    </Typography>
-                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
-                      {[returnTimeParts.h, returnTimeParts.m, returnTimeParts.s].map((val, i) => (
-                        <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box
-                            sx={{
-                              bgcolor: '#eee',
-                              minWidth: 40,
-                              py: 1,
-                              borderRadius: 2,
-                              fontSize: '1.4rem',
-                              fontWeight: 600,
-                              color: '#333'
-                            }}
-                          >
-                            {val}
-                          </Box>
-                          {i < 2 && <Typography sx={{ fontWeight: 700, color: '#888' }}>:</Typography>}
+                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, alignItems: 'center' }}>
+                        <Box sx={{ bgcolor: 'white', color: '#05070A', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.8rem', minWidth: 80 }}>
+                          {returnTimeParts.m}
                         </Box>
-                      ))}
+                        <Typography variant='h4' sx={{ color: 'white', fontWeight: 950 }}>:</Typography>
+                        <Box sx={{ bgcolor: 'white', color: '#05070A', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.8rem', minWidth: 80 }}>
+                          {returnTimeParts.s}
+                        </Box>
+                      </Box>
+                      <Typography variant='caption' sx={{ color: BRAND_MAIN, mt: 3, display: 'block', fontWeight: 950, letterSpacing: 2 }}>ESTIMATED ARRIVAL</Typography>
                     </Box>
-                  </Box>
-                ) : (
+                  )}
+
+                  {!successMessage && bookingData?.status?.toLowerCase() === 'parked' && (
+                    <Button
+                      fullWidth
+                      onClick={handleGetVehicle}
+                      disabled={loading}
+                      sx={{
+                        py: 3,
+                        borderRadius: 6,
+                        bgcolor: 'white',
+                        color: '#05070A',
+                        fontSize: '1.2rem',
+                        fontWeight: 950,
+                        textTransform: 'uppercase',
+                        letterSpacing: 2,
+                        boxShadow: '0 30px 60px rgba(0,0,0,0.6)',
+                        transition: 'all 0.4s',
+                        '&:hover': { bgcolor: 'rgba(255,255,255,0.9)', transform: 'translateY(-3px)' },
+                        '&:disabled': { opacity: 0.5 }
+                      }}
+                    >
+                      {loading ? <CircularProgress size={24} color='#05070A' /> : 'GET MY VEHICLE'}
+                    </Button>
+                  )}
+
                   <Button
                     fullWidth
-                    size='large'
-                    variant='contained'
-                    onClick={handleGetVehicle}
-                    disabled={loading}
+                    variant='outlined'
+                    onClick={handleSearchAgain}
                     sx={{
-                      height: 56,
-                      borderRadius: 3,
-                      bgcolor: '#1a1b2e',
-                      fontSize: '1.1rem',
-                      fontWeight: 700,
-                      textTransform: 'none',
-                      boxShadow: '0 8px 24px rgba(26, 27, 46, 0.2)',
-                      '&:hover': { bgcolor: '#000' },
-                      display: bookingData?.status?.toLowerCase() === 'completed' ? 'none' : 'flex'
+                      py: 2.5,
+                      borderRadius: 10,
+                      borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+                      color: valetMode === 'dark' ? 'white' : '#05070A',
+                      opacity: valetMode === 'dark' ? 0.5 : 0.8,
+                      fontWeight: 950,
+                      fontSize: '0.8rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: 2,
+                      '&:hover': { 
+                        borderColor: valetMode === 'dark' ? 'white' : '#05070A', 
+                        opacity: 1,
+                        bgcolor: valetMode === 'dark' ? 'transparent' : 'rgba(0,0,0,0.02)'
+                      }
                     }}
                   >
-                    {loading ? <CircularProgress size={26} color='inherit' /> : 'Get my Vehicle'}
+                    Find Another Vehicle
                   </Button>
-                )}
-              </Paper>
-              <Box sx={{ mt: 2, pb: 2 }}>
-                <Button
-                  fullWidth
-                  variant='outlined'
-                  onClick={handleSearchAgain}
-                  sx={{
-                    height: 56,
-                    borderRadius: 3,
-                    borderColor: '#e0e0e0',
-                    color: '#555',
-                    fontWeight: 700,
-                    textTransform: 'none',
-                    fontSize: '1rem',
-                    bgcolor: 'white',
-                    '&:hover': { borderColor: '#ccc', bgcolor: '#f9f9f9', color: '#333' }
-                  }}
-                >
-                  Check Another Vehicle
-                </Button>
-              </Box>
+                </Box>
+              )}
             </Box>
           )}
         </Box>
-        <Paper
-          elevation={0}
+        <Box
           sx={{
-            borderTop: '1px solid #f0f0f0',
-            bgcolor: 'white',
-            pb: 'env(safe-area-inset-bottom)'
+            mt: 'auto',
+            pb: 0,
+            px: 0,
+            zIndex: 10,
+            position: 'sticky',
+            bottom: 0,
+            width: '100%',
+            height: 85,
+            background: valetMode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : '#f8fafc',
+            backdropFilter: valetMode === 'dark' ? 'blur(30px)' : 'none',
+            borderTop: '1px solid',
+            borderColor: valetMode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : '#e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            boxShadow: valetMode === 'dark' ? '0 -20px 60px rgba(0,0,0,0.5)' : 'none',
+            borderBottomLeftRadius: 0,
+            borderBottomRightRadius: 0
           }}
         >
-          <Grid container>
+          <Grid container sx={{ px: 4 }}>
             {[
-              { label: 'Home', icon: <HomeIcon /> },
-              { label: 'Valet', icon: <LocalParkingIcon />, active: true },
-              { label: 'Bookings', icon: <CalendarTodayIcon /> },
-              { label: 'Account', icon: <PersonIcon /> }
+              { id: 'selection', label: 'HOME', icon: <HomeIcon />, active: mainMode === 'home' || mainMode === 'selection' || !mainMode },
+              { id: 'booking', label: 'VALET', icon: <LocalParkingIcon />, active: mainMode === 'booking' },
+              { id: 'bookings', label: 'BOOKINGS', icon: <CalendarTodayIcon />, active: mainMode === 'bookings' },
+              { id: 'account', label: 'ACCOUNT', icon: <PersonIcon />, active: mainMode === 'account' }
             ].map((item, index) => (
               <Grid item xs={3} key={index}>
                 <Box
-                  onClick={() => !item.active && handleFooterLink()}
+                  onClick={() => {
+                    setMainMode(item.id)
+                    setViewState('search')
+                    setIsBookingSuccess(false)
+                  }}
                   sx={{
-                    py: 2,
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     cursor: 'pointer',
-                    color: item.active ? BRAND_MAIN : '#B0B5C0',
+                    color: valetMode === 'dark' ? '#FFFFFF !important' : '#000000 !important',
+                    opacity: item.active ? 1 : 0.45,
+                    transition: 'all 0.3s',
                     position: 'relative'
                   }}
                 >
+                  <Box sx={{
+                    mb: 0.5,
+                    display: 'flex',
+                    color: 'inherit',
+                    '& svg': {
+                      color: 'inherit',
+                      fill: 'currentColor',
+                      fontSize: 24
+                    }
+                  }}>
+                    {item.icon}
+                  </Box>
+                  <Typography
+                    variant='caption'
+                    sx={{
+                      fontWeight: 950,
+                      fontSize: '0.65rem',
+                      letterSpacing: 1.2,
+                      color: 'inherit',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    {item.label}
+                  </Typography>
                   {item.active && (
                     <Box
                       sx={{
                         position: 'absolute',
-                        top: 0,
-                        width: 30,
+                        top: -15,
+                        width: 28,
                         height: 3,
+                        borderRadius: 10,
                         bgcolor: BRAND_MAIN,
-                        borderRadius: '0 0 4px 4px'
+                        boxShadow: valetMode === 'dark' ? `0 0 10px ${BRAND_MAIN}` : 'none'
                       }}
                     />
                   )}
-                  <Box sx={{ mb: 0.5 }}>{React.cloneElement(item.icon, { fontSize: 'medium' })}</Box>
-                  <Typography variant='caption' sx={{ fontSize: '0.7rem', fontWeight: item.active ? 700 : 500 }}>
-                    {item.label}
-                  </Typography>
                 </Box>
               </Grid>
             ))}
           </Grid>
-        </Paper>
+        </Box>
         {/* Image Dialog */}
         <Dialog
           open={openImages}

@@ -64,7 +64,7 @@ const HorizontalMenu = ({ dictionary }) => {
       const result = await response.json()
 
       if (response.ok && result?.vendor?.subscription === 'true') {
-        router.push(`/${locale}/pages/wizard-examples/property-listing`)
+        router.push(`/${locale}/pages/new-booking`)
       } else {
         setSubscriptionDialogOpen(true)
       }
@@ -123,12 +123,10 @@ const HorizontalMenu = ({ dictionary }) => {
           <MenuItem href={`/${locale}/dashboards/vendor/subscription`}>Vendor Subscriptions</MenuItem>
         </SubMenu> */}
         <SubMenu label='Parking' icon={<i className='ri-shopping-bag-3-line' />}>
-          <MenuItem href={`/${locale}/pages/widget-examples/statistics`}>{dictionary['navigation'].slots}</MenuItem>
-          <MenuItem href={`/${locale}/apps/kanban`}>{dictionary['navigation'].Charges}</MenuItem>
+          <MenuItem href={`/${locale}/pages/parking-management`}>{dictionary['navigation'].ParkingManagement}</MenuItem>
           <MenuItem href={`/${locale}/pages/user-profile`}>{dictionary['navigation'].ParkingProfile}</MenuItem>
-          <MenuItem href={`/${locale}/pages/pricing`}>{dictionary['navigation'].AmenitiesServices}</MenuItem>
           <MenuItem href={`/${locale}/pages/onboardingprocess`}>{dictionary['navigation'].Kyc}</MenuItem>
-          <MenuItem href={`/${locale}//pages/bankdetails`}>{dictionary['navigation'].BankDetails}</MenuItem>
+          <MenuItem href={`/${locale}/pages/bankdetails`}>{dictionary['navigation'].BankDetails}</MenuItem>
           <MenuItem href={`/${locale}/pages/account-settings`}>{dictionary['navigation'].AccountSettings}</MenuItem>
         </SubMenu>
         <MenuItem href={`/${locale}/pages/helpandsupport`} icon={<i className='ri-calendar-line' />}>
