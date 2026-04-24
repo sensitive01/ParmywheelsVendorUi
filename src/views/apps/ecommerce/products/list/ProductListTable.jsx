@@ -207,7 +207,7 @@ const OrderListTable = ({ orderData }) => {
       const result = await response.json()
 
       if (response.ok && result?.vendor?.subscription === 'true') {
-        router.push(getLocalizedUrl('/pages/wizard-examples/property-listing', locale))
+        router.push(getLocalizedUrl('/pages/new-booking', locale))
       } else {
         setSubscriptionDialogOpen(true)
       }
