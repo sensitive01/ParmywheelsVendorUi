@@ -380,10 +380,10 @@ const PublicScannerPage = () => {
       if (response.status === 200 || response.status === 201) {
         setSuccessMessage(`Request sent!`)
         setError(null)
-        setReturnTimer(300)
+        setReturnTimer(900)
       } else {
         setSuccessMessage(`Request processed.`)
-        setReturnTimer(300)
+        setReturnTimer(900)
       }
     } catch (error) {
       setError('Connection failed. Try again.')
