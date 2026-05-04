@@ -75,7 +75,7 @@ const PublicScannerPage = () => {
   const [vendorData, setVendorData] = useState(null)
   const [error, setError] = useState(null)
   const [successMessage, setSuccessMessage] = useState(null)
-  const [mainMode, setMainMode] = useState('selection') // 'selection' | 'booking' | 'finding'
+  const [mainMode, setMainMode] = useState('finding') // 'selection' | 'booking' | 'finding'
   const [viewState, setViewState] = useState('search') // 'search' | 'result'
 
   // Booking specific states
@@ -104,6 +104,29 @@ const PublicScannerPage = () => {
   const [returnTimer, setReturnTimer] = useState(0)
   const [parkingDuration, setParkingDuration] = useState('00 h 00 m 00 s')
   const [valetMode, setValetMode] = useState('dark') // 'dark' | 'light'
+  
+  // Restore Session
+  useEffect(() => {
+    if (!vendorId) return
+
+    const saved = localStorage.getItem(`valet_session_${vendorId}`)
+
+    if (saved) {
+      try {
+        const { token, plate } = JSON.parse(saved)
+
+        if (token) setValetToken(token)
+        if (plate) setPlateNumber(plate)
+
+        // Silent fetch to restore view if already parked
+        if (token && plate) {
+          fetchBookingDetails(token, plate, true)
+        }
+      } catch (e) {
+        console.error('Session restore failed', e)
+      }
+    }
+  }, [vendorId])
 
   // Fetch Vendor Data periodically
 
@@ -347,6 +370,7 @@ const PublicScannerPage = () => {
               setBookingData(activeBooking) // Refresh the full object
             }
 
+            localStorage.setItem(`valet_session_${vendorId}`, JSON.stringify({ token: finalToken, plate: finalPlate }))
             setViewState('result')
           } else {
             if (!isSilent) setError(`No active bookings found`)
@@ -380,10 +404,10 @@ const PublicScannerPage = () => {
       if (response.status === 200 || response.status === 201) {
         setSuccessMessage(`Request sent!`)
         setError(null)
-        setReturnTimer(900)
+        setReturnTimer(1200)
       } else {
         setSuccessMessage(`Request processed.`)
-        setReturnTimer(900)
+        setReturnTimer(1200)
       }
     } catch (error) {
       setError('Connection failed. Try again.')
@@ -556,154 +580,72 @@ const PublicScannerPage = () => {
         >
           {mainMode === 'selection' && viewState === 'search' && (
             <Box sx={{ width: '100%', px: 1, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', pb: 8 }}>
-              {valetMode === 'dark' ? (
-                <>
-                  <Box sx={{ textAlign: 'center', mb: 4 }}>
-                    <Typography variant='h5' sx={{ fontWeight: 950, color: 'white', letterSpacing: -0.5 }}>
-                       Portal Selection
-                    </Typography>
-                    <Typography variant='caption' sx={{ color: 'white', opacity: 0.7, fontWeight: 700, letterSpacing: 1 }}>
-                      CHOOSE YOUR SERVICE TYPE BELOW
-                    </Typography>
-                  </Box>
+              <Box sx={{ textAlign: 'center', mb: 4 }}>
+                <Typography variant='h5' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', letterSpacing: -0.5 }}>
+                   Portal Selection
+                </Typography>
+                <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#64748b', opacity: 0.7, fontWeight: 700, letterSpacing: 1 }}>
+                  CHOOSE YOUR SERVICE TYPE BELOW
+                </Typography>
+              </Box>
 
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                    {/* Book Slot - Portal */}
-                    <Box
-                      onClick={() => setMainMode('booking')}
-                      sx={{
-                        p: 3,
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        bgcolor: 'rgba(16, 185, 129, 0.05)',
-                        border: '1px solid rgba(16, 185, 129, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 3,
-                        transition: '0.4s',
-                        boxShadow: '0 15px 35px rgba(0,0,0,0.4)',
-                        '&:hover': { transform: 'translateY(-4px)', borderColor: BRAND_MAIN }
-                      }}
-                    >
-                      <Box sx={{ width: 68, height: 68, borderRadius: 5, bgcolor: BRAND_MAIN, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                        <DirectionsCarIcon sx={{ fontSize: 36 }} />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant='h5' sx={{ fontWeight: 950, color: 'white', letterSpacing: -0.5 }}>Book Slot</Typography>
-                        <Typography variant='caption' sx={{ color: 'white', opacity: 0.8, fontWeight: 800 }}>BOOK PARKING SLOTS</Typography>
-                      </Box>
-                    </Box>
-
-                    {/* Get My Vehicle - Portal */}
-                    <Box
-                      onClick={() => setMainMode('finding')}
-                      sx={{
-                        p: 3,
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        bgcolor: 'rgba(59, 130, 246, 0.05)',
-                        border: '1px solid rgba(59, 130, 246, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 3,
-                        transition: '0.4s',
-                        boxShadow: '0 15px 35px rgba(0,0,0,0.4)',
-                        '&:hover': { transform: 'translateY(-4px)', borderColor: '#3b82f6' }
-                      }}
-                    >
-                      <Box sx={{ width: 68, height: 68, borderRadius: 5, bgcolor: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-                        <LocalParkingIcon sx={{ fontSize: 36 }} />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant='h5' sx={{ fontWeight: 950, color: 'white', letterSpacing: -0.5 }}>Get My Vehicle</Typography>
-                        <Typography variant='caption' sx={{ color: 'white', opacity: 0.8, fontWeight: 800 }}>GET MY VEHICLE</Typography>
-                      </Box>
-                    </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {/* Book Slot - Portal */}
+                {/* 
+                <Box
+                  onClick={() => setMainMode('booking')}
+                  sx={{
+                    p: 3,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    bgcolor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(16, 185, 129, 0.08)',
+                    border: '1px solid',
+                    borderColor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    transition: '0.4s',
+                    boxShadow: valetMode === 'dark' ? '0 15px 35px rgba(0,0,0,0.4)' : '0 10px 30px rgba(16, 185, 129, 0.1)',
+                    '&:hover': { transform: 'translateY(-4px)', borderColor: BRAND_MAIN }
+                  }}
+                >
+                  <Box sx={{ width: 68, height: 68, borderRadius: 5, bgcolor: BRAND_MAIN, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                    <DirectionsCarIcon sx={{ fontSize: 36 }} />
                   </Box>
-                </>
-              ) : (
-                <>
-                  <Box sx={{ textAlign: 'center', mb: 6 }}>
-                    <Typography variant='h5' sx={{ fontWeight: 950, color: '#05070A', letterSpacing: -1 }}>
-                      Valet Check-in
-                    </Typography>
-                    <Typography variant='caption' sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>
-                      Please enter your details below
-                    </Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant='h5' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', letterSpacing: -0.5 }}>Book Slot</Typography>
+                    <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#64748b', opacity: 0.8, fontWeight: 800 }}>BOOK PARKING SLOTS</Typography>
                   </Box>
+                </Box>
+                */}
 
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant='caption' sx={{ fontWeight: 950, color: '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
-                          TOKEN
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          placeholder='1'
-                          value={valetToken}
-                          onChange={e => setValetToken(e.target.value)}
-                          variant='outlined'
-                          InputProps={{
-                            sx: {
-                              borderRadius: 10,
-                              fontWeight: 900,
-                              color: '#05070A',
-                              bgcolor: 'rgba(0,0,0,0.02)',
-                              fontSize: '1.1rem',
-                              textAlign: 'center',
-                              '& fieldset': { border: '1px solid #e2e8f0' }
-                            }
-                          }}
-                          inputProps={{ style: { textAlign: 'center' } }}
-                        />
-                      </Box>
-                      <Box sx={{ flex: 2.2 }}>
-                        <Typography variant='caption' sx={{ fontWeight: 950, color: '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
-                          VEHICLE NUMBER
-                        </Typography>
-                        <TextField
-                          fullWidth
-                          placeholder='Last 4 digits'
-                          value={plateNumber}
-                          onChange={e => setPlateNumber(e.target.value.toUpperCase())}
-                          variant='outlined'
-                          InputProps={{
-                            sx: {
-                              borderRadius: 10,
-                              fontWeight: 900,
-                              color: '#05070A',
-                              bgcolor: 'rgba(0,0,0,0.02)',
-                              fontSize: '1.1rem',
-                              '& fieldset': { border: '1px solid #e2e8f0' }
-                            }
-                          }}
-                        />
-                      </Box>
-                    </Box>
-
-                    <Button
-                      fullWidth
-                      size='large'
-                      variant='contained'
-                      onClick={() => fetchBookingDetails()}
-                      sx={{
-                        height: 72,
-                        borderRadius: 10,
-                        bgcolor: 'rgba(16, 185, 129, 0.45)', // Matching the lighter emerald from reference
-                        color: 'white',
-                        fontSize: '1.4rem',
-                        fontWeight: 950,
-                        textTransform: 'none',
-                        boxShadow: 'none',
-                        '&:hover': { bgcolor: 'rgba(16, 185, 129, 0.6)' }
-                      }}
-                    >
-                      Find Vehicle
-                    </Button>
+                {/* Get My Vehicle - Portal */}
+                <Box
+                  onClick={() => setMainMode('finding')}
+                  sx={{
+                    p: 3,
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    bgcolor: valetMode === 'dark' ? 'rgba(59, 130, 246, 0.05)' : 'rgba(59, 130, 246, 0.08)',
+                    border: '1px solid',
+                    borderColor: valetMode === 'dark' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    transition: '0.4s',
+                    boxShadow: valetMode === 'dark' ? '0 15px 35px rgba(0,0,0,0.4)' : '0 10px 30px rgba(59, 130, 246, 0.1)',
+                    '&:hover': { transform: 'translateY(-4px)', borderColor: '#3b82f6' }
+                  }}
+                >
+                  <Box sx={{ width: 68, height: 68, borderRadius: 5, bgcolor: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                    <LocalParkingIcon sx={{ fontSize: 36 }} />
                   </Box>
-                </>
-              )}
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant='h5' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', letterSpacing: -0.5 }}>Get My Vehicle</Typography>
+                    <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#64748b', opacity: 0.8, fontWeight: 800 }}>GET MY VEHICLE</Typography>
+                  </Box>
+                </Box>
+              </Box>
             </Box>
           )}
 
@@ -864,7 +806,7 @@ const PublicScannerPage = () => {
                 {bookingType === 'Schedule' && (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
                     <Box>
-                      <Typography variant='caption' sx={{ fontWeight: 900, color: 'white', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                      <Typography variant='caption' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
                         SCHEDULE START
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 2 }}>
@@ -878,10 +820,10 @@ const PublicScannerPage = () => {
                             sx: {
                               borderRadius: 5,
                               fontWeight: 900,
-                              color: 'white',
-                              bgcolor: 'rgba(255,255,255,0.02)',
-                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
-                              '& input': { colorScheme: 'dark' }
+                              color: valetMode === 'dark' ? 'white' : '#05070A',
+                              bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                              '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                              '& input': { colorScheme: valetMode === 'dark' ? 'dark' : 'light' }
                             }
                           }}
                         />
@@ -895,17 +837,17 @@ const PublicScannerPage = () => {
                             sx: {
                               borderRadius: 5,
                               fontWeight: 900,
-                              color: 'white',
-                              bgcolor: 'rgba(255,255,255,0.02)',
-                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
-                              '& input': { colorScheme: 'dark' }
+                              color: valetMode === 'dark' ? 'white' : '#05070A',
+                              bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                              '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                              '& input': { colorScheme: valetMode === 'dark' ? 'dark' : 'light' }
                             }
                           }}
                         />
                       </Box>
                     </Box>
                     <Box>
-                      <Typography variant='caption' sx={{ fontWeight: 900, color: 'white', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
+                      <Typography variant='caption' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', ml: 1, mb: 1, display: 'block', letterSpacing: 1 }}>
                         SCHEDULE END
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 2 }}>
@@ -919,10 +861,10 @@ const PublicScannerPage = () => {
                             sx: {
                               borderRadius: 5,
                               fontWeight: 900,
-                              color: 'white',
-                              bgcolor: 'rgba(255,255,255,0.02)',
-                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
-                              '& input': { colorScheme: 'dark' }
+                              color: valetMode === 'dark' ? 'white' : '#05070A',
+                              bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                              '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                              '& input': { colorScheme: valetMode === 'dark' ? 'dark' : 'light' }
                             }
                           }}
                         />
@@ -936,10 +878,10 @@ const PublicScannerPage = () => {
                             sx: {
                               borderRadius: 5,
                               fontWeight: 900,
-                              color: 'white',
-                              bgcolor: 'rgba(255,255,255,0.02)',
-                              '& fieldset': { border: '1px solid rgba(255,255,255,0.1)' },
-                              '& input': { colorScheme: 'dark' }
+                              color: valetMode === 'dark' ? 'white' : '#05070A',
+                              bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                              '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
+                              '& input': { colorScheme: valetMode === 'dark' ? 'dark' : 'light' }
                             }
                           }}
                         />
@@ -1047,26 +989,29 @@ const PublicScannerPage = () => {
           {mainMode === 'finding' && viewState === 'search' && (
             <Box sx={{ width: '100%', py: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 5 }}>
+                {/* 
                 <IconButton
                   onClick={() => setMainMode('selection')}
                   sx={{
-                    bgcolor: 'rgba(255,255,255,0.05)',
+                    bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                     mr: 2,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    color: 'white'
+                    border: '1px solid',
+                    borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                    color: valetMode === 'dark' ? 'white' : '#05070A'
                   }}
                   size='small'
                 >
                   <ArrowBackIosNewIcon sx={{ fontSize: 16 }} />
                 </IconButton>
-                <Typography variant='h4' sx={{ color: 'white', fontWeight: 900, letterSpacing: '-0.02em' }}>
+                */}
+                <Typography variant='h5' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 900, letterSpacing: '-0.02em' }}>
                   Get My Vehicle
                 </Typography>
               </Box>
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <Box sx={{ p: 4, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 6, border: '1px dashed rgba(255,255,255,0.1)' }}>
-                  <Typography variant='body1' sx={{ color: TEXT_LIGHT, fontWeight: 700, textAlign: 'center' }}>
+                <Box sx={{ p: 4, bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderRadius: 6, border: '1px dashed', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }}>
+                  <Typography variant='body1' sx={{ color: valetMode === 'dark' ? TEXT_LIGHT : '#64748b', fontWeight: 700, textAlign: 'center' }}>
                     Verify your valet token to see live status.
                   </Typography>
                 </Box>
@@ -1088,7 +1033,7 @@ const PublicScannerPage = () => {
                           fontWeight: 900,
                           color: valetMode === 'dark' ? 'white' : '#05070A',
                           bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                          fontSize: '1.1rem',
+                          fontSize: '1rem',
                           textAlign: 'center',
                           '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
                           '&:hover fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A' },
@@ -1114,7 +1059,7 @@ const PublicScannerPage = () => {
                           fontWeight: 900,
                           color: valetMode === 'dark' ? 'white' : '#05070A',
                           bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-                          fontSize: '1.1rem',
+                          fontSize: '1rem',
                           '& fieldset': { border: '1px solid', borderColor: valetMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
                           '&:hover fieldset': { borderColor: valetMode === 'dark' ? 'white' : '#05070A' },
                           '& input::placeholder': { opacity: 0.3 }
@@ -1140,7 +1085,11 @@ const PublicScannerPage = () => {
                     textTransform: 'uppercase',
                     letterSpacing: 1,
                     boxShadow: valetMode === 'dark' ? '0 20px 40px rgba(16, 185, 129, 0.2)' : '0 20px 40px rgba(16, 185, 129, 0.15)',
-                    '&:hover': { bgcolor: '#059669', transform: 'translateY(-2px)' },
+                    '&:hover': { 
+                      bgcolor: '#059669 !important', 
+                      color: 'white !important',
+                      transform: 'translateY(-2px)' 
+                    },
                     '&:disabled': { opacity: 0.4 }
                   }}
                 >
@@ -1222,10 +1171,10 @@ const PublicScannerPage = () => {
                         <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 900, letterSpacing: 2, opacity: 0.5 }}>
                           TOKEN / VEHICLE
                         </Typography>
-                        <Typography variant='h2' sx={{ color: BRAND_MAIN, fontWeight: 950, letterSpacing: '-0.05em', mt: 1, lineHeight: 1 }}>
+                        <Typography variant='h4' sx={{ color: BRAND_MAIN, fontWeight: 950, letterSpacing: '-0.05em', mt: 1, lineHeight: 1 }}>
                           #{valetToken || 'VALET'}
                         </Typography>
-                        <Typography variant='h4' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, mt: 0.5 }}>
+                        <Typography variant='h6' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, mt: 0.5 }}>
                           {bookingData?.vehicleNumber?.includes('-') ? bookingData.vehicleNumber.split('-')[1] : (bookingData?.vehicleNumber || 'PENDING')}
                         </Typography>
                       </Box>
@@ -1233,7 +1182,7 @@ const PublicScannerPage = () => {
                         <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 900, letterSpacing: 2, opacity: 0.5 }}>
                           STAY DURATION
                         </Typography>
-                        <Typography variant='h5' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, fontFamily: 'monospace', mt: 0.5 }}>
+                        <Typography variant='body1' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, fontFamily: 'monospace', mt: 0.5 }}>
                           {parkingDuration}
                         </Typography>
                       </Box>
@@ -1300,14 +1249,14 @@ const PublicScannerPage = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
                        <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: BRAND_MAIN, boxShadow: `0 0 15px ${BRAND_MAIN}` }} />
                        <Box sx={{ flex: 1 }}>
-                          <Typography variant='subtitle1' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, lineHeight: 1 }}>Parked & Secured</Typography>
+                          <Typography variant='body2' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, lineHeight: 1 }}>Parked & Secured</Typography>
                           <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{bookingData.parkingDate} {bookingData.parkingTime}</Typography>
                        </Box>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
                        <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: `2.5px solid ${successMessage ? BRAND_MAIN : (valetMode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)')}`, bgcolor: successMessage ? BRAND_MAIN : 'transparent' }} />
                        <Box sx={{ flex: 1 }}>
-                          <Typography variant='subtitle1' sx={{ color: successMessage ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'), fontWeight: 950, lineHeight: 1 }}>Return Tracking</Typography>
+                          <Typography variant='body2' sx={{ color: successMessage ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'), fontWeight: 950, lineHeight: 1 }}>Return Tracking</Typography>
                           <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{successMessage ? 'Vehicle requested' : 'Pending request'}</Typography>
                        </Box>
                     </Box>
@@ -1318,20 +1267,21 @@ const PublicScannerPage = () => {
                       sx={{
                         textAlign: 'center',
                         p: 4.5,
-                        bgcolor: 'rgba(16, 185, 129, 0.05)',
+                        bgcolor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(16, 185, 129, 0.08)',
                         borderRadius: 7,
-                        border: '1px solid rgba(16, 185, 129, 0.2)'
+                        border: '1px solid',
+                        borderColor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'
                       }}
                     >
-                      <Typography variant='caption' sx={{ color: 'white', mb: 2.5, fontWeight: 950, letterSpacing: 5, display: 'block', opacity: 0.5 }}>
+                      <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', mb: 2.5, fontWeight: 950, letterSpacing: 5, display: 'block', opacity: 0.5 }}>
                         HAVE A PLEASANT TRIP
                       </Typography>
                       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, alignItems: 'center' }}>
-                        <Box sx={{ bgcolor: 'white', color: '#05070A', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.8rem', minWidth: 80 }}>
+                        <Box sx={{ bgcolor: valetMode === 'dark' ? 'white' : '#05070A', color: valetMode === 'dark' ? '#05070A' : 'white', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.4rem', minWidth: 60 }}>
                           {returnTimeParts.m}
                         </Box>
-                        <Typography variant='h4' sx={{ color: 'white', fontWeight: 950 }}>:</Typography>
-                        <Box sx={{ bgcolor: 'white', color: '#05070A', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.8rem', minWidth: 80 }}>
+                        <Typography variant='h4' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950 }}>:</Typography>
+                        <Box sx={{ bgcolor: valetMode === 'dark' ? 'white' : '#05070A', color: valetMode === 'dark' ? '#05070A' : 'white', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.4rem', minWidth: 60 }}>
                           {returnTimeParts.s}
                         </Box>
                       </Box>
@@ -1347,19 +1297,24 @@ const PublicScannerPage = () => {
                       sx={{
                         py: 3,
                         borderRadius: 6,
-                        bgcolor: 'white',
-                        color: '#05070A',
+                        bgcolor: valetMode === 'dark' ? 'white' : '#111827',
+                        color: valetMode === 'dark' ? '#111827' : 'white',
                         fontSize: '1.2rem',
                         fontWeight: 950,
                         textTransform: 'uppercase',
                         letterSpacing: 2,
-                        boxShadow: '0 30px 60px rgba(0,0,0,0.6)',
+                        boxShadow: valetMode === 'dark' ? '0 30px 60px rgba(0,0,0,0.6)' : '0 10px 30px rgba(0,0,0,0.1)',
                         transition: 'all 0.4s',
-                        '&:hover': { bgcolor: 'rgba(255,255,255,0.9)', transform: 'translateY(-3px)' },
+                        '&:hover': { 
+                          bgcolor: valetMode === 'dark' ? '#f3f4f6 !important' : '#1f2937 !important', 
+                          color: valetMode === 'dark' ? '#111827 !important' : 'white !important',
+                          transform: 'translateY(-3px)',
+                          boxShadow: valetMode === 'dark' ? '0 30px 60px rgba(0,0,0,0.8)' : '0 15px 35px rgba(0,0,0,0.2)'
+                        },
                         '&:disabled': { opacity: 0.5 }
                       }}
                     >
-                      {loading ? <CircularProgress size={24} color='#05070A' /> : 'GET MY VEHICLE'}
+                      {loading ? <CircularProgress size={24} color='inherit' /> : 'GET MY VEHICLE'}
                     </Button>
                   )}
 
@@ -1380,7 +1335,8 @@ const PublicScannerPage = () => {
                       '&:hover': { 
                         borderColor: valetMode === 'dark' ? 'white' : '#05070A', 
                         opacity: 1,
-                        bgcolor: valetMode === 'dark' ? 'transparent' : 'rgba(0,0,0,0.02)'
+                        bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                        color: valetMode === 'dark' ? 'white' : '#05070A'
                       }
                     }}
                   >
@@ -1414,7 +1370,7 @@ const PublicScannerPage = () => {
         >
           <Grid container sx={{ px: 4 }}>
             {[
-              { id: 'selection', label: 'HOME', icon: <HomeIcon />, active: mainMode === 'home' || mainMode === 'selection' || !mainMode },
+              { id: 'finding', label: 'HOME', icon: <HomeIcon />, active: mainMode === 'home' || mainMode === 'selection' || !mainMode || mainMode === 'finding' },
               { id: 'booking', label: 'VALET', icon: <LocalParkingIcon />, active: mainMode === 'booking' },
               { id: 'bookings', label: 'BOOKINGS', icon: <CalendarTodayIcon />, active: mainMode === 'bookings' },
               { id: 'account', label: 'ACCOUNT', icon: <PersonIcon />, active: mainMode === 'account' }
@@ -1422,9 +1378,13 @@ const PublicScannerPage = () => {
               <Grid item xs={3} key={index}>
                 <Box
                   onClick={() => {
-                    setMainMode(item.id)
-                    setViewState('search')
-                    setIsBookingSuccess(false)
+                    if (item.id === 'finding') {
+                      setMainMode(item.id)
+                      setViewState('search')
+                      setIsBookingSuccess(false)
+                    } else {
+                      window.location.href = 'https://parkmywheels.com/app.html'
+                    }
                   }}
                   sx={{
                     display: 'flex',
