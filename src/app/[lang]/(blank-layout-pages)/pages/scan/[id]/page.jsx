@@ -102,9 +102,10 @@ const PublicScannerPage = () => {
   const [isHovering, setIsHovering] = useState(false)
 
   const [returnTimer, setReturnTimer] = useState(0)
+  const [returnMinutes, setReturnMinutes] = useState(20)
   const [parkingDuration, setParkingDuration] = useState('00 h 00 m 00 s')
   const [valetMode, setValetMode] = useState('dark') // 'dark' | 'light'
-  
+
   // Restore Session
   useEffect(() => {
     if (!vendorId) return
@@ -142,6 +143,28 @@ const PublicScannerPage = () => {
 
     return () => clearInterval(refreshInterval)
   }, [viewState, bookingData, valetToken, plateNumber])
+
+  useEffect(() => {
+    const fetchReturnTime = async () => {
+      if (!vendorId) return
+
+      try {
+        const response = await fetch(`${API_URL}/vendor/getreturnminutes?vendor_id=${vendorId}`)
+
+        if (response.ok) {
+          const result = await response.json()
+
+          if (result.data) {
+            setReturnMinutes(parseInt(result.data) || 20)
+          }
+        }
+      } catch (e) {
+        console.error('Error fetching return time:', e)
+      }
+    }
+
+    fetchReturnTime()
+  }, [vendorId])
 
 
   useEffect(() => {
@@ -404,10 +427,10 @@ const PublicScannerPage = () => {
       if (response.status === 200 || response.status === 201) {
         setSuccessMessage(`Request sent!`)
         setError(null)
-        setReturnTimer(1200)
+        setReturnTimer(returnMinutes * 60)
       } else {
         setSuccessMessage(`Request processed.`)
-        setReturnTimer(1200)
+        setReturnTimer(returnMinutes * 60)
       }
     } catch (error) {
       setError('Connection failed. Try again.')
@@ -591,7 +614,7 @@ const PublicScannerPage = () => {
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 {/* Book Slot - Portal */}
-                {/* 
+                {/*
                 <Box
                   onClick={() => setMainMode('booking')}
                   sx={{
@@ -989,7 +1012,7 @@ const PublicScannerPage = () => {
           {mainMode === 'finding' && viewState === 'search' && (
             <Box sx={{ width: '100%', py: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 5 }}>
-                {/* 
+                {/*
                 <IconButton
                   onClick={() => setMainMode('selection')}
                   sx={{
@@ -1085,10 +1108,10 @@ const PublicScannerPage = () => {
                     textTransform: 'uppercase',
                     letterSpacing: 1,
                     boxShadow: valetMode === 'dark' ? '0 20px 40px rgba(16, 185, 129, 0.2)' : '0 20px 40px rgba(16, 185, 129, 0.15)',
-                    '&:hover': { 
-                      bgcolor: '#059669 !important', 
+                    '&:hover': {
+                      bgcolor: '#059669 !important',
                       color: 'white !important',
-                      transform: 'translateY(-2px)' 
+                      transform: 'translateY(-2px)'
                     },
                     '&:disabled': { opacity: 0.4 }
                   }}
@@ -1305,8 +1328,8 @@ const PublicScannerPage = () => {
                         letterSpacing: 2,
                         boxShadow: valetMode === 'dark' ? '0 30px 60px rgba(0,0,0,0.6)' : '0 10px 30px rgba(0,0,0,0.1)',
                         transition: 'all 0.4s',
-                        '&:hover': { 
-                          bgcolor: valetMode === 'dark' ? '#f3f4f6 !important' : '#1f2937 !important', 
+                        '&:hover': {
+                          bgcolor: valetMode === 'dark' ? '#f3f4f6 !important' : '#1f2937 !important',
                           color: valetMode === 'dark' ? '#111827 !important' : 'white !important',
                           transform: 'translateY(-3px)',
                           boxShadow: valetMode === 'dark' ? '0 30px 60px rgba(0,0,0,0.8)' : '0 15px 35px rgba(0,0,0,0.2)'
@@ -1332,8 +1355,8 @@ const PublicScannerPage = () => {
                       fontSize: '0.8rem',
                       textTransform: 'uppercase',
                       letterSpacing: 2,
-                      '&:hover': { 
-                        borderColor: valetMode === 'dark' ? 'white' : '#05070A', 
+                      '&:hover': {
+                        borderColor: valetMode === 'dark' ? 'white' : '#05070A',
                         opacity: 1,
                         bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
                         color: valetMode === 'dark' ? 'white' : '#05070A'

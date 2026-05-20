@@ -35,7 +35,7 @@
 //     pincode: '',
 //     landmark: ''
 //   })
-  
+
 //   const mapRef = useRef(null)
 //   const markerRef = useRef(null)
 //   const autocompleteRef = useRef(null)
@@ -87,18 +87,18 @@
 //       // Use traditional Autocomplete since it's more reliable
 //       autocompleteRef.current = new window.google.maps.places.Autocomplete(input)
 //       autocompleteRef.current.bindTo('bounds', map)
-      
+
 //       autocompleteRef.current.addListener('place_changed', () => {
 //         const place = autocompleteRef.current.getPlace()
 //         if (!place.geometry) return
-        
+
 //         map.setCenter(place.geometry.location)
 //         markerRef.current.setPosition(place.geometry.location)
-        
+
 //         setLatitude(place.geometry.location.lat())
 //         setLongitude(place.geometry.location.lng())
 //         setAddress(place.formatted_address)
-        
+
 //         // Extract landmark from address components
 //         const landmarkComponent = place.address_components.find(
 //           comp => comp.types.includes('point_of_interest') || comp.types.includes('establishment')
@@ -113,12 +113,12 @@
 //       const position = markerRef.current.getPosition()
 //       setLatitude(position.lat())
 //       setLongitude(position.lng())
-      
+
 //       const geocoder = new window.google.maps.Geocoder()
 //       geocoder.geocode({ location: position }, (results, status) => {
 //         if (status === 'OK' && results[0]) {
 //           setAddress(results[0].formatted_address)
-          
+
 //           // Extract landmark from address components
 //           const landmarkComponent = results[0].address_components.find(
 //             comp => comp.types.includes('point_of_interest') || comp.types.includes('establishment')
@@ -272,8 +272,8 @@
 //       </Grid>
 
 //       {/* Map Dialog with Tabs for Map/Manual Entry */}
-//       <Dialog 
-//         open={mapDialogOpen} 
+//       <Dialog
+//         open={mapDialogOpen}
 //         onClose={handleCloseMapDialog}
 //         maxWidth="md"
 //         fullWidth
@@ -286,7 +286,7 @@
 //               <Tab label="Enter Manually" />
 //             </Tabs>
 //           </Box>
-          
+
 //           {addressTab === 0 ? (
 //             // Map Selection Tab
 //             <>
@@ -298,7 +298,7 @@
 //                 margin="normal"
 //               />
 //               <div ref={mapRef} style={{ width: '100%', height: '400px', marginTop: '10px' }}></div>
-              
+
 //               <Grid container spacing={2} style={{ marginTop: '10px' }}>
 //                 <Grid item xs={12} sm={6}>
 //                   <TextField
@@ -422,20 +422,20 @@
 
 // import DirectionalIcon from '@components/DirectionalIcon'
 
-// const StepPersonalInfo = ({ 
-//   handleNext, 
-//   contacts, 
-//   setContacts, 
-//   address, 
-//   setAddress, 
-//   vendorName, 
-//   setVendorName, 
-//   latitude, 
-//   setLatitude, 
-//   longitude, 
-//   setLongitude, 
-//   landmark, 
-//   setLandmark 
+// const StepPersonalInfo = ({
+//   handleNext,
+//   contacts,
+//   setContacts,
+//   address,
+//   setAddress,
+//   vendorName,
+//   setVendorName,
+//   latitude,
+//   setLatitude,
+//   longitude,
+//   setLongitude,
+//   landmark,
+//   setLandmark
 // }) => {
 //   // State to track if add button should be enabled
 //   const [addButtonEnabled, setAddButtonEnabled] = useState(false)
@@ -448,7 +448,7 @@
 //         lastContact.name.trim() !== '' &&
 //         /^\d{10}$/.test(lastContact.mobile.trim())
 //       )
-      
+
 //     } else {
 //       setAddButtonEnabled(false)
 //     }
@@ -534,9 +534,9 @@
 //           </Grid>
 //         ))}
 //         <Grid item xs={12}>
-//           <Button 
-//             variant='contained' 
-//             onClick={handleAddContact} 
+//           <Button
+//             variant='contained'
+//             onClick={handleAddContact}
 //             startIcon={<AddIcon />}
 //             disabled={!addButtonEnabled}
 //           >
@@ -599,10 +599,12 @@
 
 // export default StepPersonalInfo
 
-
-
 'use client'
 import { useState, useEffect } from 'react'
+
+import Link from 'next/link'
+
+import { useParams } from 'next/navigation'
 
 import Grid from '@mui/material/Grid'
 import Button from '@mui/material/Button'
@@ -612,25 +614,25 @@ import InputAdornment from '@mui/material/InputAdornment'
 import IconButton from '@mui/material/IconButton'
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
-import Link from 'next/link'
-import { useParams } from 'next/navigation'
 
 import DirectionalIcon from '@components/DirectionalIcon'
 
-const StepPersonalInfo = ({ 
-  handleNext, 
-  contacts, 
-  setContacts, 
-  address, 
-  setAddress, 
-  vendorName, 
-  setVendorName, 
-  latitude, 
-  setLatitude, 
-  longitude, 
-  setLongitude, 
-  landmark, 
-  setLandmark 
+const StepPersonalInfo = ({
+  handleNext,
+  contacts,
+  setContacts,
+  address,
+  setAddress,
+  vendorName,
+  setVendorName,
+  latitude,
+  setLatitude,
+  longitude,
+  setLongitude,
+  landmark,
+  setLandmark,
+  upiId,
+  setUpiId
 }) => {
   // State to track if add button should be enabled
   const [addButtonEnabled, setAddButtonEnabled] = useState(false)
@@ -640,21 +642,18 @@ const StepPersonalInfo = ({
   // Check form validity
   useEffect(() => {
     const isVendorNameValid = vendorName.trim() !== ''
-    const isContactsValid = contacts.every(contact => 
-      contact.name.trim() !== '' && /^\d{10}$/.test(contact.mobile.trim())
+
+    const isContactsValid = contacts.every(
+      contact => contact.name.trim() !== '' && /^\d{10}$/.test(contact.mobile.trim())
     )
+
     const isAddressValid = address.trim() !== ''
     const isLatitudeValid = latitude !== null && latitude !== ''
     const isLongitudeValid = longitude !== null && longitude !== ''
     const isLandmarkValid = landmark.trim() !== ''
 
     setFormValid(
-      isVendorNameValid &&
-      isContactsValid &&
-      isAddressValid &&
-      isLatitudeValid &&
-      isLongitudeValid &&
-      isLandmarkValid
+      isVendorNameValid && isContactsValid && isAddressValid && isLatitudeValid && isLongitudeValid && isLandmarkValid
     )
   }, [vendorName, contacts, address, latitude, longitude, landmark])
 
@@ -662,10 +661,8 @@ const StepPersonalInfo = ({
   useEffect(() => {
     if (contacts.length > 0) {
       const lastContact = contacts[contacts.length - 1]
-      setAddButtonEnabled(
-        lastContact.name.trim() !== '' &&
-        /^\d{10}$/.test(lastContact.mobile.trim())
-      )
+
+      setAddButtonEnabled(lastContact.name.trim() !== '' && /^\d{10}$/.test(lastContact.mobile.trim()))
     } else {
       setAddButtonEnabled(false)
     }
@@ -673,6 +670,7 @@ const StepPersonalInfo = ({
 
   const handleAddContact = () => {
     setContacts([...contacts, { id: contacts.length + 1, name: '', mobile: '' }])
+
     // Disable button after adding a new contact
     setAddButtonEnabled(false)
   }
@@ -682,12 +680,16 @@ const StepPersonalInfo = ({
       // Allow only digits and limit to 10 characters
       if (!/^\d*$/.test(value) || value.length > 10) return
     }
-    setContacts(contacts.map(contact => {
-      if (contact.id === id) {
-        return { ...contact, [field]: value }
-      }
-      return contact
-    }))
+
+    setContacts(
+      contacts.map(contact => {
+        if (contact.id === id) {
+          return { ...contact, [field]: value }
+        }
+
+        return contact
+      })
+    )
   }
 
   const handleRemoveContact = id => {
@@ -697,8 +699,10 @@ const StepPersonalInfo = ({
   const handleNextClick = () => {
     if (!formValid) {
       alert('Please fill all required fields before proceeding')
+
       return
     }
+
     handleNext()
   }
 
@@ -710,7 +714,7 @@ const StepPersonalInfo = ({
       <Typography>Enter Vendor Personal Information</Typography>
       <br />
       <Grid container spacing={3}>
-        <Grid item xs={12}>
+        <Grid item xs={12} sm={6}>
           <TextField
             fullWidth
             label='Vendor Name'
@@ -718,6 +722,15 @@ const StepPersonalInfo = ({
             value={vendorName}
             onChange={e => setVendorName(e.target.value)}
             required
+          />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField
+            fullWidth
+            label='UPI ID'
+            placeholder='example@upi'
+            value={upiId}
+            onChange={e => setUpiId(e.target.value)}
           />
         </Grid>
       </Grid>
@@ -760,12 +773,7 @@ const StepPersonalInfo = ({
           </Grid>
         ))}
         <Grid item xs={12}>
-          <Button 
-            variant='contained' 
-            onClick={handleAddContact} 
-            startIcon={<AddIcon />}
-            disabled={!addButtonEnabled}
-          >
+          <Button variant='contained' onClick={handleAddContact} startIcon={<AddIcon />} disabled={!addButtonEnabled}>
             Add Another Contact
           </Button>
         </Grid>
@@ -814,11 +822,8 @@ const StepPersonalInfo = ({
       </Grid>
       <Grid container spacing={3} justifyContent='space-between' style={{ marginTop: '20px' }}>
         <Grid item>
-          <Link href="/vendor" passHref>
-            <Button
-              variant='outlined'
-              color='secondary'
-            >
+          <Link href='/vendor' passHref>
+            <Button variant='outlined' color='secondary'>
               Back to Login
             </Button>
           </Link>

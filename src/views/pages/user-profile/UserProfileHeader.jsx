@@ -1,15 +1,17 @@
-
 'use client'
 
 // MUI Imports
 import { useRef, useState, useEffect } from 'react'
+
 import { useParams, useRouter } from 'next/navigation'
+
 import Card from '@mui/material/Card'
 import CardMedia from '@mui/material/CardMedia'
 import CardContent from '@mui/material/CardContent'
 import Typography from '@mui/material/Typography'
 import { useSession } from 'next-auth/react'
 import { Button } from '@mui/material'
+
 import { getLocalizedUrl } from '@/utils/i18n'
 
 const UserProfileHeader = () => {
@@ -24,19 +26,24 @@ const UserProfileHeader = () => {
     const fetchUserData = async () => {
       if (!session?.user?.id) {
         setLoading(false)
+
         return
       }
-      
+
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${session.user.id}`, {
-          cache: 'no-store',
-          headers: {
-            'pragma': 'no-cache',
-            'cache-control': 'no-cache'
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${session.user.id}`,
+          {
+            cache: 'no-store',
+            headers: {
+              pragma: 'no-cache',
+              'cache-control': 'no-cache'
+            }
           }
-        })
+        )
+
         const result = await response.json()
-        
+
         if (response.ok && result.data) {
           setUserData(result.data)
         }
@@ -46,7 +53,7 @@ const UserProfileHeader = () => {
         setLoading(false)
       }
     }
-    
+
     if (session?.user?.id) {
       fetchUserData()
     }
@@ -61,6 +68,7 @@ const UserProfileHeader = () => {
       return
     }
   }
+
   const user = {
     ...session?.user,
     ...(userData || {}),
@@ -78,7 +86,7 @@ const UserProfileHeader = () => {
       </Card>
     )
   }
-  
+
   return (
     <Card>
       <CardMedia image={user?.image || '/default-cover.jpg'} className='bs-[250px]' />
@@ -94,6 +102,12 @@ const UserProfileHeader = () => {
                 <i className='ri-map-pin-line' />
                 <Typography className='font-medium'>{user?.address || 'User Address'}</Typography>
               </div>
+              {user?.upiId && (
+                <div className='flex items-center gap-2'>
+                  <i className='ri-bank-card-line' />
+                  <Typography className='font-medium'>UPI ID: {user?.upiId}</Typography>
+                </div>
+              )}
             </div>
           </div>
         </div>

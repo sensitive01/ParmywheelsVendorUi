@@ -3,11 +3,9 @@
 // // React Imports
 // import { useState } from 'react';
 
-
 // // Next Imports
 // import Link from 'next/link';
 // import { useParams } from 'next/navigation';
-
 
 // // MUI Imports
 // import MuiStepper from '@mui/material/Stepper';
@@ -18,7 +16,6 @@
 
 // // Third-party Imports
 // import classnames from 'classnames';
-
 
 // // Component Imports
 // import Logo from '@components/layout/shared/Logo';
@@ -33,13 +30,11 @@
 // // Util Imports
 // import { getLocalizedUrl } from '@/utils/i18n';
 
-
 // // Steps Configuration
 // const steps = [
 //   { title: 'Personal', subtitle: 'Enter Information' },
 //   { title: 'Account', subtitle: 'Account Details' }
 // ];
-
 
 // // Styled Components
 // const Stepper = styled(MuiStepper)(({ theme }) => ({
@@ -80,7 +75,6 @@
 //   const handleNext = () => setActiveStep(activeStep + 1);
 //   const handlePrev = () => activeStep > 0 && setActiveStep(activeStep - 1);
 
-
 //   // Handle Image Change
 //   const handleImageChange = (file) => {
 //     if (file instanceof File) {
@@ -91,12 +85,11 @@
 //     }
 //   };
 
-
 //   // Submit Data to API
 //   const handleSubmit = async () => {
 //     if (!accountDetails.image) {
 //       alert("Please select an image.");
-      
+
 // return;
 //     }
 
@@ -137,7 +130,6 @@
 //     }F
 //   };
 
-
 //   // Step Content Renderer
 //   const getStepContent = () => {
 //     switch (activeStep) {
@@ -175,7 +167,6 @@
 //     }
 //   };
 
-  
 // return (
 //     <div className="flex bs-full justify-between items-center">
 //       <div className={classnames('flex bs-full items-center justify-center is-[450px] max-lg:hidden', {
@@ -217,45 +208,43 @@
 
 // export default RegisterMultiSteps;
 
-
-
-'use client';
+'use client'
 
 // React Imports
-import { useState } from 'react';
+import { useState } from 'react'
 
 // Next Imports
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import Link from 'next/link'
+import { useParams } from 'next/navigation'
 
 // MUI Imports
-import MuiStepper from '@mui/material/Stepper';
-import Step from '@mui/material/Step';
-import StepLabel from '@mui/material/StepLabel';
-import Typography from '@mui/material/Typography';
-import { styled } from '@mui/material/styles';
+import MuiStepper from '@mui/material/Stepper'
+import Step from '@mui/material/Step'
+import StepLabel from '@mui/material/StepLabel'
+import Typography from '@mui/material/Typography'
+import { styled } from '@mui/material/styles'
 
 // Third-party Imports
-import classnames from 'classnames';
+import classnames from 'classnames'
 
 // Component Imports
-import Logo from '@components/layout/shared/Logo';
-import StepperWrapper from '@core/styles/stepper';
-import StepAccountDetails from './StepAccountDetails';
-import StepPersonalInfo from './StepPersonalInfo';
-import StepperCustomDot from '@components/stepper-dot';
+import Logo from '@components/layout/shared/Logo'
+import StepperWrapper from '@core/styles/stepper'
+import StepAccountDetails from './StepAccountDetails'
+import StepPersonalInfo from './StepPersonalInfo'
+import StepperCustomDot from '@components/stepper-dot'
 
 // Hook Imports
-import { useSettings } from '@core/hooks/useSettings';
+import { useSettings } from '@core/hooks/useSettings'
 
 // Util Imports
-import { getLocalizedUrl } from '@/utils/i18n';
+import { getLocalizedUrl } from '@/utils/i18n'
 
 // Steps Configuration
 const steps = [
   { title: 'Personal', subtitle: 'Enter Information' },
   { title: 'Account', subtitle: 'Account Details' }
-];
+]
 
 // Styled Components
 const Stepper = styled(MuiStepper)(({ theme }) => ({
@@ -265,90 +254,93 @@ const Stepper = styled(MuiStepper)(({ theme }) => ({
     '&:last-of-type': { paddingInlineEnd: 0 },
     [theme.breakpoints.down('md')]: { paddingInline: 0 }
   }
-}));
+}))
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-console.log("API_URL===",API_URL);
+console.log('API_URL===', API_URL)
 
 const RegisterMultiSteps = () => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [contacts, setContacts] = useState([{ id: 1, name: '', mobile: '' }]);
-  const [address, setAddress] = useState('');
-  const [vendorName, setVendorName] = useState('');
-  const [landmark, setLandmark] = useState('');
-  const [latitude, setLatitude] = useState(null);
-  const [longitude, setLongitude] = useState(null);
+  const [activeStep, setActiveStep] = useState(0)
+  const [contacts, setContacts] = useState([{ id: 1, name: '', mobile: '' }])
+  const [address, setAddress] = useState('')
+  const [vendorName, setVendorName] = useState('')
+  const [landmark, setLandmark] = useState('')
+  const [latitude, setLatitude] = useState(null)
+  const [longitude, setLongitude] = useState(null)
+  const [upiId, setUpiId] = useState('')
 
   const [accountDetails, setAccountDetails] = useState({
     password: '',
     confirmPassword: '',
     parkingEntries: [{ type: '', count: '' }]
-  });
+  })
 
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState(null)
 
   // Hooks
-  const { settings } = useSettings();
-  const { lang: locale } = useParams();
+  const { settings } = useSettings()
+  const { lang: locale } = useParams()
 
   // Step Navigation
-  const handleNext = () => setActiveStep(activeStep + 1);
-  const handlePrev = () => activeStep > 0 && setActiveStep(activeStep - 1);
+  const handleNext = () => setActiveStep(activeStep + 1)
+  const handlePrev = () => activeStep > 0 && setActiveStep(activeStep - 1)
 
   // Handle Image Change
-  const handleImageChange = (file) => {
+  const handleImageChange = file => {
     if (file instanceof File) {
-      setImage(file);
-      console.log("Image selected:", file);
+      setImage(file)
+      console.log('Image selected:', file)
     } else {
-      console.error("Invalid file type selected");
+      console.error('Invalid file type selected')
     }
-  };
+  }
 
   // Submit Data to API
   const handleSubmit = async () => {
     if (!accountDetails.image) {
-      alert("Please select an image.");
-      return;
+      alert('Please select an image.')
+
+      return
     }
 
-    const formData = new FormData();
+    const formData = new FormData()
 
-    formData.append('vendorName', vendorName);
-    formData.append('contacts', JSON.stringify(contacts));
-    formData.append('latitude', latitude);
-    formData.append('longitude', longitude);
-    formData.append('address', address);
-    formData.append('landmark', landmark);
-    formData.append('password', accountDetails.password);
-    formData.append('parkingEntries', JSON.stringify(accountDetails.parkingEntries));
+    formData.append('vendorName', vendorName)
+    formData.append('contacts', JSON.stringify(contacts))
+    formData.append('latitude', latitude)
+    formData.append('longitude', longitude)
+    formData.append('address', address)
+    formData.append('landmark', landmark)
+    formData.append('password', accountDetails.password)
+    formData.append('parkingEntries', JSON.stringify(accountDetails.parkingEntries))
+    formData.append('upiId', upiId)
 
     // Ensure image is appended correctly
-    formData.append('image', accountDetails.image, accountDetails.image.name);
-    console.log("Final FormData before submit:");
+    formData.append('image', accountDetails.image, accountDetails.image.name)
+    console.log('Final FormData before submit:')
 
     for (let pair of formData.entries()) {
-      console.log(pair[0], pair[1]);
+      console.log(pair[0], pair[1])
     }
 
     try {
       const response = await fetch(`${API_URL}/vendor/signup`, {
         method: 'POST',
         body: formData
-      });
+      })
 
       if (response.ok) {
-        alert('Registration successful!');
-        window.location.href = "/";
+        alert('Registration successful!')
+        window.location.href = '/'
       } else {
-        alert('Registration failed!');
+        alert('Registration failed!')
       }
     } catch (error) {
-      console.error('Error submitting form:', error);
-      alert('Something went wrong. Please try again.');
+      console.error('Error submitting form:', error)
+      alert('Something went wrong. Please try again.')
     }
-  };
+  }
 
   // Step Content Renderer
   const getStepContent = () => {
@@ -369,9 +361,11 @@ const RegisterMultiSteps = () => {
             setLatitude={setLatitude}
             longitude={longitude}
             setLongitude={setLongitude}
+            upiId={upiId}
+            setUpiId={setUpiId}
             handleImageChange={handleImageChange}
           />
-        );
+        )
       case 1:
         return (
           <StepAccountDetails
@@ -381,40 +375,42 @@ const RegisterMultiSteps = () => {
             setAccountDetails={setAccountDetails}
             handleImageChange={handleImageChange}
           />
-        );
+        )
       default:
-        return null;
+        return null
     }
-  };
+  }
 
   return (
-    <div className="flex bs-full justify-between items-center">
-      <div className={classnames('flex bs-full items-center justify-center is-[740px] max-lg:hidden', {
-        'border-ie': settings.skin === 'bordered'
-      })}>
+    <div className='flex bs-full justify-between items-center'>
+      <div
+        className={classnames('flex bs-full items-center justify-center is-[740px] max-lg:hidden', {
+          'border-ie': settings.skin === 'bordered'
+        })}
+      >
         <img
           src='/images/illustrations/auth/ParkMyWheels4.gif'
-          alt="multi-steps-character"
-          className="mlb-12 bs-auto max-bs-[555px] max-is-full"
+          alt='multi-steps-character'
+          className='mlb-12 bs-auto max-bs-[555px] max-is-full'
         />
       </div>
-      <div className="flex flex-1 flex-col justify-center items-center bs-full bg-backgroundPaper">
-        <div className="w-full max-is-[740px] p-6 sm:p-8">
-          <div className="flex justify-center mbe-6">
+      <div className='flex flex-1 flex-col justify-center items-center bs-full bg-backgroundPaper'>
+        <div className='w-full max-is-[740px] p-6 sm:p-8'>
+          <div className='flex justify-center mbe-6'>
             <Link href={getLocalizedUrl('/', locale)}>
               <Logo />
             </Link>
           </div>
           <StepperWrapper>
-            <Stepper className="mbe-6 md:mbe-12" activeStep={activeStep}>
+            <Stepper className='mbe-6 md:mbe-12' activeStep={activeStep}>
               {steps.map((step, index) => (
                 <Step key={index}>
                   <StepLabel slots={{ stepIcon: StepperCustomDot }}>
-                    <div className="step-label">
-                      <Typography className="step-number">{`0${index + 1}`}</Typography>
+                    <div className='step-label'>
+                      <Typography className='step-number'>{`0${index + 1}`}</Typography>
                       <div>
-                        <Typography className="step-title">{step.title}</Typography>
-                        <Typography className="step-subtitle">{step.subtitle}</Typography>
+                        <Typography className='step-title'>{step.title}</Typography>
+                        <Typography className='step-subtitle'>{step.subtitle}</Typography>
                       </div>
                     </div>
                   </StepLabel>
@@ -426,7 +422,7 @@ const RegisterMultiSteps = () => {
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default RegisterMultiSteps;
+export default RegisterMultiSteps

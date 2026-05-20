@@ -526,6 +526,7 @@ const VendorRegistration = () => {
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [parkingEntries, setParkingEntries] = useState([{ type: '', count: '' }])
+  const [upiId, setUpiId] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
@@ -556,6 +557,7 @@ const VendorRegistration = () => {
           setLandMark(vendorData.landMark || '')
           setLatitude(vendorData.latitude || '')
           setLongitude(vendorData.longitude || '')
+          setUpiId(vendorData.upiId || '')
           if (Array.isArray(vendorData.contacts) && vendorData.contacts.length > 0) {
             setContacts(
               vendorData.contacts.map((contact, index) => ({
@@ -639,6 +641,7 @@ const VendorRegistration = () => {
     formData.append('landmark', landMark)
     formData.append('latitude', latitude)
     formData.append('longitude', longitude)
+    formData.append('upiId', upiId)
     
     const formattedContacts = contacts.map(contact => ({
       name: contact.name,
@@ -690,6 +693,7 @@ const VendorRegistration = () => {
               setLandMark(vendorData.landMark || '')
               setLatitude(vendorData.latitude || '')
               setLongitude(vendorData.longitude || '')
+              setUpiId(vendorData.upiId || '')
               
               if (vendorData.contacts?.length > 0) {
                 setContacts(vendorData.contacts.map((contact, index) => ({
@@ -749,13 +753,22 @@ const VendorRegistration = () => {
         </Typography>
         <br />
         <Grid container spacing={3}>
-          <Grid item xs={12}>
+          <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
               label='Vendor Name'
               value={vendorName}
               onChange={e => setVendorName(e.target.value)}
               required
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label='UPI ID'
+              placeholder='example@upi'
+              value={upiId}
+              onChange={e => setUpiId(e.target.value)}
             />
           </Grid>
         </Grid>
