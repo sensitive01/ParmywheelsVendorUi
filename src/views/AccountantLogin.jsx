@@ -3,11 +3,9 @@
 // React Imports
 import { useState } from 'react'
 
-
 // Next Imports
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-
 
 // MUI Imports
 import Typography from '@mui/material/Typography'
@@ -24,7 +22,6 @@ import Alert from '@mui/material/Alert'
 import { signIn, getSession } from 'next-auth/react'
 import classnames from 'classnames'
 
-
 // Component Imports
 import Logo from '@components/layout/shared/Logo'
 
@@ -37,7 +34,7 @@ import { useSettings } from '@core/hooks/useSettings'
 // Util Imports
 import { getLocalizedUrl } from '@/utils/i18n'
 
-const Login = ({ mode }) => {
+const AccountantLogin = ({ mode }) => {
   const [mobile, setMobile] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -51,24 +48,24 @@ const Login = ({ mode }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    console.log('Attempting login with:', { mobile, password });
+    console.log('Attempting accountant login with:', { mobile, password });
 
     const result = await signIn("credentials", {
       redirect: false,
       mobile,
       password,
-      loginType: "vendor"
+      loginType: "accountant"
     });
 
     if (!result.ok) {
       setError(result.error || "Login failed");
-      console.error("Login failed:", result.error);
+      console.error("Accountant login failed:", result.error);
     } else {
       // Get the session details to populate localStorage
       const session = await getSession();
 
       if (session && session.user) {
-        console.log("Session User Details:", session.user);
+        console.log("Accountant Session User Details:", session.user);
 
         // Ensure localStorage is only accessed in the browser
         if (typeof window !== "undefined") {
@@ -78,7 +75,9 @@ const Login = ({ mode }) => {
           localStorage.setItem("latitude", session.user.latitude || "");
           localStorage.setItem("longitude", session.user.longitude || "");
           localStorage.setItem("address", session.user.address || "");
-          localStorage.setItem("role", session.user.role || "vendor");
+          localStorage.setItem("role", session.user.role || "accountant");
+          localStorage.setItem("accountName", session.user.accountName || "");
+          localStorage.setItem("accountantId", session.user.accountantId || "");
         }
       }
 
@@ -86,19 +85,17 @@ const Login = ({ mode }) => {
     }
   };
 
-
-
   return (
     <div className='flex bs-full justify-center'>
       <div className={classnames(
         'flex bs-full items-center justify-center flex-1 min-bs-[100dvh] relative p-6 max-md:hidden',
-        'w-full' // Add full width
+        'w-full'
       )}>
-        <div className='absolute inset-0 w-full h-full'> {/* Full-covering container */}
+        <div className='absolute inset-0 w-full h-full'>
           <img
             src='/images/illustrations/auth/final.gif'
             alt='Login animation'
-            className='w-full h-full object-cover' // Cover entire space
+            className='w-full h-full object-cover'
           />
         </div>
       </div>
@@ -109,13 +106,13 @@ const Login = ({ mode }) => {
               <Logo />
             </div>
             <div>
-              <Typography variant='h4'>{`Welcome to  ${themeConfig.templateName}ParkMyWheels`}</Typography>
-              <Typography>and 1 Stop Parking Management solution for all your parking systems</Typography>
+              <Typography variant='h4'>Accountant Portal</Typography>
+              <Typography>Login to manage parking accounts and settlements</Typography>
             </div>
           </div>
           <Alert icon={false} className='bg-[var(--mui-palette-primary-lightOpacity)]'>
             <Typography variant='body2' color='primary.main'>
-              Login to <span className='font-medium'>manage your</span> parking<span className='font-medium'></span>
+              Login to manage <span className='font-medium'>accounts and financials</span>
             </Typography>
           </Alert>
           <form onSubmit={handleSubmit} className='flex flex-col gap-5'>
@@ -174,16 +171,10 @@ const Login = ({ mode }) => {
             <Button fullWidth variant='contained' type='submit'>
               Log In
             </Button>
-            <div className='flex justify-center items-center flex-wrap gap-2'>
-              <Typography>New on our platform?</Typography>
-              <Typography component={Link} href={getLocalizedUrl('/pages/auth/register-multi-steps', locale)} color='primary.main'>
-                Create an account
-              </Typography>
-            </div>
             <div className='flex justify-center items-center flex-wrap gap-2 mt-2'>
-              <Typography>Are you an Accountant?</Typography>
-              <Typography component={Link} href={getLocalizedUrl('/accountant', locale)} color='primary.main' className='font-medium'>
-                Login as Accountant
+              <Typography>Are you a Vendor?</Typography>
+              <Typography component={Link} href={getLocalizedUrl('/vendor', locale)} color='primary.main' className='font-medium'>
+                Login as Vendor
               </Typography>
             </div>
           </form>
@@ -194,4 +185,4 @@ const Login = ({ mode }) => {
   )
 }
 
-export default Login
+export default AccountantLogin

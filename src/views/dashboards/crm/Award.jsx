@@ -24,13 +24,21 @@ const Award = () => {
 
   useEffect(() => {
     const fetchVendorData = async () => {
-      if (!session?.user?.id) {
+      const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
+      const accountantId = session?.user?.accountantId || (typeof window !== 'undefined' && localStorage.getItem('accountantId'))
+      const idToFetch = isAccountant ? accountantId : session?.user?.id
+
+      if (!idToFetch) {
         setLoading(false)
         return
       }
       
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${session.user.id}`, {
+        const url = isAccountant
+          ? `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-accountant-data?id=${idToFetch}`
+          : `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${idToFetch}`
+
+        const response = await fetch(url, {
           cache: 'no-store',
           headers: {
             'pragma': 'no-cache',
@@ -40,7 +48,15 @@ const Award = () => {
         const result = await response.json()
         
         if (response.ok && result.data) {
-          setVendorData(result.data)
+          if (isAccountant) {
+            setVendorData({
+              ...result.data,
+              vendorName: result.data.accountName,
+              image: result.data.vendor?.image || '/default-profile.jpg'
+            })
+          } else {
+            setVendorData(result.data)
+          }
         }
       } catch (error) {
         console.error('Error fetching vendor data:', error)
@@ -49,7 +65,8 @@ const Award = () => {
       }
     }
     
-    if (session?.user?.id) {
+    const hasId = session?.user?.id || session?.user?.accountantId || (typeof window !== 'undefined' && (localStorage.getItem('vendorId') || localStorage.getItem('accountantId')))
+    if (hasId) {
       fetchVendorData()
     }
   }, [session])
@@ -70,11 +87,16 @@ const Award = () => {
     )
   }
 
+  const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
+  const localAccountName = typeof window !== 'undefined' && localStorage.getItem('accountName')
+
   // Combine session user data with fetched vendor data
   const user = {
     ...session?.user,
     ...(vendorData || {}),
-    name: vendorData?.vendorName || session?.user?.name,
+    name: isAccountant 
+      ? (vendorData?.vendorName || vendorData?.accountName || localAccountName || session?.user?.accountName || session?.user?.name) 
+      : (vendorData?.vendorName || session?.user?.name),
     image: vendorData?.image || session?.user?.image
   }
 

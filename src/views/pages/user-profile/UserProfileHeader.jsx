@@ -24,28 +24,42 @@ const UserProfileHeader = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!session?.user?.id) {
+      const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
+      const accountantId = session?.user?.accountantId || (typeof window !== 'undefined' && localStorage.getItem('accountantId'))
+      const idToFetch = isAccountant ? accountantId : session?.user?.id
+
+      if (!idToFetch) {
         setLoading(false)
 
         return
       }
 
       try {
-        const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${session.user.id}`,
-          {
-            cache: 'no-store',
-            headers: {
-              pragma: 'no-cache',
-              'cache-control': 'no-cache'
-            }
+        const url = isAccountant
+          ? `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-accountant-data?id=${idToFetch}`
+          : `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${idToFetch}`
+
+        const response = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            'pragma': 'no-cache',
+            'cache-control': 'no-cache'
           }
-        )
+        })
 
         const result = await response.json()
 
         if (response.ok && result.data) {
-          setUserData(result.data)
+          if (isAccountant) {
+            setUserData({
+              ...result.data,
+              vendorName: result.data.accountName,
+              image: result.data.vendor?.image || '/default-profile.jpg',
+              address: result.data.vendor?.address || 'N/A'
+            })
+          } else {
+            setUserData(result.data)
+          }
         }
       } catch (error) {
         console.error('Error fetching user data:', error)
@@ -54,7 +68,8 @@ const UserProfileHeader = () => {
       }
     }
 
-    if (session?.user?.id) {
+    const hasId = session?.user?.id || session?.user?.accountantId || (typeof window !== 'undefined' && (localStorage.getItem('vendorId') || localStorage.getItem('accountantId')))
+    if (hasId) {
       fetchUserData()
     }
   }, [session])
@@ -69,9 +84,14 @@ const UserProfileHeader = () => {
     }
   }
 
+  const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
+  const localAccountName = typeof window !== 'undefined' && localStorage.getItem('accountName')
   const user = {
     ...session?.user,
     ...(userData || {}),
+    name: isAccountant 
+      ? (userData?.vendorName || userData?.accountName || localAccountName || session?.user?.accountName || session?.user?.name) 
+      : (userData?.vendorName || session?.user?.name),
     image: userData?.image || session?.user?.image || '/default-profile.jpg'
   }
 

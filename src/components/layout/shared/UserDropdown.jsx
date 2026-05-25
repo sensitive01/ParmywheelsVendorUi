@@ -56,13 +56,21 @@ const UserDropdown = ({ dictionary }) => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!session?.user?.id) {
+      const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
+      const accountantId = session?.user?.accountantId || (typeof window !== 'undefined' && localStorage.getItem('accountantId'))
+      const idToFetch = isAccountant ? accountantId : session?.user?.id
+
+      if (!idToFetch) {
         setLoading(false)
         return
       }
       
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${session.user.id}`, {
+        const url = isAccountant
+          ? `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-accountant-data?id=${idToFetch}`
+          : `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetch-vendor-data?id=${idToFetch}`
+
+        const response = await fetch(url, {
           cache: 'no-store',
           headers: {
             'pragma': 'no-cache',
@@ -72,7 +80,15 @@ const UserDropdown = ({ dictionary }) => {
         const result = await response.json()
         
         if (response.ok && result.data) {
-          setUserData(result.data)
+          if (isAccountant) {
+            setUserData({
+              ...result.data,
+              vendorName: result.data.accountName,
+              image: result.data.vendor?.image || '/default-profile.jpg'
+            })
+          } else {
+            setUserData(result.data)
+          }
         }
       } catch (error) {
         console.error('Error fetching user data:', error)
@@ -81,7 +97,8 @@ const UserDropdown = ({ dictionary }) => {
       }
     }
     
-    if (session?.user?.id) {
+    const hasId = session?.user?.id || session?.user?.accountantId || (typeof window !== 'undefined' && (localStorage.getItem('vendorId') || localStorage.getItem('accountantId')))
+    if (hasId) {
       fetchUserData()
     }
   }, [session])
@@ -111,10 +128,16 @@ const UserDropdown = ({ dictionary }) => {
     }
   }
 
+  const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
+  const localAccountName = typeof window !== 'undefined' && localStorage.getItem('accountName')
+
   // Merge session user data with fetched user data
   const user = {
     ...session?.user,
     ...(userData || {}),
+    name: isAccountant 
+      ? (userData?.vendorName || userData?.accountName || localAccountName || session?.user?.accountName || session?.user?.name) 
+      : (userData?.vendorName || session?.user?.name),
     image: userData?.image || session?.user?.image || '/default-profile.jpg'
   }
 
@@ -174,35 +197,41 @@ const UserDropdown = ({ dictionary }) => {
                     </div>
                     <div className='flex items-start flex-col'>
                       <Typography variant='body2' className='font-medium' color='text.primary'>
-                        {user.vendorName || user.name || ''}
+                        {user.name || ''}
                       </Typography>
-                      <Typography variant='caption'>{user.email || ''}</Typography>
+                      <Typography variant='caption'>
+                        {isAccountant ? 'Accountant' : (user.email || 'Vendor')}
+                      </Typography>
                     </div>
                   </div>
                   <Divider className='mlb-1' />
-                  <MenuItem className='gap-3 pli-4' onClick={e => handleDropdownClose(e, '/pages/user-profile')}>
-                    <i className='ri-user-3-line' />
-                    <Typography color='text.primary'>My Profile</Typography>
-                  </MenuItem>
-                  <MenuItem 
-                    className='gap-3 pli-4' 
-                    onClick={e => handleDropdownClose(e, `/${locale}/pages/account-settings`)}
-                  >
-                    <i className='ri-user-settings-line' />
-                    <Typography color='text.primary'>
-                      {dictionary?.navigation?.accountSettings || 'Account Settings'}
-                    </Typography>
-                  </MenuItem>
-                  <MenuItem 
-                    className='gap-3 pli-4' 
-                    onClick={e => handleDropdownClose(e, `/${locale}/pages/notifications`)}
-                  >
-                    <i className='ri-notification-3-line' style={{ color: 'black', fontSize: '1.25rem' }} />
-                    <Typography color='text.primary'>
-                      {dictionary?.navigation?.notifications || 'Notifications'}
-                    </Typography>
-                  </MenuItem>
-                  <Divider className='mlb-1' />
+                  {!isAccountant && (
+                    <>
+                      <MenuItem className='gap-3 pli-4' onClick={e => handleDropdownClose(e, '/pages/user-profile')}>
+                        <i className='ri-user-3-line' />
+                        <Typography color='text.primary'>My Profile</Typography>
+                      </MenuItem>
+                      <MenuItem 
+                        className='gap-3 pli-4' 
+                        onClick={e => handleDropdownClose(e, `/${locale}/pages/account-settings`)}
+                      >
+                        <i className='ri-user-settings-line' />
+                        <Typography color='text.primary'>
+                          {dictionary?.navigation?.accountSettings || 'Account Settings'}
+                        </Typography>
+                      </MenuItem>
+                      <MenuItem 
+                        className='gap-3 pli-4' 
+                        onClick={e => handleDropdownClose(e, `/${locale}/pages/notifications`)}
+                      >
+                        <i className='ri-notification-3-line' style={{ color: 'black', fontSize: '1.25rem' }} />
+                        <Typography color='text.primary'>
+                          {dictionary?.navigation?.notifications || 'Notifications'}
+                        </Typography>
+                      </MenuItem>
+                      <Divider className='mlb-1' />
+                    </>
+                  )}
                   <div className='flex items-center plb-1.5 pli-4'>
                     <Button
                       fullWidth

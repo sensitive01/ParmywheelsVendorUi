@@ -50,8 +50,9 @@ const HorizontalMenu = ({ dictionary }) => {
   const { transitionDuration } = verticalNavOptions
   const { lang: locale } = params
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const vendorId = session?.user?.id
+  const userRole = session?.user?.role || 'vendor'
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false)
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -108,71 +109,56 @@ const HorizontalMenu = ({ dictionary }) => {
         <MenuItem href={`/${locale}/dashboards/crm`} icon={<i className='ri-home-smile-line' />}>
           {dictionary['navigation'].dashboards}
         </MenuItem>
-        <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
-          <MenuItem onClick={handleNewBookingClick}>{dictionary['navigation'].NewBookings || 'New Bookings'}</MenuItem>
-          <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
-          <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
-            {dictionary['navigation'].SubscriptionBooking}
+        {status === 'loading' ? (
+          <MenuItem href={`/${locale}/apps/ecommerce/products/list`} icon={<i className='ri-shopping-bag-3-line' />}>
+            {dictionary['navigation'].Bookings}
           </MenuItem>
-          <MenuItem href={`/${locale}/pages/transactions`}>{dictionary['navigation'].Transactions}</MenuItem>
-          <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].vendorpayouts}</MenuItem>
-          {/* <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].Settlements}</MenuItem> */}
-        </SubMenu>
-        {/* <SubMenu label='Vendor' icon={<i className='ri-smartphone-line' />}>
-          <MenuItem href={`/${locale}/dashboards/vendor/requests`}>Vendor Requests</MenuItem>
-          <MenuItem href={`/${locale}/dashboards/vendor/subscription`}>Vendor Subscriptions</MenuItem>
-        </SubMenu> */}
-        <SubMenu label='Parking' icon={<i className='ri-shopping-bag-3-line' />}>
-          <MenuItem href={`/${locale}/pages/parking-management`}>{dictionary['navigation'].ParkingManagement}</MenuItem>
-          <MenuItem href={`/${locale}/pages/user-profile`}>{dictionary['navigation'].ParkingProfile}</MenuItem>
-          <MenuItem href={`/${locale}/pages/onboardingprocess`}>{dictionary['navigation'].Kyc}</MenuItem>
-          <MenuItem href={`/${locale}/pages/bankdetails`}>{dictionary['navigation'].BankDetails}</MenuItem>
-          <MenuItem href={`/${locale}/pages/account-settings`}>{dictionary['navigation'].AccountSettings}</MenuItem>
-        </SubMenu>
-        <MenuItem href={`/${locale}/pages/helpandsupport`} icon={<i className='ri-calendar-line' />}>
-          Help
-        </MenuItem>
-        <MenuItem href={`/${locale}/pages/currentplan`} icon={<i className='ri-shopping-bag-3-line' />}>
-          {dictionary['navigation'].Plans}
-        </MenuItem>
-        <MenuItem href={`/${locale}/apps/calendar`} icon={<i className='ri-calendar-line' />}>
-          Advertise
-        </MenuItem>
-        {/* <SubMenu label={dictionary['navigation'].pages} icon={<i className='ri-file-list-2-line' />}>
-          <MenuItem href={`/${locale}/pages/user-profile`} icon={<i className='ri-user-line' />}>
-            {dictionary['navigation'].userProfile}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/account-settings`} icon={<i className='ri-user-settings-line' />}>
-            {dictionary['navigation'].accountSettings}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/onboardingprocess`} icon={<i className='ri-money-dollar-circle-line' />}>
-            {dictionary['navigation'].onBoardingProcess}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/bankdetails`} icon={<i className='ri-money-dollar-circle-line' />}>
-            {dictionary['navigation'].bankdetails}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/helpandsupport`} icon={<i className='ri-money-dollar-circle-line' />}>
-            {dictionary['navigation'].helpandsupport}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/pricing`} icon={<i className='ri-money-dollar-circle-line' />}>
-            {dictionary['navigation'].pricing}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/currentplan`} icon={<i className='ri-money-dollar-circle-line' />}>
-            {dictionary['navigation'].currentplan}
-          </MenuItem>
-          <MenuItem href={`/${locale}/pages/vendorpayouts`} icon={<i className='ri-money-dollar-circle-line' />}>
-            {dictionary['navigation'].vendorpayouts}
-          </MenuItem>
-          <SubMenu label={dictionary['navigation'].widgetExamples} icon={<i className='ri-bar-chart-box-line' />}>
-            <MenuItem href={`/${locale}/pages/widget-examples/statistics`}>
-              {dictionary['navigation'].statistics}
+        ) : userRole === 'accountant' ? (
+          <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
+            <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
+            <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
+              {dictionary['navigation'].SubscriptionBooking}
             </MenuItem>
           </SubMenu>
-          <MenuItem href={`/${locale}/pages/privacy-terms`} icon={<i className='ri-shield-user-line' />}>
-            {dictionary['navigation'].privacyterms}
-          </MenuItem>
-        </SubMenu> */}
-        {/* <MenuItem href={`/${locale}/pages/notifications`} icon={<i className='ri-notification-3-line' style={{ color: '#black', fontSize: '24px' }} />} /> */}
+        ) : (
+          <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
+            <MenuItem onClick={handleNewBookingClick}>{dictionary['navigation'].NewBookings || 'New Bookings'}</MenuItem>
+            <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
+            <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
+              {dictionary['navigation'].SubscriptionBooking}
+            </MenuItem>
+            <MenuItem href={`/${locale}/pages/transactions`}>{dictionary['navigation'].Transactions}</MenuItem>
+            <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].vendorpayouts}</MenuItem>
+          </SubMenu>
+        )}
+        {status !== 'loading' && userRole === 'vendor' && (
+          <>
+            <SubMenu label='Parking' icon={<i className='ri-shopping-bag-3-line' />}>
+              <MenuItem href={`/${locale}/pages/parking-management`}>{dictionary['navigation'].ParkingManagement}</MenuItem>
+              <MenuItem href={`/${locale}/pages/user-profile`}>{dictionary['navigation'].ParkingProfile}</MenuItem>
+              <MenuItem href={`/${locale}/pages/onboardingprocess`}>{dictionary['navigation'].Kyc}</MenuItem>
+              <MenuItem href={`/${locale}/pages/bankdetails`}>{dictionary['navigation'].BankDetails}</MenuItem>
+              <MenuItem href={`/${locale}/pages/account-settings`}>{dictionary['navigation'].AccountSettings}</MenuItem>
+            </SubMenu>
+            <SubMenu label={dictionary['navigation'].Teams || 'Teams'} icon={<i className='ri-group-line' />}>
+              <MenuItem href={`/${locale}/pages/teams/accounts`}>
+                {dictionary['navigation'].Accounts || 'Accounts'}
+              </MenuItem>
+              <MenuItem href={`/${locale}/pages/teams/subunits`}>
+                {dictionary['navigation'].Subunits || 'Subunits'}
+              </MenuItem>
+            </SubMenu>
+            <MenuItem href={`/${locale}/pages/helpandsupport`} icon={<i className='ri-calendar-line' />}>
+              Help
+            </MenuItem>
+            <MenuItem href={`/${locale}/pages/currentplan`} icon={<i className='ri-shopping-bag-3-line' />}>
+              {dictionary['navigation'].Plans}
+            </MenuItem>
+            <MenuItem href={`/${locale}/apps/calendar`} icon={<i className='ri-calendar-line' />}>
+              Advertise
+            </MenuItem>
+          </>
+        )}
         <MenuItem
           href={`/${locale}/pages/search`}
           icon={<i className='ri-search-line' style={{ color: '#black', fontSize: '24px' }} />}

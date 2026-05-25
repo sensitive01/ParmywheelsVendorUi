@@ -648,7 +648,9 @@ const OrderListTable = ({ orderData }) => {
   }, [globalFilter, statusFilter, data, bookingTypeFilter, vendorId])
 
   const columns = useMemo(
-    () => [
+    () => {
+      const isAccountant = session?.user?.role === 'accountant'
+      const cols = [
       {
         id: 'select',
         header: ({ table }) => (
@@ -1205,9 +1207,48 @@ const OrderListTable = ({ orderData }) => {
         ),
         enableSorting: false
       }
-    ],
-    [router, bookingTypeFilter]
-  )
+    ];
+
+    if (isAccountant) {
+      return cols
+        .filter(col => col.id !== 'statusAction')
+        .map(col => {
+          if (col.id === 'action') {
+            return {
+              ...col,
+              cell: ({ row }) => (
+                <div className='flex items-center'>
+                  <OptionMenu
+                    iconButtonProps={{ size: 'medium' }}
+                    iconClassName='text-[22px]'
+                    options={[
+                      {
+                        text: 'View',
+                        icon: 'ri-eye-line',
+                        menuItemProps: {
+                          onClick: () => {
+                            const selectedId = row.original._id
+
+                            if (selectedId) {
+                              router.push(`/pages/bookingdetails/${selectedId}`)
+                            }
+                          }
+                        }
+                      }
+                    ]}
+                  />
+                </div>
+              )
+            }
+          }
+          return col
+        })
+    }
+
+    return cols
+  },
+  [router, bookingTypeFilter, session]
+)
 
   const table = useReactTable({
     data: useMemo(() => filteredData.filter(item => !isSubscription(item)), [filteredData]),
@@ -1516,14 +1557,16 @@ const OrderListTable = ({ orderData }) => {
                 <i className='ri-file-pdf-line' /> Export to PDF
               </MenuItem>
             </Menu>
-            <Button
-              variant='contained'
-              onClick={handleNewBooking}
-              startIcon={<i className='ri-add-line' />}
-              className='flex-1 sm:flex-none'
-            >
-              New Booking
-            </Button>
+            {session?.user?.role !== 'accountant' && (
+              <Button
+                variant='contained'
+                onClick={handleNewBooking}
+                startIcon={<i className='ri-add-line' />}
+                className='flex-1 sm:flex-none'
+              >
+                New Booking
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>

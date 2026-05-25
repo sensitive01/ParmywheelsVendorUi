@@ -101,6 +101,9 @@
         "menuLevels": "مستويات القائمة",
         "menuLevel2": "مستوى القائمة 2",
         "menuLevel3": "مستوى القائمة 3",
-        "disabledMenu": "قائمة المعوقين"
+        "disabledMenu": "قائمة المعوقين",
+        "Teams": "الفرق",
+        "Accounts": "الحسابات",
+        "Subunits": "الوحدات الفرعية"
     }
 }

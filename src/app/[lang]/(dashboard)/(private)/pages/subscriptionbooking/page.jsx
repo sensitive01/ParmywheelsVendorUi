@@ -377,6 +377,7 @@ const OrderListTable = ({ orderData }) => {
   const [sorting, setSorting] = useState([])
   const { lang: locale } = useParams()
   const { data: session } = useSession()
+  const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
   const router = useRouter()
   const vendorId = session?.user?.id
   const [anchorEl, setAnchorEl] = useState(null)
@@ -1074,7 +1075,7 @@ const OrderListTable = ({ orderData }) => {
                     }
                   }
                 },
-                {
+                ...(!isAccountant ? [{
                   text: 'Delete',
                   icon: 'ri-delete-bin-7-line',
                   menuItemProps: {
@@ -1084,7 +1085,7 @@ const OrderListTable = ({ orderData }) => {
                     },
                     sx: { color: 'error.main', '& i, & .MuiTypography-root': { color: 'error.main' } }
                   }
-                }
+                }] : [])
               ]}
             />
           </div>
@@ -1130,8 +1131,8 @@ const OrderListTable = ({ orderData }) => {
         ),
         enableSorting: false
       }
-    ],
-    [router, statusFilter, bookingTypeFilter]
+    ].filter(col => !(isAccountant && (col.id === 'statusAction' || col.id === 'select'))),
+    [router, statusFilter, bookingTypeFilter, isAccountant]
   )
 
   const table = useReactTable({
@@ -1468,19 +1469,21 @@ const OrderListTable = ({ orderData }) => {
               >
                 Download
               </Button>
-              <Button
-                variant='contained'
-                onClick={handleNewSubscription}
-                startIcon={<i className='ri-add-line' />}
-                sx={{
-                  backgroundColor: '#22c55e',
-                  '&:hover': {
-                    backgroundColor: '#16a34a'
-                  }
-                }}
-              >
-                New Subscription
-              </Button>
+              {!isAccountant && (
+                <Button
+                  variant='contained'
+                  onClick={handleNewSubscription}
+                  startIcon={<i className='ri-add-line' />}
+                  sx={{
+                    backgroundColor: '#22c55e',
+                    '&:hover': {
+                      backgroundColor: '#16a34a'
+                    }
+                  }}
+                >
+                  New Subscription
+                </Button>
+              )}
             </Box>
           </Box>
 

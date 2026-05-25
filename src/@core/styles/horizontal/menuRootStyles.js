@@ -9,6 +9,7 @@ const menuRootStyles = theme => {
     '& > ul': {
       padding: theme.spacing(2),
       margin: theme.spacing(-2),
+      justifyContent: 'center',
       '& > li:not(:last-of-type)': {
         marginInlineEnd: theme.spacing(1)
       }

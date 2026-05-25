@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-
 import axios from 'axios'
 import {
   Box,
@@ -17,15 +16,28 @@ import {
   DialogActions,
   TextField,
   Menu,
-  MenuItem
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel,
+  Grid,
+  Container,
+  CircularProgress
 } from '@mui/material'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DataGrid } from '@mui/x-data-grid'
 import { useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 
 const UserBookings = () => {
   const { data: session, status } = useSession()
+  const searchParams = useSearchParams()
+  const urlSubunitId = searchParams?.get('subunitId')
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.parkmywheels.com'
+
   const [transactions, setTransactions] = useState([])
+  const [subunits, setSubunits] = useState([])
+  const [selectedSubunit, setSelectedSubunit] = useState(urlSubunitId || 'all') // 'all', 'main', or subunit ID
   const [isLoading, setIsLoading] = useState(false)
   const [dateDialogOpen, setDateDialogOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState(null)
@@ -85,12 +97,14 @@ const UserBookings = () => {
 
     if (!vendorId) return true
 
+    // Identify if the booking is a vendor-created booking
+    // A booking is vendor-created if userid is missing, OR if userid matches the vendorId of the booking
+    const isVendorCreated = !item.userid || String(item.userid) === String(item.vendorid || vendorId)
+
     if (bookingTypeFilter === 'user') {
-      // User bookings: userid exists AND userid != vendorId
-      return item.userid && String(item.userid) !== String(vendorId)
+      return !isVendorCreated
     } else {
-      // Vendor bookings: userid missing OR userid == vendorId
-      return !item.userid || String(item.userid) === String(vendorId)
+      return isVendorCreated
     }
   })
 
@@ -103,6 +117,24 @@ const UserBookings = () => {
     }, 0)
   }
 
+  // Fetch subunits list on mount
+  useEffect(() => {
+    const fetchSubunitsList = async () => {
+      if (status === 'authenticated' && session?.user?.id) {
+        try {
+          const response = await axios.get(`${API_URL}/vendor/subunits/${session.user.id}`)
+          if (response.data?.success) {
+            setSubunits(response.data.data || [])
+          }
+        } catch (e) {
+          console.error("Error fetching subunits list for filter dropdown:", e)
+        }
+      }
+    }
+    fetchSubunitsList()
+  }, [status, session])
+
+  // Fetch transactions when vendor session or selected location changes
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id) {
       fetchTransactions(session.user.id)
@@ -113,13 +145,20 @@ const UserBookings = () => {
         severity: 'warning'
       })
     }
-  }, [status, session])
+  }, [status, session, selectedSubunit])
 
   const fetchTransactions = async userId => {
     setIsLoading(true)
 
     try {
-      const response = await axios.get(`https://api.parkmywheels.com/vendor/userbookingtrans/${userId}`)
+      const params = {}
+      if (selectedSubunit === 'all') {
+        params.includeSubunits = 'true'
+      } else if (selectedSubunit !== 'main') {
+        params.subunitId = selectedSubunit
+      }
+
+      const response = await axios.get(`${API_URL}/vendor/userbookingtrans/${userId}`, { params })
 
       if (response.status === 200) {
         const raw = response.data.data || []
@@ -148,8 +187,9 @@ const UserBookings = () => {
         const data = uniqueDataFiltered.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
-          bookingId: item.invoiceid || item._id, // Show invoiceid as Booking ID for better identification
-          userid: item.userid, // Added for filtering
+          bookingId: item.invoiceid || item._id,
+          userid: item.userid,
+          vendorid: item.vendorid || item.vendorId, // include vendorid for correct filtering
           bookingDate: item.bookingDate || 'N/A',
           parkingDate: item.parkingDate || 'N/A',
           parkingTime: item.parkingTime || 'N/A',
@@ -183,7 +223,6 @@ const UserBookings = () => {
   }
 
   const handleApplyDateFilter = () => {
-    // Since the API doesn't support date filtering, we'll filter client-side
     const filtered = transactions.filter(t => {
       const [day, month, year] = t.parkingDate.split('-')
       const transactionDate = new Date(`${year}-${month}-${day}`)
@@ -202,7 +241,9 @@ const UserBookings = () => {
 
     setStartDate(currentDate)
     setEndDate(currentDate)
-    fetchTransactions() // Refetch all data
+    if (session?.user?.id) {
+      fetchTransactions(session.user.id)
+    }
     setDateDialogOpen(false)
   }
 
@@ -397,165 +438,288 @@ const UserBookings = () => {
   return (
     <Box
       sx={{
-        backgroundColor: '#f4f4f4',
+        backgroundColor: '#f8f9fa',
         minHeight: '100vh',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 2
+        padding: 3
       }}
     >
-      <Card sx={{ width: '100%', maxWidth: 1400, borderRadius: 3, boxShadow: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant='h5' component='h1' sx={{ mb: 3, textAlign: 'center' }}>
-            User Booking Transactions
-          </Typography>
+      <Container maxWidth="xl">
+        {/* Header Row */}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' }, 
+            justifyContent: 'space-between', 
+            alignItems: { xs: 'stretch', sm: 'center' }, 
+            mb: 4, 
+            gap: 2 
+          }}
+        >
+          <Box>
+            <Typography variant='h4' fontWeight="bold" color="text.primary">
+              Transactions & Bookings
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Track payments, receivables, and platform fees across all booking channels.
+            </Typography>
+          </Box>
+          
+          <FormControl size="small" sx={{ minWidth: 280 }}>
+            <InputLabel id="location-select-label">Location / Subunit Filter</InputLabel>
+            <Select
+              labelId="location-select-label"
+              id="location-select"
+              value={selectedSubunit}
+              label="Location / Subunit Filter"
+              onChange={(e) => setSelectedSubunit(e.target.value)}
+              sx={{ 
+                borderRadius: '8px', 
+                bgcolor: 'background.paper',
+                '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1 }
+              }}
+              startAdornment={<i className="ri-map-pin-line text-lg" style={{ color: 'var(--mui-palette-text-secondary)', marginRight: '8px' }} />}
+            >
+              <MenuItem value="all">All Locations (Main + Subunits)</MenuItem>
+              <MenuItem value="main">Main Location Only</MenuItem>
+              {subunits.map((sub) => (
+                <MenuItem key={sub.id} value={sub.id}>
+                  {sub.name} (Subunit)
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
 
-          {/* Booking Source Filter (User vs Vendor) */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-              {['user', 'vendor'].map(type => (
-                <Button
-                  key={type}
-                  onClick={() => setBookingTypeFilter(type)}
-                  sx={{
-                    textTransform: 'capitalize',
-                    color: bookingTypeFilter === type ? '#22c55e' : '#64748b',
-                    fontWeight: bookingTypeFilter === type ? 600 : 400,
-                    borderBottom: bookingTypeFilter === type ? '2px solid #22c55e' : '2px solid transparent',
-                    borderRadius: 0,
-                    px: 3,
-                    py: 1.5,
-                    fontSize: '1rem',
-                    '&:hover': {
-                      backgroundColor: '#f8fafc',
-                      color: '#22c55e'
-                    }
+        {/* Dashboard Summary Cards */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={4}>
+            <Card variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.02)' }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3, p: '24px !important' }}>
+                <Box 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: '8px', 
+                    bgcolor: 'success.lightOpacity', 
+                    color: 'success.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
-                  {type === 'user' ? 'User Bookings' : 'Vendor Bookings'}
-                </Button>
-              ))}
-            </Box>
-          </Box>
+                  <i className="ri-money-rupee-circle-line text-3xl" style={{ color: 'var(--mui-palette-success-main)' }} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight="medium">Total Revenue</Typography>
+                  <Typography variant="h5" fontWeight="bold">₹{getTotalReceivable().toFixed(2)}</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.02)' }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3, p: '24px !important' }}>
+                <Box 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: '8px', 
+                    bgcolor: 'primary.lightOpacity', 
+                    color: 'primary.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <i className="ri-file-list-3-line text-3xl" style={{ color: 'var(--mui-palette-primary-main)' }} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight="medium">Total Bookings</Typography>
+                  <Typography variant="h5" fontWeight="bold">{filteredTransactions.length}</Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <Card variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.02)' }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3, p: '24px !important' }}>
+                <Box 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: '8px', 
+                    bgcolor: 'info.lightOpacity', 
+                    color: 'info.main',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <i className="ri-calendar-line text-3xl" style={{ color: 'var(--mui-palette-info-main)' }} />
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight="medium">Date Range</Typography>
+                  <Typography variant="body2" fontWeight="bold" sx={{ mt: 0.5 }}>
+                    {formatDateForDisplay(startDate)} to {formatDateForDisplay(endDate)}
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                variant='outlined'
-                startIcon={<CalendarMonthIcon />}
-                onClick={() => setDateDialogOpen(true)}
-                size='small'
-              >
-                Filter Dates
-              </Button>
-              <Button variant='outlined' onClick={handleDownloadClick} size='small'>
-                Download
-              </Button>
-              <Menu anchorEl={anchorEl} open={open} onClose={handleDownloadClose}>
-                <MenuItem onClick={exportToExcel}>Export to Excel</MenuItem>
-                <MenuItem onClick={exportToPDF}>Export to PDF</MenuItem>
-              </Menu>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box
-                sx={{
-                  bgcolor: '#f5f5f5',
-                  padding: '6px 12px',
-                  borderRadius: 1,
-                  border: '1px solid #e0e0e0'
-                }}
-              >
-                <Typography variant='body2' fontWeight='bold' color='#329a73'>
-                  Total: ₹{getTotalReceivable().toFixed(2)}
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  bgcolor: '#f0f8ff',
-                  padding: '6px 12px',
-                  borderRadius: 1,
-                  border: '1px solid #e0e0e0'
-                }}
-              >
-                <Typography variant='body2' fontWeight='medium' color='#1976d2'>
-                  {`${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`}
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-
-          {status === 'loading' || isLoading ? (
-            <Typography sx={{ textAlign: 'center', color: 'gray' }}>Loading transactions...</Typography>
-          ) : status === 'unauthenticated' ? (
-            <Typography sx={{ textAlign: 'center', color: 'gray' }}>Please login to view your transactions</Typography>
-          ) : transactions.length === 0 ? (
-            <Typography sx={{ textAlign: 'center', color: 'gray' }}>No transactions found.</Typography>
-          ) : (
-            <Box sx={{ height: 600, width: '100%' }}>
-              <DataGrid
-                rows={filteredTransactions}
-                columns={columns}
-                pageSizeOptions={[5, 10, 20]}
-                initialState={{
-                  pagination: { paginationModel: { pageSize: 10 } }
-                }}
-                sx={{
-                  '& .MuiDataGrid-columnHeaders': { backgroundColor: '#329a73', color: 'black' },
-                  borderRadius: 2
-                }}
-              />
-            </Box>
-          )}
-
-          <Dialog open={dateDialogOpen} onClose={() => setDateDialogOpen(false)}>
-            <DialogTitle>Filter Transactions by Date</DialogTitle>
-            <DialogContent>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, minWidth: '300px' }}>
-                <TextField
-                  label='Start Date'
-                  type='date'
-                  value={startDate}
-                  onChange={e => setStartDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-                <TextField
-                  label='End Date'
-                  type='date'
-                  value={endDate}
-                  onChange={e => setEndDate(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  fullWidth
-                />
-              </Box>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleClearFilters} color='secondary'>
-                Reset to Today
-              </Button>
-              <Button onClick={handleApplyDateFilter} color='primary' variant='contained'>
-                Apply
-              </Button>
-            </DialogActions>
-          </Dialog>
-
-          <Snackbar
-            open={snackbar.open}
-            autoHideDuration={6000}
-            onClose={() => setSnackbar({ ...snackbar, open: false })}
-            anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-          >
-            <Alert
-              onClose={() => setSnackbar({ ...snackbar, open: false })}
-              severity={snackbar.severity}
-              sx={{ width: '100%' }}
+        <Card sx={{ borderRadius: '16px', boxShadow: '0 4px 18px rgba(0,0,0,0.05)', border: '1px solid', borderColor: 'divider' }}>
+          <CardContent sx={{ p: 4 }}>
+            {/* Control Bar */}
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'column', md: 'row' }, 
+                justifyContent: 'space-between', 
+                alignItems: { xs: 'stretch', md: 'center' }, 
+                gap: 2, 
+                mb: 4 
+              }}
             >
-              {snackbar.message}
-            </Alert>
-          </Snackbar>
-        </CardContent>
-      </Card>
+              {/* Booking Source Toggle Buttons */}
+              <Box 
+                sx={{ 
+                  display: 'flex', 
+                  bgcolor: 'action.hover', 
+                  p: '4px', 
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  width: 'fit-content'
+                }}
+              >
+                {['user', 'vendor'].map(type => (
+                  <Button
+                    key={type}
+                    onClick={() => setBookingTypeFilter(type)}
+                    variant={bookingTypeFilter === type ? 'contained' : 'text'}
+                    color="success"
+                    size="small"
+                    sx={{
+                      textTransform: 'capitalize',
+                      px: 3,
+                      py: 1,
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      boxShadow: bookingTypeFilter === type ? '0 2px 6px rgba(34, 197, 94, 0.2)' : 'none',
+                      color: bookingTypeFilter === type ? 'white' : 'text.secondary',
+                      '&:hover': {
+                        backgroundColor: bookingTypeFilter === type ? 'success.main' : 'action.selected'
+                      }
+                    }}
+                  >
+                    {type === 'user' ? 'User Bookings' : 'Vendor Bookings'}
+                  </Button>
+                ))}
+              </Box>
+
+              {/* Action Buttons */}
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                <Button
+                  variant='outlined'
+                  color="secondary"
+                  startIcon={<CalendarMonthIcon />}
+                  onClick={() => setDateDialogOpen(true)}
+                  size='small'
+                  sx={{ borderRadius: '8px', textTransform: 'none', px: 2, py: 1 }}
+                >
+                  Filter Dates
+                </Button>
+                <Button 
+                  variant='outlined' 
+                  color="secondary"
+                  onClick={handleDownloadClick} 
+                  size='small'
+                  sx={{ borderRadius: '8px', textTransform: 'none', px: 2, py: 1 }}
+                  startIcon={<i className="ri-download-line" />}
+                >
+                  Download Report
+                </Button>
+                <Menu anchorEl={anchorEl} open={open} onClose={handleDownloadClose}>
+                  <MenuItem onClick={exportToExcel}>Export to Excel</MenuItem>
+                  <MenuItem onClick={exportToPDF}>Export to PDF</MenuItem>
+                </Menu>
+              </Box>
+            </Box>
+
+            {status === 'loading' || isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+                <CircularProgress />
+              </Box>
+            ) : status === 'unauthenticated' ? (
+              <Typography sx={{ textAlign: 'center', color: 'gray', py: 8 }}>Please login to view your transactions</Typography>
+            ) : transactions.length === 0 ? (
+              <Typography sx={{ textAlign: 'center', color: 'gray', py: 8 }}>No transactions found.</Typography>
+            ) : (
+              <Box sx={{ height: 600, width: '100%' }}>
+                <DataGrid
+                  rows={filteredTransactions}
+                  columns={columns}
+                  pageSizeOptions={[5, 10, 20]}
+                  initialState={{
+                    pagination: { paginationModel: { pageSize: 10 } }
+                  }}
+                  sx={{
+                    '& .MuiDataGrid-columnHeaders': { backgroundColor: 'action.hover', color: 'text.primary', fontWeight: 'bold' },
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider'
+                  }}
+                />
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Container>
+
+      <Dialog open={dateDialogOpen} onClose={() => setDateDialogOpen(false)}>
+        <DialogTitle>Filter Transactions by Date</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1, minWidth: '300px' }}>
+            <TextField
+              label='Start Date'
+              type='date'
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+            <TextField
+              label='End Date'
+              type='date'
+              value={endDate}
+              onChange={e => setEndDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClearFilters} color='secondary'>
+            Reset to Today
+          </Button>
+          <Button onClick={handleApplyDateFilter} color='primary' variant='contained'>
+            Apply
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

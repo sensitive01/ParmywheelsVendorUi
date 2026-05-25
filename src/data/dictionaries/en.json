@@ -124,6 +124,9 @@
         "BankDetails": "Bank Details",
         "AccountSettings": "Account Settings",
         "Plans": "Plans",
-        "Subscriptions": "Subscriptions"
+        "Subscriptions": "Subscriptions",
+        "Teams": "Teams",
+        "Accounts": "Accounts",
+        "Subunits": "Subunits"
     }
 }
