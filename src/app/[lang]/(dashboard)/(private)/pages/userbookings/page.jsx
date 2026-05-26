@@ -25,7 +25,9 @@ import {
   InputLabel,
   Grid,
   Container,
-  CircularProgress
+  CircularProgress,
+  Checkbox,
+  ListItemText
 } from '@mui/material'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DataGrid } from '@mui/x-data-grid'
@@ -39,9 +41,10 @@ const UserBookings = () => {
 
   const [transactions, setTransactions] = useState([])
   const [subunits, setSubunits] = useState([])
-  const [selectedSubunit, setSelectedSubunit] = useState(urlSubunitId || 'all') // 'all', 'main', or subunit ID
+  const [selectedSubunits, setSelectedSubunits] = useState(urlSubunitId ? [urlSubunitId] : ['main'])
   const [isLoading, setIsLoading] = useState(false)
   const [dateDialogOpen, setDateDialogOpen] = useState(false)
+  const [isDateFilterActive, setIsDateFilterActive] = useState(false)
   const [anchorEl, setAnchorEl] = useState(null)
   const [bookingTypeFilter, setBookingTypeFilter] = useState('user')
   const open = Boolean(anchorEl)
@@ -166,10 +169,30 @@ const UserBookings = () => {
     const isVendorCreated = !item.userid || String(item.userid) === String(item.vendorid || vendorId)
 
     if (bookingTypeFilter === 'user') {
-      return !isVendorCreated
+      if (isVendorCreated) return false
     } else {
-      return isVendorCreated
+      if (!isVendorCreated) return false
     }
+
+    if (isDateFilterActive) {
+      if (!item.parkingDate || item.parkingDate === 'N/A') return false
+      try {
+        const [day, month, year] = item.parkingDate.split('-')
+        const transactionDate = new Date(`${year}-${month}-${day}`)
+        const start = new Date(startDate)
+        const end = new Date(endDate)
+
+        transactionDate.setHours(0, 0, 0, 0)
+        start.setHours(0, 0, 0, 0)
+        end.setHours(0, 0, 0, 0)
+
+        return transactionDate >= start && transactionDate <= end
+      } catch (e) {
+        return false
+      }
+    }
+
+    return true
   })
 
   // Use filteredTransactions for totals
@@ -189,7 +212,11 @@ const UserBookings = () => {
           const response = await axios.get(`${API_URL}/vendor/subunits/${session.user.id}`)
 
           if (response.data?.success) {
-            setSubunits(response.data.data || [])
+            const fetched = response.data.data || []
+            setSubunits(fetched)
+            if (!urlSubunitId) {
+              setSelectedSubunits(['main', ...fetched.map(sub => sub.id)])
+            }
           }
         } catch (e) {
           console.error("Error fetching subunits list for filter dropdown:", e)
@@ -201,7 +228,7 @@ const UserBookings = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session])
 
-  // Fetch transactions when vendor session or selected location changes
+  // Fetch transactions when vendor session or selected locations change
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.id) {
       fetchTransactions(session.user.id)
@@ -213,18 +240,30 @@ const UserBookings = () => {
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session, selectedSubunit])
+  }, [status, session, selectedSubunits])
 
   const fetchTransactions = async userId => {
     setIsLoading(true)
 
+    if (selectedSubunits.length === 0) {
+      setTransactions([])
+      setIsLoading(false)
+      return
+    }
+
     try {
       const params = {}
 
-      if (selectedSubunit === 'all') {
+      const hasMain = selectedSubunits.includes('main')
+      const subids = selectedSubunits.filter(id => id !== 'main')
+
+      if (hasMain && subids.length === subunits.length && subunits.length > 0) {
         params.includeSubunits = 'true'
-      } else if (selectedSubunit !== 'main') {
-        params.subunitId = selectedSubunit
+      } else {
+        const idList = []
+        if (hasMain) idList.push(userId)
+        subids.forEach(id => idList.push(id))
+        params.subunitId = idList.join(',')
       }
 
       const response = await axios.get(`${API_URL}/vendor/userbookingtrans/${userId}`, { params })
@@ -240,15 +279,15 @@ const UserBookings = () => {
           return bd - ad
         })
 
-        // Deduplicate by invoiceid to prevent repeated bookings
-        const uniqueInvoices = new Set()
+        // Deduplicate by bookingId or _id to prevent repeated bookings
+        const uniqueBookings = new Set()
         const uniqueDataFiltered = []
 
         sorted.forEach(item => {
-          const invId = item.invoiceid || item._id
+          const bId = item.bookingId || item._id
 
-          if (!uniqueInvoices.has(invId)) {
-            uniqueInvoices.add(invId)
+          if (!uniqueBookings.has(bId)) {
+            uniqueBookings.add(bId)
             uniqueDataFiltered.push(item)
           }
         })
@@ -304,16 +343,7 @@ const UserBookings = () => {
   }
 
   const handleApplyDateFilter = () => {
-    const filtered = transactions.filter(t => {
-      const [day, month, year] = t.parkingDate.split('-')
-      const transactionDate = new Date(`${year}-${month}-${day}`)
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-
-      return transactionDate >= start && transactionDate <= end
-    })
-
-    setTransactions(filtered)
+    setIsDateFilterActive(true)
     setDateDialogOpen(false)
   }
 
@@ -322,6 +352,7 @@ const UserBookings = () => {
 
     setStartDate(currentDate)
     setEndDate(currentDate)
+    setIsDateFilterActive(false)
 
     if (session?.user?.id) {
       fetchTransactions(session.user.id)
@@ -860,26 +891,72 @@ const UserBookings = () => {
             </Typography>
           </Box>
           
-          <FormControl size="small" sx={{ minWidth: 280 }}>
+          <FormControl size="small" sx={{ width: { xs: '100%', sm: 320 } }}>
             <InputLabel id="location-select-label">Location / Subunit Filter</InputLabel>
             <Select
               labelId="location-select-label"
               id="location-select"
-              value={selectedSubunit}
+              multiple
+              value={selectedSubunits}
               label="Location / Subunit Filter"
-              onChange={(e) => setSelectedSubunit(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                const valArray = typeof val === 'string' ? val.split(',') : val;
+                if (valArray.includes('all')) {
+                  if (selectedSubunits.length === subunits.length + 1) {
+                    setSelectedSubunits([]);
+                  } else {
+                    setSelectedSubunits(['main', ...subunits.map(s => s.id)]);
+                  }
+                } else {
+                  setSelectedSubunits(valArray);
+                }
+              }}
+              renderValue={(selected) => {
+                let displayText = '';
+                if (selected.length === subunits.length + 1) {
+                  displayText = 'All Locations (Main + Subunits)';
+                } else {
+                  const names = selected.map(val => {
+                    if (val === 'main') return 'Main';
+                    const sub = subunits.find(s => String(s.id) === String(val));
+                    return sub ? sub.name : 'Subunit';
+                  });
+                  displayText = names.join(', ');
+                }
+                return (
+                  <span style={{ 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    whiteSpace: 'nowrap',
+                    flex: 1
+                  }}>
+                    {displayText}
+                  </span>
+                );
+              }}
               sx={{ 
                 borderRadius: '8px', 
                 bgcolor: 'background.paper',
-                '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1 }
+                '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }
               }}
               startAdornment={<i className="ri-map-pin-line text-lg" style={{ color: 'var(--mui-palette-text-secondary)', marginRight: '8px' }} />}
             >
-              <MenuItem value="all">All Locations (Main + Subunits)</MenuItem>
-              <MenuItem value="main">Main Location Only</MenuItem>
+              <MenuItem value="all">
+                <Checkbox 
+                  checked={selectedSubunits.length === subunits.length + 1} 
+                  indeterminate={selectedSubunits.length > 0 && selectedSubunits.length < subunits.length + 1}
+                />
+                <ListItemText primary="Select All" />
+              </MenuItem>
+              <MenuItem value="main">
+                <Checkbox checked={selectedSubunits.includes('main')} />
+                <ListItemText primary="Main Location" />
+              </MenuItem>
               {subunits.map((sub) => (
                 <MenuItem key={sub.id} value={sub.id}>
-                  {sub.name} (Subunit)
+                  <Checkbox checked={selectedSubunits.includes(sub.id)} />
+                  <ListItemText primary={`${sub.name} (Subunit)`} />
                 </MenuItem>
               ))}
             </Select>
@@ -953,7 +1030,9 @@ const UserBookings = () => {
                 <Box>
                   <Typography variant="caption" color="text.secondary" fontWeight="medium">Date Range</Typography>
                   <Typography variant="body2" fontWeight="bold" sx={{ mt: 0.5 }}>
-                    {formatDateForDisplay(startDate)} to {formatDateForDisplay(endDate)}
+                    {isDateFilterActive 
+                      ? `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}` 
+                      : 'All Time'}
                   </Typography>
                 </Box>
               </CardContent>

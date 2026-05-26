@@ -27,7 +27,11 @@ import {
   Stack,
   CircularProgress,
   Snackbar,
-  Alert
+  Alert,
+  MenuItem,
+  Select,
+  FormControl,
+  InputLabel
 } from '@mui/material'
 
 export default function AccountsPage() {
@@ -44,6 +48,8 @@ export default function AccountsPage() {
   const [newMember, setNewMember] = useState({ name: '', mobile: '', password: '' })
   const [submitting, setSubmitting] = useState(false)
   const [notification, setNotification] = useState({ open: false, message: '', type: 'info' })
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingAccount, setEditingAccount] = useState(null)
 
   // Fetch accounts on load
   const fetchAccounts = async () => {
@@ -219,6 +225,60 @@ export default function AccountsPage() {
     }
   }
 
+  const handleOpenEditDialog = (account) => {
+    setEditingAccount({
+      _id: account._id,
+      name: account.accountName || '',
+      mobile: account.mobile || '',
+      password: '',
+      status: account.status || 'active'
+    })
+    setEditDialogOpen(true)
+  }
+
+  const handleUpdateMember = async () => {
+    if (!editingAccount.name) {
+      setNotification({
+        open: true,
+        message: 'Name cannot be empty',
+        type: 'warning'
+      })
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      const payload = {
+        accountName: editingAccount.name,
+        status: editingAccount.status
+      }
+      if (editingAccount.password) {
+        payload.password = editingAccount.password
+      }
+
+      const response = await axios.put(`${API_URL}/vendor/edit-accountant/${editingAccount._id}`, payload)
+
+      if (response.data?.success) {
+        setNotification({
+          open: true,
+          message: 'Accountant details updated successfully',
+          type: 'success'
+        })
+        setEditDialogOpen(false)
+        fetchAccounts()
+      }
+    } catch (error) {
+      console.error('Error updating accountant:', error)
+      setNotification({
+        open: true,
+        message: error.response?.data?.message || 'Failed to update accountant',
+        type: 'error'
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const filteredAccounts = accounts.filter(acc => 
     (acc.accountName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (acc.mobile || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -338,7 +398,7 @@ export default function AccountsPage() {
                       </TableCell>
                       <TableCell>{getStatusChip(row.status)}</TableCell>
                       <TableCell align="right">
-                        <IconButton size="small" color="primary">
+                        <IconButton size="small" color="primary" onClick={() => handleOpenEditDialog(row)}>
                           <i className="ri-edit-box-line" />
                         </IconButton>
                         <IconButton size="small" color="error" onClick={() => handleDelete(row._id)}>
@@ -495,6 +555,75 @@ export default function AccountsPage() {
               </Button>
             </>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Member Dialog */}
+      <Dialog open={editDialogOpen} onClose={() => !submitting && setEditDialogOpen(false)} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: '12px' } }}>
+        <DialogTitle sx={{ fontWeight: 'bold' }}>
+          Edit Accountant Details
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {editingAccount && (
+            <Stack spacing={3} sx={{ mt: 1 }}>
+              <TextField
+                fullWidth
+                label="Mobile Number"
+                value={editingAccount.mobile}
+                variant="outlined"
+                size="small"
+                disabled
+              />
+              <TextField
+                fullWidth
+                label="Accountant Name"
+                placeholder="Name"
+                value={editingAccount.name}
+                onChange={(e) => setEditingAccount({ ...editingAccount, name: e.target.value })}
+                variant="outlined"
+                size="small"
+                disabled={submitting}
+              />
+              <TextField
+                fullWidth
+                label="Password"
+                placeholder="Enter new password (optional)"
+                type="password"
+                value={editingAccount.password}
+                onChange={(e) => setEditingAccount({ ...editingAccount, password: e.target.value })}
+                variant="outlined"
+                size="small"
+                disabled={submitting}
+              />
+              <FormControl size="small" fullWidth>
+                <InputLabel id="edit-status-label">Status</InputLabel>
+                <Select
+                  labelId="edit-status-label"
+                  value={editingAccount.status}
+                  label="Status"
+                  onChange={(e) => setEditingAccount({ ...editingAccount, status: e.target.value })}
+                  disabled={submitting}
+                >
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="inactive">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button onClick={() => setEditDialogOpen(false)} color="secondary" sx={{ textTransform: 'none' }} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpdateMember} 
+            variant="contained" 
+            sx={{ textTransform: 'none', borderRadius: '8px' }} 
+            disabled={submitting}
+            startIcon={submitting ? <CircularProgress size={16} /> : null}
+          >
+            Save Changes
+          </Button>
         </DialogActions>
       </Dialog>
 
