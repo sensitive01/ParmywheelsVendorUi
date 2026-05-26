@@ -811,7 +811,7 @@ const UserBookings = () => {
       align: 'right',
       headerAlign: 'right',
       renderCell: params => (
-        <Typography color='error.main' fontWeight='500'>
+        <Typography color='error.main' fontWeight='500' sx={{ width: '100%', textAlign: 'right' }}>
           - {params.value}
         </Typography>
       )
@@ -823,7 +823,7 @@ const UserBookings = () => {
       align: 'right',
       headerAlign: 'right',
       renderCell: params => (
-        <Typography color='success.main' fontWeight='600'>
+        <Typography color='success.main' fontWeight='600' sx={{ width: '100%', textAlign: 'right' }}>
           {params.value}
         </Typography>
       )
