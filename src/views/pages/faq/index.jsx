@@ -504,18 +504,20 @@ const Dashboard = () => {
               </Box>
               {isPayout && (
                 <>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'error.main' }}>
-                    <Receipt sx={{ mr: 1 }} />
-                    <Typography>
-                      Platform Fee ({PLATFORM_FEE_PERCENTAGE}%): ₹{(Number(transaction.amount) * PLATFORM_FEE_PERCENTAGE / 100).toFixed(2)}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, color: 'success.main' }}>
-                    <AccountBalanceWallet sx={{ mr: 1 }} />
-                    <Typography>
-                      Receivable: ₹{calculatePayout(transaction.amount).toFixed(2)}
-                    </Typography>
-                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, justifyContent: 'space-between', flexWrap: 'nowrap', width: '100%' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
+                        <Receipt sx={{ mr: 1, }} />
+                        <Typography>
+                          Platform Fee ({PLATFORM_FEE_PERCENTAGE}%): ₹{(Number(transaction.amount) * PLATFORM_FEE_PERCENTAGE / 100).toFixed(2)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
+                        <AccountBalanceWallet sx={{ mr: 1 }} />
+                        <Typography>
+                          Receivable: ₹{calculatePayout(transaction.amount).toFixed(2)}
+                        </Typography>
+                      </Box>
+                    </Box>
                 </>
               )}
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
