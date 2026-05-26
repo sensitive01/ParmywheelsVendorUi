@@ -297,9 +297,202 @@ export default function NewBookingPage() {
       }
 
       const endpoint = actionType === 'NOW' ? '/vendor/machinecreatebooking' : '/vendor/vendorcreatebooking'
-      await axios.post(`${API_URL}${endpoint}`, payload)
+      const response = await axios.post(`${API_URL}${endpoint}`, payload)
       
       setSnackbar({ open: true, message: 'Booking created successfully!', severity: 'success' })
+
+      if (actionType === 'PRINT') {
+        const booking = response.data?.booking || {}
+        const bookingId = response.data?.bookingId || booking._id || ''
+        const otp = response.data?.otp || ''
+        const invoiceId = booking.invoiceid || `PMW-${bookingId.slice(-6).toUpperCase()}`
+
+        const htmlContent = `
+          <html>
+            <head>
+              <title>Receipt - ${invoiceId}</title>
+              <style>
+                @page {
+                  size: 80mm auto;
+                  margin: 0;
+                }
+                body {
+                  font-family: 'Courier New', Courier, monospace;
+                  width: 72mm;
+                  margin: 0 auto;
+                  padding: 10px 5px;
+                  font-size: 12px;
+                  line-height: 1.4;
+                  color: #000;
+                }
+                .text-center { text-align: center; }
+                .bold { font-weight: bold; }
+                .header {
+                  margin-bottom: 12px;
+                  border-bottom: 1px dashed #000;
+                  padding-bottom: 8px;
+                }
+                .header h1 {
+                  margin: 0;
+                  font-size: 16px;
+                  text-transform: uppercase;
+                  letter-spacing: 1px;
+                }
+                .header p {
+                  margin: 4px 0 0 0;
+                  font-size: 11px;
+                }
+                .info-table {
+                  width: 100%;
+                  margin-bottom: 10px;
+                  border-collapse: collapse;
+                }
+                .info-table td {
+                  padding: 4px 0;
+                  vertical-align: top;
+                }
+                .info-table td:first-child {
+                  width: 45%;
+                  text-transform: uppercase;
+                  font-size: 10px;
+                }
+                .info-table td:last-child {
+                  width: 55%;
+                  text-align: right;
+                  font-weight: bold;
+                }
+                .divider {
+                  border-top: 1px dashed #000;
+                  margin: 8px 0;
+                }
+                .otp-section {
+                  text-align: center;
+                  margin: 12px 0;
+                  padding: 8px;
+                  border: 1px dashed #000;
+                }
+                .otp-title {
+                  font-size: 10px;
+                  text-transform: uppercase;
+                  margin-bottom: 2px;
+                }
+                .otp-code {
+                  font-size: 20px;
+                  font-weight: bold;
+                  letter-spacing: 2px;
+                }
+                .amount-section {
+                  font-size: 14px;
+                  margin: 12px 0;
+                  padding: 6px 0;
+                  border-top: 1px dashed #000;
+                  border-bottom: 1px dashed #000;
+                  display: flex;
+                  justify-content: space-between;
+                  font-weight: bold;
+                }
+                .footer {
+                  margin-top: 15px;
+                  text-align: center;
+                  font-size: 10px;
+                  border-top: 1px dashed #000;
+                  padding-top: 8px;
+                }
+                @media print {
+                  body {
+                    width: 72mm;
+                  }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="header text-center">
+                <h1>PARK MY WHEELS</h1>
+                <p class="bold">${vendorName || 'Smart Parking Lot'}</p>
+                <p>PARKING RECEIPT</p>
+              </div>
+              <table class="info-table">
+                <tr>
+                  <td>Invoice No:</td>
+                  <td>${invoiceId}</td>
+                </tr>
+                <tr>
+                  <td>Vehicle No:</td>
+                  <td>${payload.vehicleNumber}</td>
+                </tr>
+                <tr>
+                  <td>Vehicle Type:</td>
+                  <td>${payload.vehicleType.toUpperCase()}</td>
+                </tr>
+                <tr>
+                  <td>Date/Time:</td>
+                  <td>${payload.parkingDate} ${payload.parkingTime}</td>
+                </tr>
+                <tr>
+                  <td>Duration Mode:</td>
+                  <td>${payload.sts}</td>
+                </tr>
+                ${payload.personName ? `
+                <tr>
+                  <td>Guest Name:</td>
+                  <td>${payload.personName}</td>
+                </tr>` : ''}
+                ${payload.mobileNumber ? `
+                <tr>
+                  <td>Mobile:</td>
+                  <td>${payload.mobileNumber}</td>
+                </tr>` : ''}
+                <tr>
+                  <td>Payment Type:</td>
+                  <td>${payload.paymentType}</td>
+                </tr>
+                <tr>
+                  <td>Payment Mode:</td>
+                  <td>${payload.paymentMode}</td>
+                </tr>
+              </table>
+
+              <div class="amount-section">
+                <span>TOTAL AMOUNT:</span>
+                <span>₹${payload.amount}</span>
+              </div>
+
+              ${otp ? `
+              <div class="otp-section">
+                <div class="otp-title">Security Check-out OTP</div>
+                <div class="otp-code">${otp}</div>
+              </div>
+              ` : ''}
+
+              <div class="footer text-center">
+                <p class="bold">Thank you for parking with us!</p>
+                <p>Please keep this receipt safe until exit.</p>
+                <p style="margin-top: 5px; font-size: 8px; font-family: sans-serif;">Powered by ParkMyWheels</p>
+              </div>
+
+              <script>
+                window.onload = function() {
+                  window.focus();
+                  setTimeout(function() {
+                    window.print();
+                    setTimeout(function() {
+                      window.close();
+                    }, 500);
+                  }, 500);
+                };
+              </script>
+            </body>
+          </html>
+        `
+
+        const win = window.open('', '_blank')
+        if (win) {
+          win.document.write(htmlContent)
+          win.document.close()
+        } else {
+          setSnackbar({ open: true, message: 'Pop-up blocked! Please allow pop-ups to print receipts.', severity: 'warning' })
+        }
+      }
       
       // Reset form
       setVehicleNumber('')
