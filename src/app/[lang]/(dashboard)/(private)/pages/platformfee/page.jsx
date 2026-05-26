@@ -35,8 +35,11 @@ const VehicleBookingTransactions = () => {
 
   const getCurrentDate = () => {
     const today = new Date()
+    const year = today.getFullYear()
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const day = String(today.getDate()).padStart(2, '0')
 
-    return today.toISOString().split('T')[0]
+    return `${year}-${month}-${day}`
   }
 
   const getDateNDaysAgo = n => {
@@ -44,7 +47,11 @@ const VehicleBookingTransactions = () => {
 
     d.setDate(d.getDate() - n)
 
-    return d.toISOString().split('T')[0]
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+
+    return `${year}-${month}-${day}`
   }
 
   const [startDate, setStartDate] = useState(getDateNDaysAgo(14))
@@ -87,6 +94,65 @@ const VehicleBookingTransactions = () => {
 
   // Decide which date field to use for filtering
   const getItemDate = item => item.parkingDate || item.bookingDate || item.createdAt || null
+
+  const getItemDateTime = item => {
+    if (!item) return 0
+
+    // Prefer exitdate/exittime if completed, or parkedDate/parkedTime, or parkingDate/parkingTime
+    const dateStr = item.exitdate || item.parkedDate || item.parkingDate || item.bookingDate
+    const timeStr = item.exittime || item.parkedTime || item.parkingTime || item.bookingTime
+
+    if (!dateStr) return 0
+
+    try {
+      let year, month, day
+      const dateParts = dateStr.split('-')
+
+      if (dateParts[0].length === 4) {
+        // YYYY-MM-DD
+        year = parseInt(dateParts[0])
+        month = parseInt(dateParts[1])
+        day = parseInt(dateParts[2])
+      } else {
+        // DD-MM-YYYY
+        day = parseInt(dateParts[0])
+        month = parseInt(dateParts[1])
+        year = parseInt(dateParts[2])
+      }
+
+      let hours = 0
+      let minutes = 0
+
+      if (timeStr) {
+        const cleanedTime = String(timeStr).trim()
+        const ampmMatch = cleanedTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+
+        if (ampmMatch) {
+          hours = parseInt(ampmMatch[1], 10)
+          minutes = parseInt(ampmMatch[2], 10)
+
+          const ampm = ampmMatch[3]
+
+          if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) {
+            hours += 12
+          } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
+            hours = 0
+          }
+        } else if (cleanedTime.includes(':')) {
+          const parts = cleanedTime.split(':')
+
+          hours = parseInt(parts[0], 10) || 0
+          minutes = parseInt(parts[1], 10) || 0
+        }
+      }
+
+      return new Date(year, month - 1, day, hours, minutes).getTime()
+    } catch (e) {
+      const d = parseToDate(dateStr)
+
+      return d ? d.getTime() : 0
+    }
+  }
 
   const getTotalReceivable = () => {
     return transactions.reduce((total, transaction) => {
@@ -141,10 +207,10 @@ const VehicleBookingTransactions = () => {
           })
         }
 
-        // Sort newest first using parkingDate -> bookingDate -> createdAt
+        // Sort newest first using parkingDate -> bookingDate -> createdAt (and their times)
         filtered.sort((a, b) => {
-          const ad = parseToDate(getItemDate(a)) || 0
-          const bd = parseToDate(getItemDate(b)) || 0
+          const ad = getItemDateTime(a)
+          const bd = getItemDateTime(b)
 
           return bd - ad
         })

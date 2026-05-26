@@ -263,7 +263,10 @@ export default function ParkingBooking() {
 
   const updateCurrentDateTime = () => {
     const now = new Date()
-    const dateString = now.toISOString().split('T')[0]
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const dateString = `${year}-${month}-${day}`
     const hours = now.getHours().toString().padStart(2, '0')
     const minutes = now.getMinutes().toString().padStart(2, '0')
     const timeString = `${hours}:${minutes}`
@@ -504,7 +507,8 @@ export default function ParkingBooking() {
 
     setParkingDate(selectedDate)
 
-    const today = new Date().toISOString().split('T')[0]
+    const nowVal = new Date()
+    const today = `${nowVal.getFullYear()}-${String(nowVal.getMonth() + 1).padStart(2, '0')}-${String(nowVal.getDate()).padStart(2, '0')}`
 
     if (selectedDate === today) {
       const now = new Date()
@@ -524,9 +528,10 @@ export default function ParkingBooking() {
   const handleParkingTimeChange = e => {
     const selectedTime = e.target.value
 
-    const today = new Date().toISOString().split('T')[0]
+    const nowVal2 = new Date()
+    const today2 = `${nowVal2.getFullYear()}-${String(nowVal2.getMonth() + 1).padStart(2, '0')}-${String(nowVal2.getDate()).padStart(2, '0')}`
 
-    if (parkingDate === today && selectedTime < minTime) {
+    if (parkingDate === today2 && selectedTime < minTime) {
       setAlert({
         show: true,
         message: 'You cannot select a past time',

@@ -145,15 +145,22 @@ export default function NewBookingPage() {
   const [priceChartOpen, setPriceChartOpen] = useState(false)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
 
+  // Helper to format Date to local YYYY-MM-DDTHH:mm
+  const getLocalISOString = (date) => {
+    if (!date) return ''
+    const tzoffset = date.getTimezoneOffset() * 60000
+    return new Date(date.getTime() - tzoffset).toISOString().slice(0, 16)
+  }
+
   // Initialize Date/Time
   useEffect(() => {
     const now = new Date()
-    const formatted = now.toISOString().slice(0, 16)
+    const formatted = getLocalISOString(now)
     setParkingDateTime(formatted)
     
     if (bookingMode === 'Instant') {
       const timer = setInterval(() => {
-        setParkingDateTime(new Date().toISOString().slice(0, 16))
+        setParkingDateTime(getLocalISOString(new Date()))
       }, 60000)
       return () => clearInterval(timer)
     }
@@ -240,7 +247,7 @@ export default function NewBookingPage() {
     setSelectedPass(hours)
     const checkoutDate = new Date(parkingDateTime)
     checkoutDate.setHours(checkoutDate.getHours() + hours)
-    setTentativeCheckout(checkoutDate.toISOString().slice(0, 16))
+    setTentativeCheckout(getLocalISOString(checkoutDate))
   }
 
   const handleSubmit = async (actionType) => {
