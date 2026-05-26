@@ -52,7 +52,7 @@ const HorizontalMenu = ({ dictionary }) => {
   const router = useRouter()
   const { data: session, status } = useSession()
   const vendorId = session?.user?.id
-  const userRole = session?.user?.role || 'vendor'
+  const userRole = session?.user?.role || (typeof window !== 'undefined' && localStorage.getItem('role')) || 'vendor'
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false)
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -119,6 +119,7 @@ const HorizontalMenu = ({ dictionary }) => {
             <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
               {dictionary['navigation'].SubscriptionBooking}
             </MenuItem>
+            <MenuItem href={`/${locale}/pages/transactions`}>{dictionary['navigation'].Transactions}</MenuItem>
           </SubMenu>
         ) : (
           <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>

@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+
+import { useSearchParams } from 'next/navigation'
+
 import axios from 'axios'
 import {
   Box,
@@ -27,7 +30,6 @@ import {
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DataGrid } from '@mui/x-data-grid'
 import { useSession } from 'next-auth/react'
-import { useSearchParams } from 'next/navigation'
 
 const UserBookings = () => {
   const { data: session, status } = useSession()
@@ -123,6 +125,7 @@ const UserBookings = () => {
       if (status === 'authenticated' && session?.user?.id) {
         try {
           const response = await axios.get(`${API_URL}/vendor/subunits/${session.user.id}`)
+
           if (response.data?.success) {
             setSubunits(response.data.data || [])
           }
@@ -131,7 +134,9 @@ const UserBookings = () => {
         }
       }
     }
+
     fetchSubunitsList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session])
 
   // Fetch transactions when vendor session or selected location changes
@@ -145,6 +150,7 @@ const UserBookings = () => {
         severity: 'warning'
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session, selectedSubunit])
 
   const fetchTransactions = async userId => {
@@ -152,6 +158,7 @@ const UserBookings = () => {
 
     try {
       const params = {}
+
       if (selectedSubunit === 'all') {
         params.includeSubunits = 'true'
       } else if (selectedSubunit !== 'main') {
@@ -184,6 +191,16 @@ const UserBookings = () => {
           }
         })
 
+        const getSubunitName = (vId) => {
+          if (String(vId) === String(userId)) {
+            return session?.user?.name || 'Main Location'
+          }
+
+          const sub = subunits.find(s => String(s.id) === String(vId))
+
+          return sub ? sub.name : 'Subunit'
+        }
+
         const data = uniqueDataFiltered.map((item, index) => ({
           id: item._id,
           serialNo: index + 1,
@@ -200,7 +217,9 @@ const UserBookings = () => {
           payableAmount: `₹${item.payableamout === 'NaN' ? item.amount : item.payableamout}`,
           vehicleNumber: item.vehicleNumber || item.vehiclenumber || 'N/A',
           gstAmount: `₹${item.gstamout || '0.00'}`,
-          totalAmount: `₹${item.totalamout || item.amount}`
+          totalAmount: `₹${item.totalamout || item.amount}`,
+          status: (item.status || 'PENDING').toUpperCase(),
+          subunitName: getSubunitName(item.vendorid || item.vendorId || userId)
         }))
 
         setTransactions(data)
@@ -241,9 +260,11 @@ const UserBookings = () => {
 
     setStartDate(currentDate)
     setEndDate(currentDate)
+
     if (session?.user?.id) {
       fetchTransactions(session.user.id)
     }
+
     setDateDialogOpen(false)
   }
 
@@ -266,43 +287,233 @@ const UserBookings = () => {
       return
     }
 
-    // Create CSV content based on rows
-    const headers = [
-      'S.No',
-      'Booking ID',
-      'Vehicle Number',
-      'Date',
-      'Time',
-      'Charges',
-      ...(bookingTypeFilter === 'user' ? ['GST Amount', 'Handling Fee'] : []),
-      'Platform Fee',
-      'Receivable Amount',
-      'Total Amount'
-    ]
+    const cleanAmount = val => {
+      if (typeof val === 'number') return val
+      if (!val) return 0
 
-    const rows = filteredTransactions.map(t => {
-      const row = [t.serialNo, t.bookingId, t.vehicleNumber, t.parkingDate, t.parkingTime, t.bookingAmount]
+      return parseFloat(val.toString().replace(/[₹\s,]/g, '')) || 0
+    }
 
-      if (bookingTypeFilter === 'user') {
-        row.push(t.gstAmount)
-        row.push(t.handlingFee)
-      }
+    // 1. Grouping by Subunit and Status for Summary
+    const grouping = {} // { [subunit]: { [status]: { count, amount } } }
+    let grandTotalCount = 0
+    let grandTotalAmount = 0
 
-      row.push(`-${t.releaseFee}`) // Platform fee as negative
-      row.push(t.receivable)
-      row.push(t.totalAmount)
+    filteredTransactions.forEach(t => {
+      const sub = t.subunitName || 'Main Location'
+      const status = t.status || 'PENDING'
+      const amount = cleanAmount(t.totalAmount)
 
-      return row
+      if (!grouping[sub]) grouping[sub] = {}
+      if (!grouping[sub][status]) grouping[sub][status] = { count: 0, amount: 0 }
+      grouping[sub][status].count += 1
+      grouping[sub][status].amount += amount
+
+      grandTotalCount += 1
+      grandTotalAmount += amount
     })
 
-    let csvContent =
-      'data:text/csv;charset=utf-8,' + headers.join(',') + '\n' + rows.map(row => row.join(',')).join('\n')
+    // Construct Summary Sheet rows
+    const summaryRows = [
+      // Headers
+      [
+        { value: 'Subunit/Location', type: 'String', styleId: 'Header' },
+        { value: 'Status', type: 'String', styleId: 'Header' },
+        { value: 'Total Bookings (Completed/Other)', type: 'String', styleId: 'Header' },
+        { value: 'Total Amount', type: 'String', styleId: 'Header' }
+      ]
+    ]
 
-    const encodedUri = encodeURI(csvContent)
+    Object.keys(grouping).forEach(sub => {
+      Object.keys(grouping[sub]).forEach(status => {
+        const item = grouping[sub][status]
+
+        summaryRows.push([
+          { value: sub, type: 'String' },
+          { value: status, type: 'String' },
+          { value: item.count, type: 'Number' },
+          { value: item.amount.toFixed(2), type: 'Number' }
+        ])
+      })
+    })
+
+    // Add Grand Total row for summary
+    summaryRows.push([
+      { value: 'Grand Total', type: 'String', styleId: 'BoldText' },
+      { value: '', type: 'String' },
+      { value: grandTotalCount, type: 'Number', styleId: 'BoldText' },
+      { value: grandTotalAmount.toFixed(2), type: 'Number', styleId: 'BoldText' }
+    ])
+
+    const sheets = [
+      { name: 'Summary', rows: summaryRows }
+    ]
+
+    // 2. Generate sheets for each status
+    const uniqueStatuses = [...new Set(filteredTransactions.map(t => t.status || 'PENDING'))]
+
+    uniqueStatuses.forEach(statusName => {
+      const statusBookings = filteredTransactions.filter(t => t.status === statusName)
+      const rows = []
+
+      // Headers for detail sheet
+      const detailHeaders = [
+        { value: 'S.No', type: 'String', styleId: 'Header' },
+        { value: 'Booking ID', type: 'String', styleId: 'Header' },
+        { value: 'Subunit/Location', type: 'String', styleId: 'Header' },
+        { value: 'Vehicle Number', type: 'String', styleId: 'Header' },
+        { value: 'Date', type: 'String', styleId: 'Header' },
+        { value: 'Time', type: 'String', styleId: 'Header' },
+        { value: 'Charges', type: 'String', styleId: 'Header' }
+      ]
+
+      if (bookingTypeFilter === 'user') {
+        detailHeaders.push({ value: 'GST Amount', type: 'String', styleId: 'Header' })
+        detailHeaders.push({ value: 'Handling Fee', type: 'String', styleId: 'Header' })
+      }
+
+      detailHeaders.push(
+        { value: 'Platform Fee', type: 'String', styleId: 'Header' },
+        { value: 'Receivable Amount', type: 'String', styleId: 'Header' },
+        { value: 'Total Amount', type: 'String', styleId: 'Header' }
+      )
+
+      rows.push(detailHeaders)
+
+      // Detail rows & Sum Accumulators
+      let totalCharges = 0
+      let totalGst = 0
+      let totalHandling = 0
+      let totalPlatform = 0
+      let totalReceivable = 0
+      let totalAmount = 0
+
+      statusBookings.forEach((t, index) => {
+        const charges = cleanAmount(t.bookingAmount)
+        const gst = cleanAmount(t.gstAmount)
+        const handling = cleanAmount(t.handlingFee)
+        const platform = cleanAmount(t.releaseFee)
+        const receivable = cleanAmount(t.receivable)
+        const amt = cleanAmount(t.totalAmount)
+
+        totalCharges += charges
+        totalGst += gst
+        totalHandling += handling
+        totalPlatform += platform
+        totalReceivable += receivable
+        totalAmount += amt
+
+        const r = [
+          { value: index + 1, type: 'Number' },
+          { value: t.bookingId, type: 'String' },
+          { value: t.subunitName || 'Main Location', type: 'String' },
+          { value: t.vehicleNumber, type: 'String' },
+          { value: t.parkingDate, type: 'String' },
+          { value: t.parkingTime, type: 'String' },
+          { value: charges.toFixed(2), type: 'Number' }
+        ]
+
+        if (bookingTypeFilter === 'user') {
+          r.push({ value: gst.toFixed(2), type: 'Number' })
+          r.push({ value: handling.toFixed(2), type: 'Number' })
+        }
+
+        r.push(
+          { value: `-${platform.toFixed(2)}`, type: 'Number' },
+          { value: receivable.toFixed(2), type: 'Number' },
+          { value: amt.toFixed(2), type: 'Number' }
+        )
+
+        rows.push(r)
+      })
+
+      // Auto-Sum / Total row for this status
+      const totalRow = [
+        { value: 'Total', type: 'String', styleId: 'SubHeader' },
+        { value: '', type: 'String', styleId: 'SubHeader' },
+        { value: '', type: 'String', styleId: 'SubHeader' },
+        { value: '', type: 'String', styleId: 'SubHeader' },
+        { value: '', type: 'String', styleId: 'SubHeader' },
+        { value: '', type: 'String', styleId: 'SubHeader' },
+        { value: totalCharges.toFixed(2), type: 'Number', styleId: 'SubHeader' }
+      ]
+
+      if (bookingTypeFilter === 'user') {
+        totalRow.push({ value: totalGst.toFixed(2), type: 'Number', styleId: 'SubHeader' })
+        totalRow.push({ value: totalHandling.toFixed(2), type: 'Number', styleId: 'SubHeader' })
+      }
+
+      totalRow.push(
+        { value: `-${totalPlatform.toFixed(2)}`, type: 'Number', styleId: 'SubHeader' },
+        { value: totalReceivable.toFixed(2), type: 'Number', styleId: 'SubHeader' },
+        { value: totalAmount.toFixed(2), type: 'Number', styleId: 'SubHeader' }
+      )
+
+      rows.push(totalRow)
+
+      sheets.push({
+        name: statusName,
+        rows
+      })
+    })
+
+    // Generate Excel SpreadsheetML XML
+    let xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Bottom"/>
+   <Borders/>
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#000000"/>
+   <Interior/>
+   <NumberFormat/>
+   <Protection/>
+  </Style>
+  <Style ss:ID="Header">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#FFFFFF" ss:Bold="1"/>
+   <Interior ss:Color="#22C55E" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="SubHeader">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Color="#000000" ss:Bold="1"/>
+   <Interior ss:Color="#E2E8F0" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="BoldText">
+   <Font ss:FontName="Calibri" x:Family="Swiss" ss:Size="11" ss:Bold="1"/>
+  </Style>
+ </Styles>`
+
+    sheets.forEach(sheet => {
+      xml += `\n <Worksheet ss:Name="${sheet.name.substring(0, 31)}">`
+      xml += `\n  <Table>`
+
+      sheet.rows.forEach(row => {
+        xml += `\n   <Row>`
+        row.forEach(cell => {
+          const type = cell.type || 'String'
+          const style = cell.styleId ? ` ss:StyleID="${cell.styleId}"` : ''
+
+          xml += `<Cell${style}><Data ss:Type="${type}">${cell.value}</Data></Cell>`
+        })
+        xml += `</Row>`
+      })
+
+      xml += `\n  </Table>`
+      xml += `\n </Worksheet>`
+    })
+
+    xml += `\n</Workbook>`
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
 
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `transactions_${bookingTypeFilter}_${startDate}_to_${endDate}.csv`)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `transactions_report_${bookingTypeFilter}_${startDate}_to_${endDate}.xls`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -321,62 +532,185 @@ const UserBookings = () => {
       return
     }
 
-    // Create a simple HTML table for PDF
+    const cleanAmount = val => {
+      if (typeof val === 'number') return val
+      if (!val) return 0
+
+      return parseFloat(val.toString().replace(/[₹\s,]/g, '')) || 0
+    }
+
+    // 1. Grouping by Subunit and Status for Summary Table
+    const grouping = {} // { [subunit]: { [status]: { count, amount } } }
+    let grandTotalCount = 0
+    let grandTotalAmount = 0
+
+    filteredTransactions.forEach(t => {
+      const sub = t.subunitName || 'Main Location'
+      const status = t.status || 'PENDING'
+      const amount = cleanAmount(t.totalAmount)
+
+      if (!grouping[sub]) grouping[sub] = {}
+      if (!grouping[sub][status]) grouping[sub][status] = { count: 0, amount: 0 }
+      grouping[sub][status].count += 1
+      grouping[sub][status].amount += amount
+
+      grandTotalCount += 1
+      grandTotalAmount += amount
+    })
+
+    // Construct Summary Table HTML
+    let summaryHtml = `
+      <h3>Location & Status Group Summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Subunit/Location</th>
+            <th>Booking Status</th>
+            <th style="text-align: right;">Total Bookings</th>
+            <th style="text-align: right;">Total Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+    `
+
+    Object.keys(grouping).forEach(sub => {
+      Object.keys(grouping[sub]).forEach(status => {
+        const item = grouping[sub][status]
+
+        summaryHtml += `
+          <tr>
+            <td>${sub}</td>
+            <td><span class="badge badge-${status.toLowerCase()}">${status}</span></td>
+            <td style="text-align: right;">${item.count}</td>
+            <td style="text-align: right;">₹${item.amount.toFixed(2)}</td>
+          </tr>
+        `
+      })
+    })
+
+    summaryHtml += `
+          <tr class="total-row">
+            <td>Grand Total</td>
+            <td></td>
+            <td style="text-align: right;">${grandTotalCount}</td>
+            <td style="text-align: right;">₹${grandTotalAmount.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="page-break-after: always;"></div>
+    `
+
+    // 2. Detailed Bookings Grouped by Status
+    const uniqueStatuses = [...new Set(filteredTransactions.map(t => t.status || 'PENDING'))]
+    let detailedHtml = ''
+
+    uniqueStatuses.forEach(statusName => {
+      const statusBookings = filteredTransactions.filter(t => t.status === statusName)
+
+      let totalCharges = 0
+      let totalGst = 0
+      let totalHandling = 0
+      let totalPlatform = 0
+      let totalReceivable = 0
+      let totalAmount = 0
+
+      detailedHtml += `
+        <h3>Status: ${statusName} (${statusBookings.length} Bookings)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>S.No</th>
+              <th>Booking ID</th>
+              <th>Location</th>
+              <th>Vehicle Number</th>
+              <th>Date / Time</th>
+              <th style="text-align: right;">Charges</th>
+              ${bookingTypeFilter === 'user' ? '<th style="text-align: right;">GST</th><th style="text-align: right;">Handling</th>' : ''}
+              <th style="text-align: right;">Platform Fee</th>
+              <th style="text-align: right;">Receivable</th>
+              <th style="text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+      `
+
+      statusBookings.forEach((t, index) => {
+        const charges = cleanAmount(t.bookingAmount)
+        const gst = cleanAmount(t.gstAmount)
+        const handling = cleanAmount(t.handlingFee)
+        const platform = cleanAmount(t.releaseFee)
+        const receivable = cleanAmount(t.receivable)
+        const amt = cleanAmount(t.totalAmount)
+
+        totalCharges += charges
+        totalGst += gst
+        totalHandling += handling
+        totalPlatform += platform
+        totalReceivable += receivable
+        totalAmount += amt
+
+        detailedHtml += `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${t.bookingId}</td>
+            <td>${t.subunitName || 'Main Location'}</td>
+            <td>${t.vehicleNumber}</td>
+            <td>${t.parkingDate} ${t.parkingTime}</td>
+            <td style="text-align: right;">₹${charges.toFixed(2)}</td>
+            ${bookingTypeFilter === 'user' ? `<td style="text-align: right;">₹${gst.toFixed(2)}</td><td style="text-align: right;">₹${handling.toFixed(2)}</td>` : ''}
+            <td style="text-align: right; color: #ff4d49;">- ₹${platform.toFixed(2)}</td>
+            <td style="text-align: right; color: #22c55e;">₹${receivable.toFixed(2)}</td>
+            <td style="text-align: right; font-weight: bold;">₹${amt.toFixed(2)}</td>
+          </tr>
+        `
+      })
+
+      detailedHtml += `
+            <tr class="total-row">
+              <td>Total</td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td style="text-align: right;">₹${totalCharges.toFixed(2)}</td>
+              ${bookingTypeFilter === 'user' ? `<td style="text-align: right;">₹${totalGst.toFixed(2)}</td><td style="text-align: right;">₹${totalHandling.toFixed(2)}</td>` : ''}
+              <td style="text-align: right;">- ₹${totalPlatform.toFixed(2)}</td>
+              <td style="text-align: right;">₹${totalReceivable.toFixed(2)}</td>
+              <td style="text-align: right;">₹${totalAmount.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+        <br/><br/>
+      `
+    })
+
     const htmlContent = `
       <html>
         <head>
-          <title>Transactions Report</title>
+          <title>${bookingTypeFilter === 'user' ? 'User' : 'Vendor'} Bookings Transactions Report</title>
           <style>
-            table { border-collapse: collapse; width: 100%; font-size: 10px; }
-            th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-            th { background-color: #f2f2f2; }
-            .title { text-align: center; margin-bottom: 20px; }
-            .date-range { margin-bottom: 20px; }
-            .total { margin-top: 20px; font-weight: bold; }
-            .negative { color: #ff4d49; }
-            .positive { color: #22c55e; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; margin: 20px; }
+            h1 { text-align: center; color: #1e293b; margin-bottom: 5px; }
+            h3 { color: #1e293b; border-bottom: 2px solid #22c55e; padding-bottom: 6px; margin-top: 30px; }
+            .date-range { text-align: center; color: #64748b; font-size: 14px; margin-bottom: 30px; }
+            table { border-collapse: collapse; width: 100%; font-size: 11px; margin-bottom: 10px; }
+            th, td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; }
+            th { background-color: #f8fafc; color: #475569; font-weight: 600; }
+            .total-row { background-color: #f1f5f9; font-weight: bold; }
+            .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
+            .badge-completed { background-color: #dcfce7; color: #16a34a; }
+            .badge-pending { background-color: #fef9c3; color: #ca8a04; }
+            .badge-approved { background-color: #dbeafe; color: #2563eb; }
+            .badge-parked { background-color: #f3e8ff; color: #9333ea; }
+            .badge-cancelled { background-color: #fee2e2; color: #dc2626; }
           </style>
         </head>
         <body>
-          <h1 class="title">${bookingTypeFilter === 'user' ? 'User' : 'Vendor'} Booking Transactions Report</h1>
+          <h1>${bookingTypeFilter === 'user' ? 'User' : 'Vendor'} Bookings Transactions Report</h1>
           <div class="date-range">Date Range: ${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}</div>
-          <table>
-            <thead>
-              <tr>
-                <th>S.No</th>
-                <th>Booking ID</th>
-                <th>Vehicle Number</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Charges</th>
-                ${bookingTypeFilter === 'user' ? '<th>GST</th><th>Handling Fee</th>' : ''}
-                <th>Platform Fee</th>
-                <th>Receivable</th>
-                <th>Total Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredTransactions
-                .map(
-                  t => `
-                <tr>
-                  <td>${t.serialNo}</td>
-                  <td>${t.bookingId}</td>
-                  <td>${t.vehicleNumber}</td>
-                  <td>${t.parkingDate}</td>
-                  <td>${t.parkingTime}</td>
-                  <td>${t.bookingAmount}</td>
-                  ${bookingTypeFilter === 'user' ? `<td>${t.gstAmount}</td><td>${t.handlingFee}</td>` : ''}
-                  <td class="negative">- ${t.releaseFee}</td>
-                  <td class="positive">${t.receivable}</td>
-                  <td><b>${t.totalAmount}</b></td>
-                </tr>
-              `
-                )
-                .join('')}
-            </tbody>
-          </table>
-          <div class="total">Total Receivable: ₹${getTotalReceivable().toFixed(2)}</div>
+          
+          ${summaryHtml}
+          ${detailedHtml}
         </body>
       </html>
     `
