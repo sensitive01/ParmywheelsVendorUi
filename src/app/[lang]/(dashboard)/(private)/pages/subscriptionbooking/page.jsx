@@ -459,6 +459,12 @@ const OrderListTable = ({ orderData }) => {
       setDeleteDialogOpen(false)
       setBookingToDelete(null)
 
+      // Clear vehicle/slots count cache and dispatch delete event
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('pmw_vendor_slots_cache')
+        window.dispatchEvent(new Event('booking-deleted'))
+      }
+
       // Re-fetch data silently from server to ensure synchronized state
       fetchData(true)
     } catch (error) {

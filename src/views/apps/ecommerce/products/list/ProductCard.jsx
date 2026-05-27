@@ -65,7 +65,7 @@ const OrderCard = ({ }) => {
         if (!Array.isArray(bookings)) {
           console.error('Expected an array but got:', bookings)
           
-return
+          return
         }
 
         const counts = {
@@ -98,8 +98,18 @@ return
       }
     }
 
-    if (vendorId) fetchBookings()
-  }, [vendorId])
+    fetchBookings()
+
+    // Listen for custom delete events to refetch booking count immediately
+    const handleBookingDeleted = () => {
+      fetchBookings()
+    }
+    window.addEventListener('booking-deleted', handleBookingDeleted)
+
+    return () => {
+      window.removeEventListener('booking-deleted', handleBookingDeleted)
+    }
+  }, [vendorId, API_URL])
 
 
   // Data structure for UI display

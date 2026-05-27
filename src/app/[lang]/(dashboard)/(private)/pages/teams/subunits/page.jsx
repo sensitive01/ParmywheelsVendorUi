@@ -308,29 +308,85 @@ export default function SubunitsPage() {
                       sx={{ 
                         display: 'flex', 
                         justifyContent: 'space-between', 
-                        bgcolor: 'action.hover', 
+                        bgcolor: 'rgba(76, 175, 80, 0.06)', 
                         p: 2, 
                         borderRadius: '8px',
-                        border: '1px solid',
-                        borderColor: 'divider'
+                        border: '1px solid rgba(76, 175, 80, 0.15)',
+                        mb: 3
                       }}
                     >
                       <Box>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Total Bookings
+                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }} display="block">
+                          Completed Bookings
                         </Typography>
-                        <Typography variant="body2" fontWeight="bold">
-                          {sub.totalBookings || 0} Bookings
+                        <Typography variant="body2" fontWeight="bold" sx={{ color: '#2e7d32' }}>
+                          {sub.completedBookings || 0} Bookings
                         </Typography>
                       </Box>
                       <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Total Revenue
+                        <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }} display="block">
+                          Completed Revenue
                         </Typography>
-                        <Typography variant="body2" fontWeight="bold" color="primary.main">
-                          ₹{sub.totalAmount || 0}
+                        <Typography variant="body2" fontWeight="bold" sx={{ color: '#2e7d32' }}>
+                          ₹{parseFloat(sub.completedAmount || 0).toFixed(2)}
                         </Typography>
                       </Box>
+                    </Box>
+
+                    <Grid container spacing={2} sx={{ mb: 2 }}>
+                      <Grid item xs={6}>
+                        <Box sx={{ p: 1.5, borderRadius: '8px', border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '6px', bgcolor: 'rgba(3, 169, 244, 0.12)', color: '#03a9f4', flexShrink: 0 }}>
+                            <i className="ri-parking-box-line" style={{ fontSize: '15px' }} />
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap>Parked</Typography>
+                            <Typography variant="body2" fontWeight="bold" noWrap>{sub.parkedBookings || 0} (₹{parseInt(sub.parkedAmount || 0)})</Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Box sx={{ p: 1.5, borderRadius: '8px', border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '6px', bgcolor: 'rgba(255, 152, 0, 0.12)', color: '#ff9800', flexShrink: 0 }}>
+                            <i className="ri-time-line" style={{ fontSize: '15px' }} />
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap>Pending</Typography>
+                            <Typography variant="body2" fontWeight="bold" noWrap>{sub.pendingBookings || 0} (₹{parseInt(sub.pendingAmount || 0)})</Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Box sx={{ p: 1.5, borderRadius: '8px', border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '6px', bgcolor: 'rgba(102, 108, 255, 0.12)', color: '#666cff', flexShrink: 0 }}>
+                            <i className="ri-thumb-up-line" style={{ fontSize: '15px' }} />
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap>Approved</Typography>
+                            <Typography variant="body2" fontWeight="bold" noWrap>{sub.approvedBookings || 0} (₹{parseInt(sub.approvedAmount || 0)})</Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Box sx={{ p: 1.5, borderRadius: '8px', border: '1px dashed', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: '6px', bgcolor: 'rgba(244, 67, 54, 0.12)', color: '#f44336', flexShrink: 0 }}>
+                            <i className="ri-close-circle-line" style={{ fontSize: '15px' }} />
+                          </Box>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap>Cancelled</Typography>
+                            <Typography variant="body2" fontWeight="bold" noWrap>{sub.cancelledBookings || 0}</Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    </Grid>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.5, mt: 2 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Total: <strong>{sub.totalBookings || 0}</strong> bookings
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Total Value: <strong>₹{parseFloat(sub.totalAmount || 0).toFixed(0)}</strong>
+                      </Typography>
                     </Box>
                   </CardContent>
 

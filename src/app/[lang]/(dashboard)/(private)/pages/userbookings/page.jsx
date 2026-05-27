@@ -27,7 +27,9 @@ import {
   Container,
   CircularProgress,
   Checkbox,
-  ListItemText
+  ListItemText,
+  IconButton,
+  Chip
 } from '@mui/material'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import { DataGrid } from '@mui/x-data-grid'
@@ -39,6 +41,8 @@ const UserBookings = () => {
   const urlSubunitId = searchParams?.get('subunitId')
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.parkmywheels.com'
 
+  const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
+
   const [transactions, setTransactions] = useState([])
   const [subunits, setSubunits] = useState([])
   const [selectedSubunits, setSelectedSubunits] = useState(urlSubunitId ? [urlSubunitId] : ['main'])
@@ -47,7 +51,12 @@ const UserBookings = () => {
   const [isDateFilterActive, setIsDateFilterActive] = useState(false)
   const [anchorEl, setAnchorEl] = useState(null)
   const [bookingTypeFilter, setBookingTypeFilter] = useState('user')
+  const [statusFilter, setStatusFilter] = useState(['parked'])
   const open = Boolean(anchorEl)
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [selectedBookingForDelete, setSelectedBookingForDelete] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const getCurrentDate = () => {
     const today = new Date()
@@ -172,6 +181,15 @@ const UserBookings = () => {
       if (isVendorCreated) return false
     } else {
       if (!isVendorCreated) return false
+    }
+
+    if (statusFilter && statusFilter.length > 0) {
+      const itemStatus = (item.status || '').toLowerCase()
+      if (!statusFilter.includes(itemStatus)) {
+        return false
+      }
+    } else {
+      return false
     }
 
     if (isDateFilterActive) {
@@ -304,6 +322,7 @@ const UserBookings = () => {
 
         const data = uniqueDataFiltered.map((item, index) => ({
           id: item._id,
+          realBookingId: item.bookingId || item._id,
           serialNo: index + 1,
           bookingId: item.invoiceid || item._id,
           userid: item.userid,
@@ -339,6 +358,52 @@ const UserBookings = () => {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDeleteClick = (booking) => {
+    setSelectedBookingForDelete(booking)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!selectedBookingForDelete) return
+    setIsDeleting(true)
+    try {
+      const response = await axios.delete(`${API_URL}/vendor/deletebooking/${selectedBookingForDelete.realBookingId}`)
+      if (response.status === 200 || response.data?.success) {
+        setSnackbar({
+          open: true,
+          message: 'Booking deleted successfully',
+          severity: 'success'
+        })
+
+        // Clear vehicle/slots count cache and dispatch delete event
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('pmw_vendor_slots_cache')
+          window.dispatchEvent(new Event('booking-deleted'))
+        }
+
+        if (session?.user?.id) {
+          fetchTransactions(session.user.id)
+        }
+      } else {
+        setSnackbar({
+          open: true,
+          message: 'Failed to delete booking: ' + (response.data?.message || 'Unknown error'),
+          severity: 'error'
+        })
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error deleting booking: ' + error.message,
+        severity: 'error'
+      })
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
+      setSelectedBookingForDelete(null)
     }
   }
 
@@ -828,6 +893,31 @@ const UserBookings = () => {
     { field: 'vehicleNumber', headerName: 'Vehicle Number', width: 140 },
     { field: 'parkingDate', headerName: 'Date', width: 120 },
     { field: 'parkingTime', headerName: 'Time', width: 100 },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 130,
+      renderCell: params => {
+        const status = (params.value || 'PENDING').toLowerCase()
+        let color = 'default'
+
+        if (status === 'completed') color = 'success'
+        else if (status === 'parked') color = 'primary'
+        else if (status === 'pending') color = 'warning'
+        else if (status === 'approved') color = 'info'
+        else if (status === 'cancelled') color = 'error'
+
+        return (
+          <Chip
+            label={status.toUpperCase()}
+            color={color}
+            size='small'
+            variant='tonal'
+            sx={{ fontWeight: 600, borderRadius: '6px' }}
+          />
+        )
+      }
+    },
     { field: 'bookingAmount', headerName: 'Charges', width: 100, align: 'right', headerAlign: 'right' },
     ...(bookingTypeFilter === 'user'
       ? [
@@ -859,7 +949,26 @@ const UserBookings = () => {
         </Typography>
       )
     },
-    { field: 'totalAmount', headerName: 'Total Amount', width: 120, align: 'right', headerAlign: 'right' }
+    { field: 'totalAmount', headerName: 'Total Amount', width: 120, align: 'right', headerAlign: 'right' },
+    ...(!isAccountant
+      ? [
+          {
+            field: 'actions',
+            headerName: 'Actions',
+            width: 100,
+            sortable: false,
+            renderCell: params => (
+              <IconButton
+                size='small'
+                color='error'
+                onClick={() => handleDeleteClick(params.row)}
+              >
+                <i className='ri-delete-bin-7-line' />
+              </IconButton>
+            )
+          }
+        ]
+      : [])
   ]
 
   return (
@@ -1091,7 +1200,75 @@ const UserBookings = () => {
               </Box>
 
               {/* Action Buttons */}
-              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel id="status-select-label">Status Filter</InputLabel>
+                  <Select
+                    labelId="status-select-label"
+                    id="status-select"
+                    multiple
+                    value={statusFilter}
+                    label="Status Filter"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const valArray = typeof val === 'string' ? val.split(',') : val;
+                      const allOptions = ['parked', 'completed', 'pending', 'approved', 'cancelled'];
+                      if (valArray.includes('all')) {
+                        if (statusFilter.length === allOptions.length) {
+                          setStatusFilter([]);
+                        } else {
+                          setStatusFilter(allOptions);
+                        }
+                      } else {
+                        setStatusFilter(valArray);
+                      }
+                    }}
+                    renderValue={(selected) => {
+                      const allOptions = ['parked', 'completed', 'pending', 'approved', 'cancelled'];
+                      if (selected.length === allOptions.length) {
+                        return 'All Statuses';
+                      }
+                      if (selected.length === 0) {
+                        return 'None Selected';
+                      }
+                      return selected.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ');
+                    }}
+                    sx={{ 
+                      borderRadius: '8px', 
+                      bgcolor: 'background.paper',
+                      '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }
+                    }}
+                  >
+                    <MenuItem value="all">
+                      <Checkbox
+                        checked={statusFilter.length === 5}
+                        indeterminate={statusFilter.length > 0 && statusFilter.length < 5}
+                      />
+                      <ListItemText primary="Select All" />
+                    </MenuItem>
+                    <MenuItem value="parked">
+                      <Checkbox checked={statusFilter.includes('parked')} />
+                      <ListItemText primary="Parked" />
+                    </MenuItem>
+                    <MenuItem value="completed">
+                      <Checkbox checked={statusFilter.includes('completed')} />
+                      <ListItemText primary="Completed" />
+                    </MenuItem>
+                    <MenuItem value="pending">
+                      <Checkbox checked={statusFilter.includes('pending')} />
+                      <ListItemText primary="Pending" />
+                    </MenuItem>
+                    <MenuItem value="approved">
+                      <Checkbox checked={statusFilter.includes('approved')} />
+                      <ListItemText primary="Approved" />
+                    </MenuItem>
+                    <MenuItem value="cancelled">
+                      <Checkbox checked={statusFilter.includes('cancelled')} />
+                      <ListItemText primary="Cancelled" />
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+
                 <Button
                   variant='outlined'
                   color="secondary"
@@ -1177,6 +1354,23 @@ const UserBookings = () => {
           </Button>
           <Button onClick={handleApplyDateFilter} color='primary' variant='contained'>
             Apply
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={() => !isDeleting && setDeleteDialogOpen(false)}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the booking/transaction with ID <strong>{selectedBookingForDelete?.bookingId}</strong>? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color='secondary' disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color='error' variant='contained' disabled={isDeleting}>
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -383,6 +383,12 @@ const OrderListTable = ({ orderData }) => {
       setDeleteDialogOpen(false)
       setBookingToDelete(null)
 
+      // Clear vehicle/slots count cache and dispatch delete event
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('pmw_vendor_slots_cache')
+        window.dispatchEvent(new Event('booking-deleted'))
+      }
+
       // Re-fetch data silently from server to ensure synchronized state
       fetchData(true)
     } catch (error) {
@@ -649,7 +655,9 @@ const OrderListTable = ({ orderData }) => {
 
   const columns = useMemo(
     () => {
-      const isAccountant = session?.user?.role === 'accountant'
+      const isAccountant =
+        session?.user?.role === 'accountant' ||
+        (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
       const cols = [
       {
         id: 'select',
@@ -1177,7 +1185,7 @@ const OrderListTable = ({ orderData }) => {
                     }
                   }
                 },
-                {
+                ...(!isAccountant ? [{
                   text: 'Delete',
                   icon: 'ri-delete-bin-7-line',
                   menuItemProps: {
@@ -1187,7 +1195,7 @@ const OrderListTable = ({ orderData }) => {
                     },
                     sx: { color: 'error.main', '& i, & .MuiTypography-root': { color: 'error.main' } }
                   }
-                }
+                }] : [])
               ]}
             />
           </div>

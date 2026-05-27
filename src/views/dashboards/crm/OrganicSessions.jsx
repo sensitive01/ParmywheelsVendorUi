@@ -121,6 +121,16 @@ const OrganicSessions = () => {
     }
 
     fetchData()
+
+    // Listen for custom delete events to refetch slots count immediately
+    const handleBookingDeleted = () => {
+      fetchData()
+    }
+    window.addEventListener('booking-deleted', handleBookingDeleted)
+
+    return () => {
+      window.removeEventListener('booking-deleted', handleBookingDeleted)
+    }
   }, [session, API_URL])
 
   const currentSeries = [
