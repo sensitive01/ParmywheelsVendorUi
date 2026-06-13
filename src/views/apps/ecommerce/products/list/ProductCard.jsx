@@ -26,6 +26,7 @@ const OrderCard = ({ }) => {
 
 
   // State to store booking counts
+  const [bookingTypeFilter, setBookingTypeFilter] = useState('user')
   const [statusCounts, setStatusCounts] = useState({
     Pending: 0,
     COMPLETED: 0,
@@ -33,6 +34,21 @@ const OrderCard = ({ }) => {
     Cancelled: 0,
     Parked: 0
   })
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('vendor_booking_tab_preference')
+      if (saved) setBookingTypeFilter(saved)
+
+      const handleTabChange = () => {
+        const updated = localStorage.getItem('vendor_booking_tab_preference')
+        if (updated) setBookingTypeFilter(updated)
+      }
+
+      window.addEventListener('booking-type-changed', handleTabChange)
+      return () => window.removeEventListener('booking-type-changed', handleTabChange)
+    }
+  }, [])
 
 
   // Hooks
@@ -57,44 +73,23 @@ const OrderCard = ({ }) => {
 
     const fetchBookings = async () => {
       try {
-        const response = await axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+        const response = await axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?countOnly=true&bookingTypeFilter=${bookingTypeFilter}`)
 
-        console.log('API Response:', response.data) // Debug the response
-        const bookings = response.data.bookings // Access the correct array
-
-        if (!Array.isArray(bookings)) {
-          console.error('Expected an array but got:', bookings)
+        console.log('API Counts Response:', response.data) // Debug the response
+        
+        if (response.data && response.data.counts) {
+          const fetchedCounts = response.data.counts;
           
-          return
+          setStatusCounts({
+            Pending: fetchedCounts.pending || 0,
+            Approved: fetchedCounts.approved || 0,
+            Cancelled: fetchedCounts.cancelled || 0,
+            PARKED: fetchedCounts.parked || 0,
+            COMPLETED: fetchedCounts.completed || 0,
+          });
         }
-
-        const counts = {
-          Pending: 0,
-          Approved: 0,
-          Cancelled: 0,
-          PARKED: 0,
-          COMPLETED: 0,
-        }
-        
-        bookings.forEach(booking => {
-          const status = booking.status?.trim().toLowerCase(); // Normalize status to lowercase
-
-          const normalizedKey = 
-            status === 'completed' ? 'COMPLETED' :
-            status === 'pending' ? 'Pending' :
-            status === 'approved' ? 'Approved' :
-            status === 'cancelled' ? 'Cancelled' :
-            status === 'parked' ? 'PARKED' :
-            null; // Handle unexpected cases
-        
-          if (normalizedKey && counts[normalizedKey] !== undefined) {
-            counts[normalizedKey] += 1;
-          }
-        });
-        
-        setStatusCounts(counts)
       } catch (error) {
-        console.error('Error fetching bookings:', error)
+        console.error('Error fetching bookings counts:', error)
       }
     }
 
@@ -109,7 +104,7 @@ const OrderCard = ({ }) => {
     return () => {
       window.removeEventListener('booking-deleted', handleBookingDeleted)
     }
-  }, [vendorId, API_URL])
+  }, [vendorId, API_URL, bookingTypeFilter])
 
 
   // Data structure for UI display

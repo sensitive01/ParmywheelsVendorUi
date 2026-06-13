@@ -49,13 +49,12 @@ const DashboardCRM = () => {
     const fetchBookings = async () => {
       if (!vendorId) {
         setLoading(false)
-
         return
       }
 
       try {
         const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?dashboardStats=true`,
           {
             headers: {
               'Cache-Control': 'no-cache',
@@ -64,53 +63,17 @@ const DashboardCRM = () => {
           }
         )
 
-        const bookings = response.data.bookings
-
-        setBookings(Array.isArray(bookings) ? bookings : [])
-
-        if (Array.isArray(bookings)) {
-          const counts = {
-            Pending: 0,
-            Approved: 0,
-            Cancelled: 0,
-            Parked: 0,
-            COMPLETED: 0,
-            Subscriptions: 0
-          }
-
-          let total = 0
-
-          bookings.forEach(booking => {
-            const status = booking.status?.trim().toLowerCase()
-
-            const normalizedKey =
-              status === 'completed'
-                ? 'COMPLETED'
-                : status === 'pending'
-                  ? 'Pending'
-                  : status === 'approved'
-                    ? 'Approved'
-                    : status === 'cancelled'
-                      ? 'Cancelled'
-                      : status === 'parked'
-                        ? 'Parked'
-                        : null
-
-            if (normalizedKey && counts[normalizedKey] !== undefined) {
-              counts[normalizedKey] += 1
-            }
-
-            // Count subscriptions
-            if (booking.sts === 'Subscription') {
-              counts.Subscriptions += 1
-            }
-
-            // Calculate total amount
-            total += Number(booking.amount) || 0
-          })
-
-          setStatusCounts(counts)
-          setTotalAmount(total)
+        const data = response.data;
+        if (data && data.counts) {
+          setStatusCounts({
+            Pending: data.counts.pending || 0,
+            Approved: data.counts.approved || 0,
+            Cancelled: data.counts.cancelled || 0,
+            Parked: data.counts.parked || 0,
+            COMPLETED: data.counts.completed || 0,
+            Subscriptions: data.counts.subscriptions || 0
+          });
+          setTotalAmount(data.totalAmount || 0);
         }
       } catch (error) {
         console.error('Error fetching bookings:', error)
@@ -154,8 +117,21 @@ const DashboardCRM = () => {
     }
   }
 
-  const exportToCSV = () => {
-    if (!bookings || bookings.length === 0) return handleDownloadClose()
+  const fetchAllBookingsForExport = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`
+      )
+      return response.data.bookings || []
+    } catch (err) {
+      console.error(err)
+      return []
+    }
+  }
+
+  const exportToCSV = async () => {
+    const dataToExport = bookings.length > 0 ? bookings : await fetchAllBookingsForExport()
+    if (!dataToExport || dataToExport.length === 0) return handleDownloadClose()
 
     const headers = [
       'Booking ID',
@@ -170,7 +146,7 @@ const DashboardCRM = () => {
       'Type'
     ]
 
-    const rows = bookings.map(b => [
+    const rows = dataToExport.map(b => [
       b._id ?? '',
       b.bookingDate ?? '',
       b.parkingDate ?? '',
@@ -223,7 +199,8 @@ const DashboardCRM = () => {
   }
 
   const exportXlsxByStatus = async () => {
-    if (!bookings || bookings.length === 0) return handleDownloadClose()
+    const dataToExport = bookings.length > 0 ? bookings : await fetchAllBookingsForExport()
+    if (!dataToExport || dataToExport.length === 0) return handleDownloadClose()
     const XLSX = await loadXLSX()
 
     const header = [
@@ -248,7 +225,7 @@ const DashboardCRM = () => {
       Subscriptions: []
     }
 
-    bookings.forEach(b => {
+    dataToExport.forEach(b => {
       const raw = (b.status || '').toString().trim().toLowerCase()
 
       const key =
@@ -295,7 +272,13 @@ const DashboardCRM = () => {
   }
 
   const exportSummaryToCSV = () => {
-    const totalBookings = (bookings || []).length
+    const totalBookings =
+      (statusCounts.Pending || 0) +
+      (statusCounts.Approved || 0) +
+      (statusCounts.Cancelled || 0) +
+      (statusCounts.Parked || 0) +
+      (statusCounts.COMPLETED || 0) +
+      (statusCounts.Subscriptions || 0);
 
     const rows = [
       ['Metric', 'Value'],

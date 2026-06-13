@@ -58,6 +58,10 @@ const UserBookings = () => {
   const [selectedBookingForDelete, setSelectedBookingForDelete] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  const [selectedRowIds, setSelectedRowIds] = useState([])
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
+
   const getCurrentDate = () => {
     const today = new Date()
     const year = today.getFullYear()
@@ -258,7 +262,7 @@ const UserBookings = () => {
       })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session, selectedSubunits])
+  }, [status, session, selectedSubunits, statusFilter])
 
   const fetchTransactions = async userId => {
     setIsLoading(true)
@@ -282,6 +286,10 @@ const UserBookings = () => {
         if (hasMain) idList.push(userId)
         subids.forEach(id => idList.push(id))
         params.subunitId = idList.join(',')
+      }
+
+      if (statusFilter && statusFilter.length > 0) {
+        params.status = statusFilter.join(',')
       }
 
       const response = await axios.get(`${API_URL}/vendor/userbookingtrans/${userId}`, { params })
@@ -404,6 +412,57 @@ const UserBookings = () => {
       setIsDeleting(false)
       setDeleteDialogOpen(false)
       setSelectedBookingForDelete(null)
+    }
+  }
+
+  const handleBulkDeleteClick = () => {
+    setBulkDeleteDialogOpen(true)
+  }
+
+  const handleConfirmBulkDelete = async () => {
+    if (selectedRowIds.length === 0) return
+    setIsBulkDeleting(true)
+    try {
+      const selectedRealBookingIds = selectedRowIds.map(id => {
+        const matched = transactions.find(t => t.id === id)
+        return matched ? matched.realBookingId : id
+      })
+
+      const response = await axios.post(`${API_URL}/vendor/deletebookings/bulk`, { ids: selectedRealBookingIds })
+      if (response.status === 200 || response.data?.success) {
+        setSnackbar({
+          open: true,
+          message: `${selectedRowIds.length} bookings deleted successfully`,
+          severity: 'success'
+        })
+
+        setSelectedRowIds([]) // Clear selection
+
+        // Clear vehicle/slots count cache and dispatch delete event
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('pmw_vendor_slots_cache')
+          window.dispatchEvent(new Event('booking-deleted'))
+        }
+
+        if (session?.user?.id) {
+          fetchTransactions(session.user.id)
+        }
+      } else {
+        setSnackbar({
+          open: true,
+          message: 'Failed to delete bookings: ' + (response.data?.message || 'Unknown error'),
+          severity: 'error'
+        })
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error deleting bookings: ' + error.message,
+        severity: 'error'
+      })
+    } finally {
+      setIsBulkDeleting(false)
+      setBulkDeleteDialogOpen(false)
     }
   }
 

@@ -375,6 +375,16 @@ const OrderListTable = ({ orderData }) => {
   const [filteredData, setFilteredData] = useState([])
   const [error, setError] = useState(null)
   const [sorting, setSorting] = useState([])
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalBookings, setTotalBookings] = useState(0)
+  const [statusCounts, setStatusCounts] = useState({
+    pending: 0,
+    approved: 0,
+    cancelled: 0,
+    parked: 0,
+    completed: 0
+  })
   const { lang: locale } = useParams()
   const { data: session } = useSession()
   const isAccountant = session?.user?.role === 'accountant' || (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
@@ -386,6 +396,8 @@ const OrderListTable = ({ orderData }) => {
   const [subscriptionDialogOpen, setSubscriptionDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [bookingToDelete, setBookingToDelete] = useState(null)
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
 
   const handleNewSubscription = async () => {
     if (!vendorId) return
@@ -473,69 +485,82 @@ const OrderListTable = ({ orderData }) => {
     }
   }
 
+  const handleBulkDelete = async () => {
+    const selectedRows = table.getSelectedRowModel().flatRows
+    const selectedIds = selectedRows.map(row => row.original._id)
+    if (selectedIds.length === 0) return
+
+    setIsBulkDeleting(true)
+    try {
+      const response = await fetch(`${API_URL}/vendor/deletebookings/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.accessToken}`
+        },
+        body: JSON.stringify({ ids: selectedIds })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'Failed to delete bookings')
+      }
+
+      setRowSelection({})
+      setData(prevData => prevData.filter(item => !selectedIds.includes(item._id)))
+      setBulkDeleteDialogOpen(false)
+
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('pmw_vendor_slots_cache')
+        window.dispatchEvent(new Event('booking-deleted'))
+      }
+
+      fetchData(true)
+    } catch (error) {
+      console.error('Error bulk deleting bookings:', error)
+      setError(error.message || 'An error occurred while deleting the bookings')
+    } finally {
+      setIsBulkDeleting(false)
+    }
+  }
+
+  const fetchPaginatedData = async () => {
+    if (!vendorId) return []
+
+    try {
+      const queryParams = new URLSearchParams({
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
+        search: globalFilter || '',
+        statusFilter: statusFilter || 'all',
+        bookingTypeFilter: bookingTypeFilter || 'all',
+        isSubscriptionView: 'true'
+      })
+
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?${queryParams.toString()}`)
+      const result = await response.json()
+
+      if (response.ok && result.bookings) {
+        setTotalPages(result.totalPages || 0)
+        setTotalBookings(result.totalBookings || 0)
+        return result.bookings
+      }
+      return []
+    } catch (error) {
+      console.error('Error fetching paginated data:', error)
+      return []
+    }
+  }
+
   const fetchData = async (silent = false) => {
     if (!vendorId) return
 
     try {
       if (!silent) setLoading(true)
       setError(null)
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
-      const result = await response.json()
-
-      // If the API returns a 404, or the error message indicates no bookings, or bookings array is missing/empty
-      if (
-        response.status === 404 ||
-        (result &&
-          (result.error === 'No bookings found for this vendor' ||
-            String(result.error).toLowerCase().includes('no bookings'))) ||
-        (result && result.bookings && result.bookings.length === 0) ||
-        (result && !result.bookings && !result.error && response.ok)
-      ) {
-        setData([])
-        setFilteredData([])
-
-        return
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch bookings')
-      }
-
-      if (result && result.bookings) {
-        const subscriptionBookings = result.bookings.filter(
-          booking =>
-            booking.sts?.toLowerCase() === 'subscription' &&
-            ['pending', 'approved', 'cancelled', 'parked', 'completed'].includes(booking.status.toLowerCase())
-        )
-
-        // Deduplicate
-        const uniqueBookings = new Set()
-        const deduplicated = []
-
-        // Sort descending by date/time before deduplicating
-        const sortedForDeduplication = [...subscriptionBookings].sort((a, b) => {
-          const ad = a.createdAt ? new Date(a.createdAt).getTime() : 0
-          const bd = b.createdAt ? new Date(b.createdAt).getTime() : 0
-
-          return bd - ad
-        })
-
-        sortedForDeduplication.forEach(item => {
-          const invId = item.invoiceid || item.invoiceId || item.orderid || item.orderId || null
-          const surrogateKey = `${item.vehicleNumber || item.vehiclenumber}_${item.parkingDate || item.bookingDate}_${item.parkingTime || item.bookingTime}`
-          const uniqueId = invId || surrogateKey
-
-          if (!uniqueBookings.has(uniqueId)) {
-            uniqueBookings.add(uniqueId)
-            deduplicated.push(item)
-          }
-        })
-
-        setData(deduplicated)
-      } else {
-        setData([])
-        setFilteredData([])
-      }
+      
+      const currentBookings = await fetchPaginatedData()
+      setData(currentBookings || [])
     } catch (error) {
       console.error('Error fetching bookings:', error)
       setError(error.message)
@@ -544,175 +569,45 @@ const OrderListTable = ({ orderData }) => {
     }
   }
 
-  // Get counts for each status
-  const getStatusCounts = () => {
-    return {
-      pending: data.filter(item => item.status?.toLowerCase() === 'pending').length,
-      approved: data.filter(item => item.status?.toLowerCase() === 'approved').length,
-      cancelled: data.filter(item => item.status?.toLowerCase() === 'cancelled').length,
-      parked: data.filter(item => item.status?.toLowerCase() === 'parked').length,
-      completed: data.filter(item => item.status?.toLowerCase() === 'completed').length
-    }
-  }
-
-  const statusCounts = getStatusCounts()
-
   useEffect(() => {
-    if (statusFilter === 'all') {
-      setFilteredData(data)
-    } else {
-      setFilteredData(data.filter(item => item.status.toLowerCase() === statusFilter))
-    }
-  }, [statusFilter, data])
-
-  useEffect(() => {
-    fetchData()
-  }, [vendorId])
-
-  const parseDateTime = (dateStr, timeStr) => {
-    if (!dateStr || !timeStr) return null
-
-    try {
-      let y, m, d
-
-      if (dateStr.includes('-')) {
-        const parts = dateStr.split('-')
-
-        if (parts[0].length === 4) {
-          ;[y, m, d] = parts.map(Number)
-        } else {
-          ;[d, m, y] = parts.map(Number)
+    if (!vendorId) return
+    const fetchCounts = async () => {
+      try {
+        const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?countOnly=true&isSubscriptionView=true&bookingTypeFilter=${bookingTypeFilter}`)
+        const result = await response.json()
+        if (response.ok && result.counts) {
+          setStatusCounts({
+            pending: result.counts.pending || 0,
+            approved: result.counts.approved || 0,
+            cancelled: result.counts.cancelled || 0,
+            parked: result.counts.parked || 0,
+            completed: result.counts.completed || 0
+          })
         }
-      } else {
-        return null
+      } catch (err) {
+        console.error(err)
       }
-
-      const raw = String(timeStr).trim()
-      let hh = 0
-      let mm = 0
-
-      const ampm = raw.match(/^(\d{1,2})(?::(\d{1,2}|NaN))?\s*(AM|PM)$/i)
-
-      if (ampm) {
-        hh = Number(ampm[1])
-        mm = Number(ampm[2])
-        if (Number.isNaN(hh)) return null
-        if (Number.isNaN(mm)) mm = 0
-        const isPM = ampm[3].toUpperCase() === 'PM'
-
-        if (isPM && hh !== 12) hh += 12
-        if (!isPM && hh === 12) hh = 0
-
-        return new Date(y, m - 1, d, hh, mm, 0, 0)
-      }
-
-      const parts = raw.split(':')
-
-      hh = Number(parts[0])
-      mm = parts.length > 1 ? Number(parts[1]) : 0
-      if (Number.isNaN(hh)) return null
-      if (Number.isNaN(mm)) mm = 0
-
-      return new Date(y, m - 1, d, hh, mm, 0, 0)
-    } catch (_) {
-      return null
     }
-  }
+    fetchCounts()
+  }, [vendorId, data]) // Re-fetch counts when data updates
 
-  const calculateDuration = (startDate, startTime, endDate, endTime) => {
-    const start = parseDateTime(startDate, startTime)
-    const end = parseDateTime(endDate, endTime)
-
-    if (!start || !end) return 'N/A'
-    const diffMs = end - start
-
-    if (diffMs <= 0) return 'N/A'
-
-    const totalSeconds = Math.floor(diffMs / 1000)
-    const hours = Math.floor(totalSeconds / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-
-    const pad = n => n.toString().padStart(2, '0')
-
-    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
-  }
-
-  // IMPROVED SEARCH FUNCTIONALITY
   useEffect(() => {
-    const q = (globalFilter || '').toString().toLowerCase().trim()
+    setFilteredData(data)
+  }, [data])
 
-    // First filter by booking type (User vs Vendor)
-    let results = [...data]
+  useEffect(() => {
+    fetchData(false) // Not silent on filter/pagination changes to stop initial loading spinner
+    
+    // Set up interval to check bookings every minute
+    const intervalId = setInterval(() => {
+      fetchData(true)
+    }, 60000)
 
-    if (bookingTypeFilter === 'user') {
-      results = results.filter(item => {
-        // User bookings: userid must exist AND must NOT be the same as the current vendorId
-        return item.userid && String(item.userid) !== String(vendorId)
-      })
-    } else {
-      results = results.filter(item => {
-        // Vendor bookings: userid is missing OR userid IS the same as the current vendorId
-        return !item.userid || String(item.userid) === String(vendorId)
-      })
-    }
-
-    // Then filter by status
-    if (statusFilter !== 'all') {
-      results = results.filter(item => item.status?.toLowerCase() === statusFilter.toLowerCase())
-    }
-
-    // Then filter by search query
-    results = results.filter(item => {
-      // Normalize and search in multiple fields
-      const vehicleNumber = pick(item.vehicleNumber)
-      const personName = pick(item.personName)
-      const mobileNumber = pick(item.mobileNumber)
-      const vehicleType = pick(item.vehicleType)
-      const vendorName = pick(item.vendorName)
-      const bookingId = pick(item.bookingId || item._id)
-      const subscriptionType = pick(item.subsctiptiontype)
-
-      // Remove # from vehicle number for comparison
-      const cleanVehicleNumber = vehicleNumber.replace('#', '')
-
-      // Check if query matches any field
-      return (
-        cleanVehicleNumber.includes(q) ||
-        vehicleNumber.includes(q) ||
-        personName.includes(q) ||
-        mobileNumber.includes(q) ||
-        vehicleType.includes(q) ||
-        vendorName.includes(q) ||
-        bookingId.includes(q) ||
-        subscriptionType.includes(q)
-      )
-    })
-
-    setFilteredData(results)
-  }, [globalFilter, data, statusFilter, bookingTypeFilter])
+    return () => clearInterval(intervalId)
+  }, [vendorId, globalFilter, statusFilter, bookingTypeFilter, pagination])
 
   const columns = useMemo(
     () => [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <Checkbox
-            checked={table.getIsAllRowsSelected()}
-            indeterminate={table.getIsSomeRowsSelected()}
-            onChange={table.getToggleAllRowsSelectedHandler()}
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            disabled={!row.getCanSelect()}
-            indeterminate={row.getIsSomeSelected()}
-            onChange={row.getToggleSelectedHandler()}
-          />
-        ),
-        enableSorting: false
-      },
       {
         id: 'sno',
         header: 'S.No',
@@ -1144,23 +1039,17 @@ const OrderListTable = ({ orderData }) => {
   const table = useReactTable({
     data: filteredData,
     columns,
-    filterFns: {
-      fuzzy: fuzzyFilter
-    },
     state: {
       rowSelection,
-      globalFilter,
-      sorting
+      sorting,
+      pagination
     },
-    initialState: {
-      pagination: {
-        pageSize: 10
-      }
-    },
+    pageCount: totalPages,
+    manualPagination: true,
+    manualFiltering: true,
     enableRowSelection: true,
-    globalFilterFn: fuzzyFilter,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     onSortingChange: setSorting,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -1171,9 +1060,27 @@ const OrderListTable = ({ orderData }) => {
     getFacetedMinMaxValues: getFacetedMinMaxValues()
   })
 
-  const handleExport = type => {
-    // Use the filtered data directly which respects the User/Vendor tabs
-    const exportData = filteredData
+  const fetchAllForExport = async () => {
+    if (!vendorId) return []
+    try {
+      const queryParams = new URLSearchParams({
+        search: globalFilter || '',
+        statusFilter: statusFilter || 'all',
+        bookingTypeFilter: bookingTypeFilter || 'all',
+        isSubscriptionView: 'true'
+      })
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?${queryParams.toString()}`)
+      const result = await response.json()
+      return result.bookings || []
+    } catch (e) {
+      console.error(e)
+      return []
+    }
+  }
+
+  const handleExport = async type => {
+    const exportData = await fetchAllForExport()
+    if (!exportData || exportData.length === 0) return handleMenuClose()
 
     // Base columns common to both views
     let exportColumns = [
@@ -1672,9 +1579,9 @@ const OrderListTable = ({ orderData }) => {
                   rowsPerPageOptions={[10, 25, 50, 100]}
                   component='div'
                   className='border-bs'
-                  count={table.getFilteredRowModel().rows.length}
-                  rowsPerPage={table.getState().pagination.pageSize}
-                  page={table.getState().pagination.pageIndex}
+                  count={totalBookings}
+                  rowsPerPage={pagination.pageSize}
+                  page={pagination.pageIndex}
                   onPageChange={(_, page) => table.setPageIndex(page)}
                   onRowsPerPageChange={e => table.setPageSize(Number(e.target.value))}
                 />

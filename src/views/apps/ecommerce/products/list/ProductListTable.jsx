@@ -186,7 +186,13 @@ const OrderListTable = ({ orderData }) => {
   const [globalFilter, setGlobalFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('pending')
   const [bookingTypeFilter, setBookingTypeFilter] = useState('user')
-  const [filteredData, setFilteredData] = useState(data)
+  const [filteredData, setFilteredData] = useState([])
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  })
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalBookings, setTotalBookings] = useState(0)
   const [error, setError] = useState(null)
   const [sorting, setSorting] = useState([])
   const { lang: locale } = useParams()
@@ -236,6 +242,7 @@ const OrderListTable = ({ orderData }) => {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('vendor_booking_tab_preference', bookingTypeFilter)
+      window.dispatchEvent(new Event('booking-type-changed'))
     }
   }, [bookingTypeFilter])
 
@@ -461,67 +468,44 @@ const OrderListTable = ({ orderData }) => {
     }
   }
 
-  // Function to refresh booking list
-  const refreshBookingList = async () => {
+  // Function to refresh booking list from server with pagination
+  const fetchPaginatedData = async () => {
     try {
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+      const queryParams = new URLSearchParams({
+        page: pagination.pageIndex + 1,
+        limit: pagination.pageSize,
+        search: globalFilter || '',
+        statusFilter: statusFilter || 'pending',
+        bookingTypeFilter: bookingTypeFilter || 'user'
+      });
+
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?${queryParams.toString()}`)
       const result = await response.json()
 
-      // If the API returns a 404, or the error message indicates no bookings, or bookings array is missing/empty
       if (
         response.status === 404 ||
-        (result &&
-          (result.error === 'No bookings found for this vendor' ||
-            String(result.error).toLowerCase().includes('no bookings'))) ||
+        (result && result.error && String(result.error).toLowerCase().includes('no bookings')) ||
         (result && result.bookings && result.bookings.length === 0) ||
         (result && !result.bookings && !result.error && response.ok)
       ) {
         setData([])
-
+        setFilteredData([])
+        setTotalPages(0)
+        setTotalBookings(0)
         return []
       }
 
       if (result && result.bookings) {
-        const filteredBookings = result.bookings.filter(
-          booking =>
-            ['pending', 'approved', 'cancelled', 'parked', 'completed'].includes(booking.status.toLowerCase()) &&
-            !isSubscription(booking)
-        )
-
-        // Sort bookings by creation date (latest first)
-        const sortedBookings = filteredBookings.sort((a, b) => {
-          // First try to use createdAt field if it exists
-          if (a.createdAt && b.createdAt) {
-            return new Date(b.createdAt) - new Date(a.createdAt)
-          }
-
-          // Fall back to booking date and time if createdAt doesn't exist
-          try {
-            const dateA = parseDateTime(a.bookingDate, a.bookingTime)
-            const dateB = parseDateTime(b.bookingDate, b.bookingTime)
-
-            return (dateB || 0) - (dateA || 0)
-          } catch (e) {
-            // If all else fails, sort by ID if available (assuming newer IDs are larger)
-            if (a._id && b._id) {
-              return b._id.localeCompare(a._id)
-            }
-
-            return 0
-          }
-        })
-
-        setData(sortedBookings)
-
-        // setFilteredData(sortedBookings) // Let the useEffect handle filtering based on current state
-
-        return sortedBookings
+        setData(result.bookings)
+        setFilteredData(result.bookings)
+        setTotalPages(result.totalPages || 0)
+        setTotalBookings(result.totalBookings || 0)
+        return result.bookings
       }
 
       return []
     } catch (error) {
       console.error('Error refreshing booking list:', error)
-
       return []
     }
   }
@@ -548,7 +532,7 @@ const OrderListTable = ({ orderData }) => {
       setError(null)
 
       // First fetch the current bookings
-      const currentBookings = await refreshBookingList()
+      const currentBookings = await fetchPaginatedData()
 
       // Then check and update pending bookings
       await checkAndUpdatePendingBookings(currentBookings)
@@ -557,7 +541,7 @@ const OrderListTable = ({ orderData }) => {
       await checkAndUpdateApprovedBookings(currentBookings)
 
       // Finally refresh the list to get updated statuses
-      await refreshBookingList()
+      await fetchPaginatedData()
     } catch (error) {
       console.error('Error fetching bookings:', error)
       setError(error.message)
@@ -566,92 +550,17 @@ const OrderListTable = ({ orderData }) => {
     }
   }
 
+  // Effect to re-fetch when filters or pagination change
   useEffect(() => {
-    fetchData()
-
+    fetchData(false) // Not silent on filter/pagination changes to stop initial loading spinner
+    
     // Set up interval to check bookings every minute
     const intervalId = setInterval(() => {
-      fetchData()
-    }, 60000) // Check every minute
+      fetchData(true) // Silent on background refresh
+    }, 60000)
 
     return () => clearInterval(intervalId)
-  }, [vendorId])
-
-  // Filter data when globalFilter or statusFilter changes
-  useEffect(() => {
-    const q = (globalFilter || '').toString().toLowerCase().trim()
-
-    // 1. Filter by Subscription (exclude them)
-    // 2. Filter by Booking Type (User vs Vendor) using userid logic
-    let result = [...data].filter(item => {
-      if (isSubscription(item)) return false
-
-      if (bookingTypeFilter === 'user') {
-        // User bookings: userid exists AND IS NOT same as vendorId
-        return item.userid && String(item.userid) !== String(vendorId)
-      } else {
-        // Vendor bookings: userid missing OR userid IS same as vendorId
-        return !item.userid || String(item.userid) === String(vendorId)
-      }
-    })
-
-    // Apply status filter ONLY if there is no search term
-    // This allows global search to find bookings across all statuses
-    if (!q && statusFilter && statusFilter.toLowerCase() !== 'all') {
-      const filterStatus = statusFilter.toLowerCase()
-
-      result = result.filter(item => item.status && item.status.toString().toLowerCase() === filterStatus)
-    }
-
-    // Apply search filter if search term exists
-    if (q) {
-      // Prepare variations of the search term
-      const queryLower = q.toLowerCase()
-      const queryNoSpaces = queryLower.replace(/\s+/g, '')
-      const queryNoSpecial = queryNoSpaces.replace(/[^a-z0-9]/g, '')
-
-      result = result.filter(item => {
-        // Collect all potential values to search against
-        const rawValues = [
-          item.personName,
-          item.mobileNumber,
-          item.vehicleNumber,
-          item._id,
-          item.bookingId,
-          item.vehicleType,
-          item.sts,
-          item.status
-        ].filter(Boolean) // Remove null/undefined
-
-        // Add derived values (like displayed vehicle number)
-        if (item.vehicleNumber) {
-          rawValues.push(`#${item.vehicleNumber}`)
-        }
-
-        // Check if any value matches the query conditions
-        return rawValues.some(val => {
-          const valStr = String(val).toLowerCase()
-          const valNoSpaces = valStr.replace(/\s+/g, '')
-          const valNoSpecial = valNoSpaces.replace(/[^a-z0-9]/g, '')
-
-          // 1. Direct substring match
-          if (valStr.includes(queryLower)) return true
-
-          // 2. Space-insensitive match (e.g. "KA 123" vs "KA123")
-          if (queryNoSpaces && valNoSpaces.includes(queryNoSpaces)) return true
-
-          // 3. Special-char insensitive match for alphanumeric search (e.g. "#KA-123" vs "KA123")
-          if (queryNoSpecial.length > 2 && valNoSpecial.includes(queryNoSpecial)) return true
-
-          return false
-        })
-      })
-    }
-
-    console.log('Filtered result count:', result.length)
-
-    setFilteredData(result)
-  }, [globalFilter, statusFilter, data, bookingTypeFilter, vendorId])
+  }, [vendorId, globalFilter, statusFilter, bookingTypeFilter, pagination])
 
   const columns = useMemo(
     () => {
@@ -1263,30 +1172,46 @@ const OrderListTable = ({ orderData }) => {
     columns,
     state: {
       rowSelection,
-
-      // globalFilter, // Don't pass globalFilter to table to prevent internal re-filtering
-      sorting
+      sorting,
+      pagination,
     },
+    pageCount: totalPages,
+    manualPagination: true,
+    onPaginationChange: setPagination,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-
-    // onGlobalFilterChange: setGlobalFilter, // Managed manually
     onSortingChange: setSorting,
-
-    // globalFilterFn: fuzzyFilter, // Not needed
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(), // Kept for potential column filters, but won't affect global
+    getFilteredRowModel: getFilteredRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     manualGlobalFilter: true
   })
 
-  const handleExport = type => {
-    // Get the data you want to export (filtered or all)
-    const exportData = filteredData.length > 0 || globalFilter ? filteredData : data
+  const handleExport = async type => {
+    // Fetch all records for export using the current filters
+    let exportData = []
+    try {
+      setLoading(true)
+      const queryParams = new URLSearchParams({
+        search: globalFilter || '',
+        statusFilter: statusFilter || 'pending',
+        bookingTypeFilter: bookingTypeFilter || 'user'
+      });
+      // Not passing page and limit to get all records
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?${queryParams.toString()}`)
+      const result = await response.json()
+      if (result && result.bookings) {
+        exportData = result.bookings
+      }
+    } catch (error) {
+      console.error('Error fetching export data:', error)
+      return
+    } finally {
+      setLoading(false)
+    }
 
     // Define fields based on booking type filter
     let fieldsConfig = []
@@ -1663,9 +1588,9 @@ const OrderListTable = ({ orderData }) => {
               rowsPerPageOptions={[10, 25, 50, 100]}
               component='div'
               className='border-bs'
-              count={table.getFilteredRowModel().rows.length}
-              rowsPerPage={table.getState().pagination.pageSize}
-              page={table.getState().pagination.pageIndex}
+              count={totalBookings}
+              rowsPerPage={pagination.pageSize}
+              page={pagination.pageIndex}
               onPageChange={(_, page) => table.setPageIndex(page)}
               onRowsPerPageChange={e => table.setPageSize(Number(e.target.value))}
             />
