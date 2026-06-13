@@ -560,7 +560,7 @@ const OrderListTable = ({ orderData }) => {
     }, 60000)
 
     return () => clearInterval(intervalId)
-  }, [vendorId, globalFilter, statusFilter, bookingTypeFilter, pagination])
+  }, [vendorId, globalFilter, statusFilter, bookingTypeFilter, pagination.pageIndex, pagination.pageSize])
 
   const columns = useMemo(
     () => {
@@ -1177,6 +1177,7 @@ const OrderListTable = ({ orderData }) => {
     },
     pageCount: totalPages,
     manualPagination: true,
+    autoResetPageIndex: false,
     onPaginationChange: setPagination,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
