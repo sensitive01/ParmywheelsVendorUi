@@ -362,7 +362,7 @@ const PublicScannerPage = () => {
       if (!isSilent) setLoading(true)
       if (!isSilent) setError(null)
 
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?t=${Date.now()}`, {
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}?t=${Date.now()}`, {
         cache: 'no-store',
         headers: { Pragma: 'no-cache' }
       })

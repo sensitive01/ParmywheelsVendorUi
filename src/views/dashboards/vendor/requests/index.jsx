@@ -89,7 +89,7 @@ const VendorRequests = () => {
     setLoading(true)
 
     try {
-      const url = `${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`
+      const url = `${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}`
       const response = await axios.get(url)
 
       const data = response.data?.bookings || response.data?.data || (Array.isArray(response.data) ? response.data : [])

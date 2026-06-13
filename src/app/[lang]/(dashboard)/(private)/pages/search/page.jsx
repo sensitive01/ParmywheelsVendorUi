@@ -45,7 +45,7 @@ const VendorSearchScreen = () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}`)
       
       if (!response.ok) {
         throw new Error('Failed to fetch bookings')
