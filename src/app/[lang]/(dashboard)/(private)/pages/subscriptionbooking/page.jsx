@@ -537,7 +537,7 @@ const OrderListTable = ({ orderData }) => {
         isSubscriptionView: 'true'
       })
 
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?${queryParams.toString()}`)
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-fast/${vendorId}?${queryParams.toString()}`)
       const result = await response.json()
 
       if (response.ok && result.bookings) {
@@ -573,7 +573,7 @@ const OrderListTable = ({ orderData }) => {
     if (!vendorId) return
     const fetchCounts = async () => {
       try {
-        const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}?countOnly=true&isSubscriptionView=true&bookingTypeFilter=${bookingTypeFilter}`)
+        const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-fast/${vendorId}?countOnly=true&isSubscriptionView=true&bookingTypeFilter=${bookingTypeFilter}`)
         const result = await response.json()
         if (response.ok && result.counts) {
           setStatusCounts({
