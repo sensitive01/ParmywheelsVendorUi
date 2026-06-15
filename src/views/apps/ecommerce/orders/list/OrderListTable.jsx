@@ -383,7 +383,7 @@ const OrderListTable = ({ orderData }) => {
   // Function to refresh booking list
   const refreshBookingList = async () => {
     try {
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}`)
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
       const result = await response.json()
 
       if (result && result.bookings) {
@@ -420,7 +420,7 @@ const OrderListTable = ({ orderData }) => {
     const fetchDataAndCheckBookings = async () => {
       try {
         setLoading(true)
-        const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}`)
+        const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
         const result = await response.json()
 
         if (result && result.bookings) {

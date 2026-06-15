@@ -479,7 +479,8 @@ const OrderListTable = ({ orderData }) => {
         bookingTypeFilter: bookingTypeFilter || 'user'
       });
 
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}?${queryParams.toString()}`)
+      // Use the newly created fast backend endpoint with pagination
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-fast/${vendorId}?${queryParams.toString()}`)
       const result = await response.json()
 
       if (
@@ -1202,7 +1203,7 @@ const OrderListTable = ({ orderData }) => {
         bookingTypeFilter: bookingTypeFilter || 'user'
       });
       // Not passing page and limit to get all records
-      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}?${queryParams.toString()}`)
+      const response = await fetch(`${API_URL}/vendor/fetchbookingsbyvendorid-fast/${vendorId}?${queryParams.toString()}`)
       const result = await response.json()
       if (result && result.bookings) {
         exportData = result.bookings

@@ -54,7 +54,7 @@ const DashboardCRM = () => {
 
       try {
         const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}?dashboardStats=true`,
+          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid-fast/${vendorId}?dashboardStats=true`,
           {
             headers: {
               'Cache-Control': 'no-cache',
@@ -120,7 +120,7 @@ const DashboardCRM = () => {
   const fetchAllBookingsForExport = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}`
+        `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`
       )
       return response.data.bookings || []
     } catch (err) {

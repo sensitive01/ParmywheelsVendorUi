@@ -72,7 +72,7 @@ const OrderCard = () => {
 
     const fetchBookings = async () => {
       try {
-        const response = await axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}`)
+        const response = await axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`)
 
         console.log('API Response:', response.data) // Debug the response
         const bookings = response.data.bookings // Access the correct array

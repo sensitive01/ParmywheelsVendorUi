@@ -73,7 +73,7 @@ const OrderCard = ({ }) => {
 
     const fetchBookings = async () => {
       try {
-        const response = await axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid-v2/${vendorId}?countOnly=true&bookingTypeFilter=${bookingTypeFilter}`)
+        const response = await axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid-fast/${vendorId}?countOnly=true&bookingTypeFilter=${bookingTypeFilter}`)
 
         console.log('API Counts Response:', response.data) // Debug the response
         
