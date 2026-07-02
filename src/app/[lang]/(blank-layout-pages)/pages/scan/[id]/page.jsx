@@ -229,23 +229,41 @@ const PublicScannerPage = () => {
 
     // Stop and clear timer if vehicle is completed
     if (bookingData?.status?.toLowerCase() === 'completed') {
-      if (returnTimer !== 0) setReturnTimer(0)
+      setReturnTimer(0)
       if (successMessage) setSuccessMessage(null)
-
+      if (bookingData?._id) localStorage.removeItem(`return_target_${bookingData._id}`)
       return
     }
 
-    if (returnTimer > 0) {
-      interval = setInterval(() => {
-        setReturnTimer(prev => prev - 1)
-      }, 1000)
-    } else {
-      clearInterval(interval)
-      if (successMessage) setSuccessMessage(null)
+    const checkAndUpdateTimer = () => {
+      if (!bookingData?._id) return
+      
+      const targetStr = localStorage.getItem(`return_target_${bookingData._id}`)
+      if (targetStr) {
+        const targetMs = parseInt(targetStr, 10)
+        const remainingMs = targetMs - Date.now()
+        
+        if (remainingMs > 0) {
+          setReturnTimer(Math.ceil(remainingMs / 1000))
+        } else {
+          setReturnTimer(0)
+          if (successMessage) setSuccessMessage(null)
+          localStorage.removeItem(`return_target_${bookingData._id}`)
+          if (interval) clearInterval(interval)
+        }
+      }
     }
 
-    return () => clearInterval(interval)
-  }, [returnTimer, successMessage, bookingData])
+    // Initial check
+    checkAndUpdateTimer()
+
+    // Start interval to keep checking
+    interval = setInterval(checkAndUpdateTimer, 1000)
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [bookingData, successMessage])
 
   useEffect(() => {
     let interval = null
@@ -424,11 +442,15 @@ const PublicScannerPage = () => {
         requestTime: new Date().toISOString()
       })
 
+      const targetMs = Date.now() + (returnMinutes * 60 * 1000);
+
       if (response.status === 200 || response.status === 201) {
+        if (bookingData?._id) localStorage.setItem(`return_target_${bookingData._id}`, targetMs.toString());
         setSuccessMessage(`Request sent!`)
         setError(null)
         setReturnTimer(returnMinutes * 60)
       } else {
+        if (bookingData?._id) localStorage.setItem(`return_target_${bookingData._id}`, targetMs.toString());
         setSuccessMessage(`Request processed.`)
         setReturnTimer(returnMinutes * 60)
       }
@@ -457,7 +479,7 @@ const PublicScannerPage = () => {
 
   const getTimerParts = seconds => {
     const h = Math.floor(seconds / 3600)
-    const m = Math.floor((seconds % 3600) / 60)
+    const m = Math.floor(seconds / 60)
     const s = seconds % 60
 
     return {
@@ -1277,15 +1299,15 @@ const PublicScannerPage = () => {
                        </Box>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-                       <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: `2.5px solid ${successMessage ? BRAND_MAIN : (valetMode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)')}`, bgcolor: successMessage ? BRAND_MAIN : 'transparent' }} />
+                       <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: `2.5px solid ${returnTimer > 0 ? BRAND_MAIN : (valetMode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)')}`, bgcolor: returnTimer > 0 ? BRAND_MAIN : 'transparent' }} />
                        <Box sx={{ flex: 1 }}>
-                          <Typography variant='body2' sx={{ color: successMessage ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'), fontWeight: 950, lineHeight: 1 }}>Return Tracking</Typography>
-                          <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{successMessage ? 'Vehicle requested' : 'Pending request'}</Typography>
+                          <Typography variant='body2' sx={{ color: returnTimer > 0 ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'), fontWeight: 950, lineHeight: 1 }}>Return Tracking</Typography>
+                          <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{returnTimer > 0 ? 'Vehicle requested' : 'Pending request'}</Typography>
                        </Box>
                     </Box>
                   </Box>
 
-                  {successMessage && successMessage !== 'BOOKING SUCCESSFUL' && (
+                  {returnTimer > 0 && (
                     <Box
                       sx={{
                         textAlign: 'center',
@@ -1312,7 +1334,7 @@ const PublicScannerPage = () => {
                     </Box>
                   )}
 
-                  {!successMessage && bookingData?.status?.toLowerCase() === 'parked' && (
+                  {returnTimer === 0 && bookingData?.status?.toLowerCase() === 'parked' && (
                     <Button
                       fullWidth
                       onClick={handleGetVehicle}
