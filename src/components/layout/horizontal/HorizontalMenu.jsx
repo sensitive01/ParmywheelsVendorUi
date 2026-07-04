@@ -1,7 +1,7 @@
 // Next Imports
 import { useState } from 'react'
 
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, usePathname } from 'next/navigation'
 
 import { useSession } from 'next-auth/react'
 
@@ -50,6 +50,7 @@ const HorizontalMenu = ({ dictionary }) => {
   const { transitionDuration } = verticalNavOptions
   const { lang: locale } = params
   const router = useRouter()
+  const pathname = usePathname()
   const { data: session, status } = useSession()
   const vendorId = session?.user?.id
   const userRole = session?.user?.role || (typeof window !== 'undefined' && localStorage.getItem('role')) || 'vendor'
@@ -90,6 +91,7 @@ const HorizontalMenu = ({ dictionary }) => {
       }}
     >
       <Menu
+        key={pathname}
         rootStyles={menuRootStyles(theme)}
         renderExpandIcon={({ level }) => <RenderExpandIcon level={level} />}
         renderExpandedMenuItemIcon={{ icon: <i className='ri-circle-fill' /> }}
