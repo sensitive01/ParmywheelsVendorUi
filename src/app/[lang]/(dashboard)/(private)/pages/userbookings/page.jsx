@@ -361,7 +361,16 @@ const UserBookings = () => {
              const start = new Date(pY, pM - 1, pD, pt.h, pt.m).getTime();
              const end = new Date(eY, eM - 1, eD, et.h, et.m).getTime();
              if (end >= start) {
-                return String(Math.max(1, Math.ceil((end - start) / 3600000)));
+                const diffMs = end - start;
+                const totalMins = Math.floor(diffMs / 60000);
+                const totalHrs = Math.floor(totalMins / 60);
+                const mins = totalMins % 60;
+                const days = Math.floor(totalHrs / 24);
+                const hrs = totalHrs % 24;
+                if (days > 0) {
+                   return `${days} ${days === 1 ? 'day' : 'days'} ${hrs} hrs ${mins} mins`;
+                }
+                return `${hrs} hrs ${mins} mins`;
              }
           } catch(e) {}
           return null;
@@ -370,9 +379,28 @@ const UserBookings = () => {
         const data = uniqueDataFiltered.map((item, index) => {
           const exDate = item.exitdate || item.exitvehicledate || '-';
           const exTime = item.exittime || item.exitvehicletime || '-';
-          let dur = item.hour || item.duration;
-          if (!dur || dur === 'NaN') {
-             dur = calcDur(item.parkingDate, item.parkingTime, exDate, exTime);
+          let exactDur = calcDur(item.parkingDate, item.parkingTime, exDate, exTime);
+          let dur = exactDur;
+          if (!dur) {
+             let fallback = item.hour || item.duration;
+             if (fallback && fallback !== 'NaN') {
+                if (String(fallback).includes('hrs') || String(fallback).includes('mins') || String(fallback).includes('day')) {
+                    dur = fallback;
+                } else {
+                    const fallbackHrs = parseInt(fallback, 10);
+                    if (!isNaN(fallbackHrs)) {
+                       const fDays = Math.floor(fallbackHrs / 24);
+                       const fHrs = fallbackHrs % 24;
+                       if (fDays > 0) {
+                          dur = `${fDays} ${fDays === 1 ? 'day' : 'days'} ${fHrs} hrs 0 mins`;
+                       } else {
+                          dur = `${fHrs} hrs 0 mins`;
+                       }
+                    } else {
+                       dur = `${fallback} hrs 0 mins`;
+                    }
+                }
+             }
           }
 
           return {
@@ -637,7 +665,7 @@ const UserBookings = () => {
 
       detailHeaders.push({ value: 'Exit Date', type: 'String', styleId: 'Header' })
       detailHeaders.push({ value: 'Exit Time', type: 'String', styleId: 'Header' })
-      detailHeaders.push({ value: 'Duration (Hrs)', type: 'String', styleId: 'Header' })
+      detailHeaders.push({ value: 'Duration', type: 'String', styleId: 'Header' })
 
       if (bookingTypeFilter === 'user') {
         detailHeaders.push({ value: 'GST Amount', type: 'String', styleId: 'Header' })
@@ -905,7 +933,7 @@ const UserBookings = () => {
               <th>Vehicle Number</th>
               <th>Date / Time</th>
               <th style="text-align: right;">Charges</th>
-              <th>Exit Date/Time</th><th>Duration (Hrs)</th>
+              <th>Exit Date/Time</th><th>Duration</th>
               ${bookingTypeFilter === 'user' ? '<th style="text-align: right;">GST</th><th style="text-align: right;">Handling</th>' : ''}
               <th style="text-align: right;">Platform Fee</th>
               <th style="text-align: right;">Receivable</th>
@@ -1020,7 +1048,7 @@ const UserBookings = () => {
     { field: 'parkingTime', headerName: 'Time', width: 100 },
     { field: 'exitDate', headerName: 'Exit Date', width: 120 },
     { field: 'exitTime', headerName: 'Exit Time', width: 100 },
-    { field: 'duration', headerName: 'Duration (Hrs)', width: 120 },
+    { field: 'duration', headerName: 'Duration', width: 130 },
     {
       field: 'status',
       headerName: 'Status',
