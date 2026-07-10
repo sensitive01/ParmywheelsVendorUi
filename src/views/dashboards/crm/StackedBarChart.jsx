@@ -16,7 +16,7 @@ const MeetingCountCard = () => {
   // Hooks
   const { data: session } = useSession()
   const vendorId = session?.user?.id
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
   
   // State for meeting count
   const [meetingCount, setMeetingCount] = useState(0)

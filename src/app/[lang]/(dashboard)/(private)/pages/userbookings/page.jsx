@@ -328,27 +328,78 @@ const UserBookings = () => {
           return sub ? sub.name : 'Subunit'
         }
 
-        const data = uniqueDataFiltered.map((item, index) => ({
-          id: item._id,
-          realBookingId: item.bookingId || item._id,
-          serialNo: index + 1,
-          bookingId: item.invoiceid || item._id,
-          userid: item.userid,
-          vendorid: item.vendorid || item.vendorId, // include vendorid for correct filtering
-          bookingDate: item.bookingDate || 'N/A',
-          parkingDate: item.parkingDate || 'N/A',
-          parkingTime: item.parkingTime || 'N/A',
-          bookingAmount: `₹${item.amount}`,
-          handlingFee: `₹${item.handlingfee === 'NaN' ? '0.00' : item.handlingfee}`,
-          releaseFee: `₹${item.releasefee === 'NaN' ? '0.00' : item.releasefee}`,
-          receivable: `₹${item.recievableamount === 'NaN' ? item.amount : item.recievableamount}`,
-          payableAmount: `₹${item.payableamout === 'NaN' ? item.amount : item.payableamout}`,
-          vehicleNumber: item.vehicleNumber || item.vehiclenumber || 'N/A',
-          gstAmount: `₹${item.gstamout || '0.00'}`,
-          totalAmount: `₹${item.totalamout || item.amount}`,
-          status: (item.status || 'PENDING').toUpperCase(),
-          subunitName: getSubunitName(item.vendorid || item.vendorId || userId)
-        }))
+        const calcDur = (pDate, pTime, eDate, eTime) => {
+          if (!pDate || pDate === 'N/A' || !eDate || eDate === '-' || eDate === 'N/A') return null;
+          try {
+             let pY, pM, pD, eY, eM, eD;
+             const pParts = pDate.split('-');
+             if (pParts[0].length === 4) { pY = pParts[0]; pM = pParts[1]; pD = pParts[2]; } else { pD = pParts[0]; pM = pParts[1]; pY = pParts[2]; }
+             const eParts = eDate.split('-');
+             if (eParts[0].length === 4) { eY = eParts[0]; eM = eParts[1]; eD = eParts[2]; } else { eD = eParts[0]; eM = eParts[1]; eY = eParts[2]; }
+             
+             const parseTime = (tStr) => {
+               let h = 0, m = 0;
+               if (tStr && tStr !== '-' && tStr !== 'N/A') {
+                 const ampmMatch = tStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+                 if (ampmMatch) {
+                    h = parseInt(ampmMatch[1], 10);
+                    m = parseInt(ampmMatch[2], 10);
+                    const ampm = ampmMatch[3];
+                    if (ampm && ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+                    else if (ampm && ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+                 } else if (tStr.includes(':')) {
+                    const parts = tStr.split(':');
+                    h = parseInt(parts[0], 10) || 0;
+                    m = parseInt(parts[1], 10) || 0;
+                 }
+               }
+               return {h, m};
+             };
+             
+             const pt = parseTime(pTime);
+             const et = parseTime(eTime);
+             const start = new Date(pY, pM - 1, pD, pt.h, pt.m).getTime();
+             const end = new Date(eY, eM - 1, eD, et.h, et.m).getTime();
+             if (end >= start) {
+                return String(Math.max(1, Math.ceil((end - start) / 3600000)));
+             }
+          } catch(e) {}
+          return null;
+        };
+
+        const data = uniqueDataFiltered.map((item, index) => {
+          const exDate = item.exitdate || item.exitvehicledate || '-';
+          const exTime = item.exittime || item.exitvehicletime || '-';
+          let dur = item.hour || item.duration;
+          if (!dur || dur === 'NaN') {
+             dur = calcDur(item.parkingDate, item.parkingTime, exDate, exTime);
+          }
+
+          return {
+            id: item._id,
+            realBookingId: item.bookingId || item._id,
+            serialNo: index + 1,
+            bookingId: item.invoiceid || item._id,
+            userid: item.userid,
+            vendorid: item.vendorid || item.vendorId, // include vendorid for correct filtering
+            bookingDate: item.bookingDate || 'N/A',
+            parkingDate: item.parkingDate || 'N/A',
+            parkingTime: item.parkingTime || 'N/A',
+            bookingAmount: `₹${item.amount}`,
+            handlingFee: `₹${item.handlingfee === 'NaN' ? '0.00' : item.handlingfee}`,
+            releaseFee: `₹${item.releasefee === 'NaN' ? '0.00' : item.releasefee}`,
+            receivable: `₹${item.recievableamount === 'NaN' ? item.amount : item.recievableamount}`,
+            payableAmount: `₹${item.payableamout === 'NaN' ? item.amount : item.payableamout}`,
+            vehicleNumber: item.vehicleNumber || item.vehiclenumber || 'N/A',
+            gstAmount: `₹${item.gstamout || '0.00'}`,
+            totalAmount: `₹${item.totalamout || item.amount}`,
+            status: (item.status || 'PENDING').toUpperCase(),
+            subunitName: getSubunitName(item.vendorid || item.vendorId || userId),
+            exitDate: exDate,
+            exitTime: exTime,
+            duration: dur || '-'
+          };
+        })
 
         setTransactions(data)
       } else {
@@ -584,6 +635,10 @@ const UserBookings = () => {
         { value: 'Charges', type: 'String', styleId: 'Header' }
       ]
 
+      detailHeaders.push({ value: 'Exit Date', type: 'String', styleId: 'Header' })
+      detailHeaders.push({ value: 'Exit Time', type: 'String', styleId: 'Header' })
+      detailHeaders.push({ value: 'Duration (Hrs)', type: 'String', styleId: 'Header' })
+
       if (bookingTypeFilter === 'user') {
         detailHeaders.push({ value: 'GST Amount', type: 'String', styleId: 'Header' })
         detailHeaders.push({ value: 'Handling Fee', type: 'String', styleId: 'Header' })
@@ -630,6 +685,10 @@ const UserBookings = () => {
           { value: charges.toFixed(2), type: 'Number' }
         ]
 
+        r.push({ value: t.exitDate, type: 'String' })
+        r.push({ value: t.exitTime, type: 'String' })
+        r.push({ value: t.duration, type: 'String' })
+
         if (bookingTypeFilter === 'user') {
           r.push({ value: gst.toFixed(2), type: 'Number' })
           r.push({ value: handling.toFixed(2), type: 'Number' })
@@ -654,6 +713,10 @@ const UserBookings = () => {
         { value: '', type: 'String', styleId: 'SubHeader' },
         { value: totalCharges.toFixed(2), type: 'Number', styleId: 'SubHeader' }
       ]
+
+      totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
+      totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
+      totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
 
       if (bookingTypeFilter === 'user') {
         totalRow.push({ value: totalGst.toFixed(2), type: 'Number', styleId: 'SubHeader' })
@@ -842,6 +905,7 @@ const UserBookings = () => {
               <th>Vehicle Number</th>
               <th>Date / Time</th>
               <th style="text-align: right;">Charges</th>
+              <th>Exit Date/Time</th><th>Duration (Hrs)</th>
               ${bookingTypeFilter === 'user' ? '<th style="text-align: right;">GST</th><th style="text-align: right;">Handling</th>' : ''}
               <th style="text-align: right;">Platform Fee</th>
               <th style="text-align: right;">Receivable</th>
@@ -874,6 +938,7 @@ const UserBookings = () => {
             <td>${t.vehicleNumber}</td>
             <td>${t.parkingDate} ${t.parkingTime}</td>
             <td style="text-align: right;">₹${charges.toFixed(2)}</td>
+            <td>${t.exitDate} ${t.exitTime}</td><td>${t.duration}</td>
             ${bookingTypeFilter === 'user' ? `<td style="text-align: right;">₹${gst.toFixed(2)}</td><td style="text-align: right;">₹${handling.toFixed(2)}</td>` : ''}
             <td style="text-align: right; color: #ff4d49;">- ₹${platform.toFixed(2)}</td>
             <td style="text-align: right; color: #22c55e;">₹${receivable.toFixed(2)}</td>
@@ -890,6 +955,7 @@ const UserBookings = () => {
               <td></td>
               <td></td>
               <td style="text-align: right;">₹${totalCharges.toFixed(2)}</td>
+              <td></td><td></td>
               ${bookingTypeFilter === 'user' ? `<td style="text-align: right;">₹${totalGst.toFixed(2)}</td><td style="text-align: right;">₹${totalHandling.toFixed(2)}</td>` : ''}
               <td style="text-align: right;">- ₹${totalPlatform.toFixed(2)}</td>
               <td style="text-align: right;">₹${totalReceivable.toFixed(2)}</td>
@@ -952,6 +1018,9 @@ const UserBookings = () => {
     { field: 'vehicleNumber', headerName: 'Vehicle Number', width: 140 },
     { field: 'parkingDate', headerName: 'Date', width: 120 },
     { field: 'parkingTime', headerName: 'Time', width: 100 },
+    { field: 'exitDate', headerName: 'Exit Date', width: 120 },
+    { field: 'exitTime', headerName: 'Exit Time', width: 100 },
+    { field: 'duration', headerName: 'Duration (Hrs)', width: 120 },
     {
       field: 'status',
       headerName: 'Status',
