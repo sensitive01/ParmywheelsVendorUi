@@ -409,6 +409,7 @@ const UserBookings = () => {
             serialNo: index + 1,
             bookingId: item.invoiceid || item._id,
             userid: item.userid,
+            userName: item.username || item.personName || 'N/A',
             vendorid: item.vendorid || item.vendorId, // include vendorid for correct filtering
             bookingDate: item.bookingDate || 'N/A',
             parkingDate: item.parkingDate || 'N/A',
@@ -656,6 +657,7 @@ const UserBookings = () => {
       const detailHeaders = [
         { value: 'S.No', type: 'String', styleId: 'Header' },
         { value: 'Booking ID', type: 'String', styleId: 'Header' },
+        { value: 'Name', type: 'String', styleId: 'Header' },
         { value: 'Subunit/Location', type: 'String', styleId: 'Header' },
         { value: 'Vehicle Number', type: 'String', styleId: 'Header' },
         { value: 'Date', type: 'String', styleId: 'Header' },
@@ -706,6 +708,7 @@ const UserBookings = () => {
         const r = [
           { value: index + 1, type: 'Number' },
           { value: t.bookingId, type: 'String' },
+          { value: t.userName, type: 'String' },
           { value: t.subunitName || 'Main Location', type: 'String' },
           { value: t.vehicleNumber, type: 'String' },
           { value: t.parkingDate, type: 'String' },
@@ -734,6 +737,7 @@ const UserBookings = () => {
       // Auto-Sum / Total row for this status
       const totalRow = [
         { value: 'Total', type: 'String', styleId: 'SubHeader' },
+        { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
@@ -929,6 +933,7 @@ const UserBookings = () => {
             <tr>
               <th>S.No</th>
               <th>Booking ID</th>
+              <th>Name</th>
               <th>Location</th>
               <th>Vehicle Number</th>
               <th>Date / Time</th>
@@ -962,6 +967,7 @@ const UserBookings = () => {
           <tr>
             <td>${index + 1}</td>
             <td>${t.bookingId}</td>
+            <td>${t.userName}</td>
             <td>${t.subunitName || 'Main Location'}</td>
             <td>${t.vehicleNumber}</td>
             <td>${t.parkingDate} ${t.parkingTime}</td>
@@ -978,6 +984,7 @@ const UserBookings = () => {
       detailedHtml += `
             <tr class="total-row">
               <td>Total</td>
+              <td></td>
               <td></td>
               <td></td>
               <td></td>
@@ -1043,6 +1050,7 @@ const UserBookings = () => {
   const columns = [
     { field: 'serialNo', headerName: 'S.No', width: 70 },
     { field: 'bookingId', headerName: 'Booking ID', width: 200 },
+    { field: 'userName', headerName: 'Name', width: 150 },
     { field: 'vehicleNumber', headerName: 'Vehicle Number', width: 140 },
     { field: 'parkingDate', headerName: 'Date', width: 120 },
     { field: 'parkingTime', headerName: 'Time', width: 100 },
