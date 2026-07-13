@@ -116,23 +116,35 @@ const HorizontalMenu = ({ dictionary }) => {
             {dictionary['navigation'].Bookings}
           </MenuItem>
         ) : userRole === 'accountant' ? (
-          <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
-            <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
-            <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
-              {dictionary['navigation'].SubscriptionBooking}
+          <>
+            <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
+              <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
+              <MenuItem href={`/${locale}/apps/parking/valet-drivers`}>Valet Drivers</MenuItem>
+              <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
+                {dictionary['navigation'].SubscriptionBooking}
+              </MenuItem>
+              <MenuItem href={`/${locale}/pages/transactions`}>{dictionary['navigation'].Transactions}</MenuItem>
+            </SubMenu>
+            <MenuItem href={`/${locale}/apps/audit-logs`} icon={<i className='ri-shield-check-line' />}>
+              Audit Logs
             </MenuItem>
-            <MenuItem href={`/${locale}/pages/transactions`}>{dictionary['navigation'].Transactions}</MenuItem>
-          </SubMenu>
+          </>
         ) : (
-          <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
-            <MenuItem onClick={handleNewBookingClick}>{dictionary['navigation'].NewBookings || 'New Bookings'}</MenuItem>
-            <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
-            <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
-              {dictionary['navigation'].SubscriptionBooking}
+          <>
+            <SubMenu label={dictionary['navigation'].Bookings} icon={<i className='ri-shopping-bag-3-line' />}>
+              <MenuItem onClick={handleNewBookingClick}>{dictionary['navigation'].NewBookings || 'New Bookings'}</MenuItem>
+              <MenuItem href={`/${locale}/apps/ecommerce/products/list`}>{dictionary['navigation'].Bookings}</MenuItem>
+              <MenuItem href={`/${locale}/apps/parking/valet-drivers`}>Valet Drivers</MenuItem>
+              <MenuItem href={`/${locale}/pages/subscriptionbooking`}>
+                {dictionary['navigation'].SubscriptionBooking}
+              </MenuItem>
+              <MenuItem href={`/${locale}/pages/transactions`}>{dictionary['navigation'].Transactions}</MenuItem>
+              <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].vendorpayouts}</MenuItem>
+            </SubMenu>
+            <MenuItem href={`/${locale}/apps/audit-logs`} icon={<i className='ri-shield-check-line' />}>
+              Audit Logs
             </MenuItem>
-            <MenuItem href={`/${locale}/pages/transactions`}>{dictionary['navigation'].Transactions}</MenuItem>
-            <MenuItem href={`/${locale}/pages/vendorpayouts`}>{dictionary['navigation'].vendorpayouts}</MenuItem>
-          </SubMenu>
+          </>
         )}
         {status !== 'loading' && userRole === 'vendor' && (
           <>
