@@ -106,6 +106,10 @@ const PublicScannerPage = () => {
   const [parkingDuration, setParkingDuration] = useState('00 h 00 m 00 s')
   const [valetMode, setValetMode] = useState('dark') // 'dark' | 'light'
 
+  const [calculatedAmount, setCalculatedAmount] = useState(0)
+  const [paymentQrUrl, setPaymentQrUrl] = useState('')
+  const [upiLink, setUpiLink] = useState('')
+
   // Restore Session
   useEffect(() => {
     if (!vendorId) return
@@ -138,7 +142,7 @@ const PublicScannerPage = () => {
     if (viewState === 'result' && bookingData && bookingData.status?.toLowerCase() === 'parked') {
       refreshInterval = setInterval(() => {
         fetchBookingDetails(valetToken, plateNumber, true)
-      }, 30000) // Re-check every 30s
+      }, 30000)
     }
 
     return () => clearInterval(refreshInterval)
@@ -199,7 +203,7 @@ const PublicScannerPage = () => {
 
   // Fetch charges and slots for booking
   useEffect(() => {
-    if (!vendorId || mainMode !== 'booking') return
+    if (!vendorId) return
 
     const fetchBookingEssentials = async () => {
       try {
@@ -211,10 +215,12 @@ const PublicScannerPage = () => {
         }
 
         // Fetch Slots
-        const slotsRes = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`)
+        if (mainMode === 'booking') {
+          const slotsRes = await axios.get(`${API_URL}/vendor/availableslots/${vendorId}`)
 
-        if (slotsRes.data) {
-          setAvailableSlots(slotsRes.data)
+          if (slotsRes.data) {
+            setAvailableSlots(slotsRes.data)
+          }
         }
       } catch (e) {
         console.error('Error fetching booking essentials:', e)
@@ -223,6 +229,77 @@ const PublicScannerPage = () => {
 
     fetchBookingEssentials()
   }, [vendorId, mainMode])
+
+  useEffect(() => {
+    if (returnTimer > 0 && bookingData && !paymentQrUrl) {
+      const vehicleType = bookingData.vehicleType || 'Car'
+      const bookType = bookingData.bookType || (bookingData.sts === 'Subscription' ? 'Monthly' : 'Hourly')
+      let amountDue = 0
+      
+      if (bookType.toLowerCase() === 'monthly') {
+        const charge = charges?.find(c => c.category?.toLowerCase() === vehicleType.toLowerCase() && c.type?.toLowerCase() === 'monthly')
+        amountDue = charge ? Number(charge.amount) : 0
+      } else {
+        let baseRate = 0
+        let additionalRate = 0
+        let baseHours = 1
+        let additionalHours = 1
+        
+        if (charges && charges.length > 0) {
+          const baseCharge = charges.find(c => c.category?.toLowerCase() === vehicleType.toLowerCase() && c.type?.toLowerCase().includes('0 to'))
+          const addCharge = charges.find(c => c.category?.toLowerCase() === vehicleType.toLowerCase() && c.type?.toLowerCase().includes('additional'))
+          
+          if (baseCharge) {
+            baseRate = Number(baseCharge.amount) || 0
+            const match = baseCharge.type.match(/0 to (\d+)/i)
+            if (match) baseHours = parseInt(match[1], 10) || 1
+          }
+          if (addCharge) {
+            additionalRate = Number(addCharge.amount) || 0
+            const match = addCharge.type.match(/additional (\d+)/i)
+            if (match) additionalHours = parseInt(match[1], 10) || 1
+          }
+        }
+        
+        const dateParts = bookingData.parkingDate?.split('-')
+        const timeParts = bookingData.parkingTime?.match(/(\d+):(\d+)\s*(AM|PM|am|pm)/i)
+        if (dateParts && dateParts.length === 3 && timeParts) {
+          let hours = parseInt(timeParts[1])
+          const minutes = parseInt(timeParts[2])
+          const ampm = timeParts[3].toUpperCase()
+          if (ampm === 'PM' && hours < 12) hours += 12
+          if (ampm === 'AM' && hours === 12) hours = 0
+          const parkedTime = new Date(parseInt(dateParts[2]), parseInt(dateParts[1]) - 1, parseInt(dateParts[0]), hours, minutes)
+          
+          let endTime = new Date()
+          const diffSeconds = Math.max(0, Math.floor((endTime - parkedTime) / 1000))
+          
+          if (diffSeconds <= baseHours * 3600) {
+            amountDue = baseRate
+          } else {
+            const extraSeconds = diffSeconds - (baseHours * 3600)
+            const extraUnits = Math.ceil(extraSeconds / (additionalHours * 3600))
+            amountDue = baseRate + (extraUnits * additionalRate)
+          }
+        } else {
+          amountDue = baseRate
+        }
+      }
+      
+      setCalculatedAmount(amountDue)
+
+      // Always generate QR, even if amount is 0, so UI doesn't break
+      const upiId = vendorData?.upiId || 'vendor@upi'
+      const vName = encodeURIComponent(vendorData?.vendorName || 'Vendor')
+      const currentUrl = typeof window !== 'undefined' ? encodeURIComponent(window.location.href) : ''
+      const link = `upi://pay?pa=${upiId}&pn=${vName}&am=${amountDue}&cu=INR&tn=Parking%20Payment&url=${currentUrl}`
+      setUpiLink(link)
+      
+      // Use external API to guarantee it loads synchronously without dynamic imports
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(link)}`
+      setPaymentQrUrl(qrUrl)
+    }
+  }, [returnTimer, bookingData, charges, vendorData])
 
   useEffect(() => {
     let interval = null
@@ -237,12 +314,12 @@ const PublicScannerPage = () => {
 
     const checkAndUpdateTimer = () => {
       if (!bookingData?._id) return
-      
+
       const targetStr = localStorage.getItem(`return_target_${bookingData._id}`)
       if (targetStr) {
         const targetMs = parseInt(targetStr, 10)
         const remainingMs = targetMs - Date.now()
-        
+
         if (remainingMs > 0) {
           setReturnTimer(Math.ceil(remainingMs / 1000))
         } else {
@@ -251,6 +328,8 @@ const PublicScannerPage = () => {
           localStorage.removeItem(`return_target_${bookingData._id}`)
           if (interval) clearInterval(interval)
         }
+      } else {
+        setReturnTimer(0)
       }
     }
 
@@ -469,6 +548,9 @@ const PublicScannerPage = () => {
     setBookingData(null)
     setSuccessMessage(null)
     setReturnTimer(0)
+    setCalculatedAmount(0)
+    setPaymentQrUrl('')
+    setUpiLink('')
 
     localStorage.removeItem(`valet_session_${vendorId}`)
   }
@@ -627,7 +709,7 @@ const PublicScannerPage = () => {
             <Box sx={{ width: '100%', px: 1, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'center', pb: 8 }}>
               <Box sx={{ textAlign: 'center', mb: 4 }}>
                 <Typography variant='h5' sx={{ fontWeight: 950, color: valetMode === 'dark' ? 'white' : '#05070A', letterSpacing: -0.5 }}>
-                   Portal Selection
+                  Portal Selection
                 </Typography>
                 <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#64748b', opacity: 0.7, fontWeight: 700, letterSpacing: 1 }}>
                   CHOOSE YOUR SERVICE TYPE BELOW
@@ -695,11 +777,11 @@ const PublicScannerPage = () => {
           )}
 
 
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Typography variant='caption' sx={{ color: valetMode === 'dark' ? TEXT_LIGHT : '#475569', opacity: valetMode === 'dark' ? 0.3 : 0.6, letterSpacing: 8, fontWeight: 900, fontSize: '0.55rem' }}>
-                  PARKMYWHEELS
-                </Typography>
-              </Box>
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant='caption' sx={{ color: valetMode === 'dark' ? TEXT_LIGHT : '#475569', opacity: valetMode === 'dark' ? 0.3 : 0.6, letterSpacing: 8, fontWeight: 900, fontSize: '0.55rem' }}>
+              PARKMYWHEELS
+            </Typography>
+          </Box>
 
           {mainMode === 'booking' && viewState === 'search' && (
             <Box sx={{ py: 1 }}>
@@ -752,7 +834,7 @@ const PublicScannerPage = () => {
               </Box>
 
               {/* Vehicle Selection */}
-               <Box sx={{ mb: 4 }}>
+              <Box sx={{ mb: 4 }}>
                 <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 900, ml: 1, letterSpacing: 2, fontSize: '0.65rem' }}>
                   VEHICLE CATEGORY
                 </Typography>
@@ -1258,7 +1340,7 @@ const PublicScannerPage = () => {
                   {bookingData?.vehicleImages?.length > 0 && (
                     <Box>
                       <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, ml: 1, letterSpacing: 2, opacity: 0.6 }}>
-                          VEHICLE CONDITION
+                        VEHICLE CONDITION
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 2, overflowX: 'auto', mt: 1.5, pb: 1, '&::-webkit-scrollbar': { display: 'none' } }}>
                         {bookingData.vehicleImages.map((img, idx) => (
@@ -1292,45 +1374,65 @@ const PublicScannerPage = () => {
                   {/* Status Timeline */}
                   <Box sx={{ p: 4, borderRadius: 4, background: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: valetMode === 'dark' ? '1px solid rgba(255,255,255,0.05)' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-                       <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: BRAND_MAIN, boxShadow: `0 0 15px ${BRAND_MAIN}` }} />
-                       <Box sx={{ flex: 1 }}>
-                          <Typography variant='body2' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, lineHeight: 1 }}>Parked & Secured</Typography>
-                          <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{bookingData.parkingDate} {bookingData.parkingTime}</Typography>
-                       </Box>
+                      <Box sx={{ width: 14, height: 14, borderRadius: '50%', bgcolor: BRAND_MAIN, boxShadow: `0 0 15px ${BRAND_MAIN}` }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant='body2' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950, lineHeight: 1 }}>Parked & Secured</Typography>
+                        <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{bookingData.parkingDate} {bookingData.parkingTime}</Typography>
+                      </Box>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-                       <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: `2.5px solid ${returnTimer > 0 ? BRAND_MAIN : (valetMode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)')}`, bgcolor: returnTimer > 0 ? BRAND_MAIN : 'transparent' }} />
-                       <Box sx={{ flex: 1 }}>
-                          <Typography variant='body2' sx={{ color: returnTimer > 0 ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'), fontWeight: 950, lineHeight: 1 }}>Return Tracking</Typography>
-                          <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{returnTimer > 0 ? 'Vehicle requested' : 'Pending request'}</Typography>
-                       </Box>
+                      <Box sx={{ width: 14, height: 14, borderRadius: '50%', border: `2.5px solid ${returnTimer > 0 ? BRAND_MAIN : (valetMode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)')}`, bgcolor: returnTimer > 0 ? BRAND_MAIN : 'transparent' }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant='body2' sx={{ color: returnTimer > 0 ? (valetMode === 'dark' ? 'white' : '#05070A') : (valetMode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'), fontWeight: 950, lineHeight: 1 }}>Return Tracking</Typography>
+                        <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.5, fontWeight: 700 }}>{returnTimer > 0 ? 'Vehicle requested' : 'Pending request'}</Typography>
+                      </Box>
                     </Box>
                   </Box>
 
                   {returnTimer > 0 && (
-                    <Box
-                      sx={{
-                        textAlign: 'center',
-                        p: 4.5,
-                        bgcolor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(16, 185, 129, 0.08)',
-                        borderRadius: 7,
-                        border: '1px solid',
-                        borderColor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'
-                      }}
-                    >
-                      <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', mb: 2.5, fontWeight: 950, letterSpacing: 5, display: 'block', opacity: 0.5 }}>
-                        HAVE A PLEASANT TRIP
-                      </Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, alignItems: 'center' }}>
-                        <Box sx={{ bgcolor: valetMode === 'dark' ? 'white' : '#05070A', color: valetMode === 'dark' ? '#05070A' : 'white', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.4rem', minWidth: 60 }}>
-                          {returnTimeParts.m}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <Box
+                        sx={{
+                          textAlign: 'center',
+                          p: 4.5,
+                          bgcolor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(16, 185, 129, 0.08)',
+                          borderRadius: 7,
+                          border: '1px solid',
+                          borderColor: valetMode === 'dark' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.15)'
+                        }}
+                      >
+                        <Typography variant='caption' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', mb: 2.5, fontWeight: 950, letterSpacing: 5, display: 'block', opacity: 0.5 }}>
+                          HAVE A PLEASANT TRIP
+                        </Typography>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 3, alignItems: 'center' }}>
+                          <Box sx={{ bgcolor: valetMode === 'dark' ? 'white' : '#05070A', color: valetMode === 'dark' ? '#05070A' : 'white', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.4rem', minWidth: 60 }}>
+                            {returnTimeParts.m}
+                          </Box>
+                          <Typography variant='h4' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950 }}>:</Typography>
+                          <Box sx={{ bgcolor: valetMode === 'dark' ? 'white' : '#05070A', color: valetMode === 'dark' ? '#05070A' : 'white', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.4rem', minWidth: 60 }}>
+                            {returnTimeParts.s}
+                          </Box>
                         </Box>
-                        <Typography variant='h4' sx={{ color: valetMode === 'dark' ? 'white' : '#05070A', fontWeight: 950 }}>:</Typography>
-                        <Box sx={{ bgcolor: valetMode === 'dark' ? 'white' : '#05070A', color: valetMode === 'dark' ? '#05070A' : 'white', px: 3, py: 2, borderRadius: 5, fontWeight: 950, fontSize: '1.4rem', minWidth: 60 }}>
-                          {returnTimeParts.s}
-                        </Box>
+                        <Typography variant='caption' sx={{ color: BRAND_MAIN, mt: 3, display: 'block', fontWeight: 950, letterSpacing: 2 }}>ESTIMATED ARRIVAL</Typography>
                       </Box>
-                      <Typography variant='caption' sx={{ color: BRAND_MAIN, mt: 3, display: 'block', fontWeight: 950, letterSpacing: 2 }}>ESTIMATED ARRIVAL</Typography>
+                      
+                      {String(vendorData?.customerPaymentEnabled).toLowerCase() !== 'false' && (
+                        <Box sx={{ textAlign: 'center', p: 4, bgcolor: valetMode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', borderRadius: 7, border: valetMode === 'dark' ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.1)' }}>
+                          <Typography variant='h6' sx={{ color: BRAND_MAIN, fontWeight: 950, mb: 1 }}>Amount Due: ₹{calculatedAmount}</Typography>
+                          {paymentQrUrl ? (
+                            <Box sx={{ mt: 2, p: 2, bgcolor: 'white', display: 'inline-block', borderRadius: 4, boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }}>
+                              <a href={upiLink} style={{ textDecoration: 'none' }}>
+                                <img src={paymentQrUrl} alt="UPI QR" style={{ width: 180, height: 180, borderRadius: 10, display: 'block' }} />
+                              </a>
+                            </Box>
+                          ) : (
+                            <CircularProgress size={30} sx={{ mt: 2 }} />
+                          )}
+                          <Typography variant='caption' sx={{ display: 'block', mt: 3, color: valetMode === 'dark' ? 'white' : '#05070A', opacity: 0.7, fontWeight: 900, letterSpacing: 1 }}>
+                            SCAN OR TAP TO PAY
+                          </Typography>
+                        </Box>
+                      )}
                     </Box>
                   )}
 

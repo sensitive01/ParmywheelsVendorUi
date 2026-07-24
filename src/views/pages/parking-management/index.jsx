@@ -108,7 +108,8 @@ const ParkingManagement = () => {
     exitEnabled: false,
     vehicleUploadEnabled: false,
     slotViewEnabled: false,
-    valetEnabled: false
+    valetEnabled: false,
+    customerPaymentEnabled: true
   })
   const [slotsData, setSlotsData] = useState({
     total: { count: 0, car: 0, bike: 0, others: 0 },
@@ -210,7 +211,8 @@ const ParkingManagement = () => {
           exitEnabled: vData.exitEnabled ?? toggleStates.exitEnabled,
           vehicleUploadEnabled: vData.vehicleUploadEnabled ?? toggleStates.vehicleUploadEnabled,
           valetEnabled: vData.valetEnabled ?? toggleStates.valetEnabled,
-          slotViewEnabled: vData.slotViewEnabled ?? toggleStates.slotViewEnabled
+          slotViewEnabled: vData.slotViewEnabled ?? toggleStates.slotViewEnabled,
+          customerPaymentEnabled: vData.customerPaymentEnabled ?? toggleStates.customerPaymentEnabled
         })
 
         // Sync total slots from parkingEntries if available
@@ -548,7 +550,8 @@ const ParkingManagement = () => {
             { label: 'Print Enable', field: 'printEnabled' },
             { label: 'Exit Enable', field: 'exitEnabled' },
             { label: 'Vehicle Upload', field: 'vehicleUploadEnabled' },
-            { label: 'Valet', field: 'valetEnabled' }
+            { label: 'Valet', field: 'valetEnabled' },
+            { label: 'Customer Payments', field: 'customerPaymentEnabled' }
           ].map((item) => (
             <Grid size={{ xs: 12, sm: 6, md: 4, lg: 2.4 }} key={item.field}>
               <ToggleCard sx={{ py: 6 }}>
