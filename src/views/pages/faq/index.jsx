@@ -222,6 +222,8 @@ const Dashboard = () => {
       <tr>
         <td>${index + 1}</td>
         <td>${t.invoiceid}</td>
+        <td>${t.personName || 'N/A'}</td>
+        <td>${t.valetDriverName || 'N/A'}</td>
         <td>${t.subunitName || 'Main Location'}</td>
         <td>${t.bookingDate} ${t.bookingTime || ''}</td>
         <td>${t.hour || 'N/A'}</td>
@@ -385,6 +387,8 @@ const Dashboard = () => {
               <tr>
                 <th>S.No</th>
                 <th>Booking ID</th>
+                <th>Customer Name</th>
+                <th>Valet Driver</th>
                 <th>Subunit/Location</th>
                 <th>Date & Time</th>
                 <th>Hours</th>
@@ -396,7 +400,7 @@ const Dashboard = () => {
             <tbody>
               ${detailedRows}
               <tr class="total-row">
-                <td colspan="5">Grand Total</td>
+                <td colspan="7">Grand Total</td>
                 <td class="text-right">₹${totalAmount.toFixed(2)}</td>
                 <td class="text-right">₹ ${(totalAmount * PLATFORM_FEE_PERCENTAGE / 100).toFixed(2)}</td>
                 <td class="text-right">₹${totalPayout.toFixed(2)}</td>
@@ -427,6 +431,39 @@ const Dashboard = () => {
     } else {
       alert('Pop-up blocked! Please allow pop-ups to generate PDF.');
     }
+  };
+
+  const handleDownloadExcel = () => {
+    const csvContent = [
+      ['S.No', 'Booking ID', 'Customer Name', 'Valet Driver', 'Subunit/Location', 'Date', 'Time', 'Hours', 'Gross Amount', `Platform Fee (${PLATFORM_FEE_PERCENTAGE}%)`, 'Receivable'],
+      ...filteredTransactions.map((t, index) => [
+        index + 1,
+        t.invoiceid,
+        t.personName || 'N/A',
+        t.valetDriverName || 'N/A',
+        t.subunitName || 'Main Location',
+        t.bookingDate,
+        t.bookingTime || '',
+        t.hour || 'N/A',
+        parseFloat(t.amount || 0).toFixed(2),
+        (parseFloat(t.amount || 0) * PLATFORM_FEE_PERCENTAGE / 100).toFixed(2),
+        calculatePayout(t.amount).toFixed(2)
+      ]),
+      ['', '', '', '', '', '', '', 'Grand Total', totalAmount.toFixed(2), (totalAmount * PLATFORM_FEE_PERCENTAGE / 100).toFixed(2), totalPayout.toFixed(2)]
+    ].map(e => e.join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    const dateStr = dateRange.startDate ? `_${format(dateRange.startDate, 'ddMMMyyyy')}` : '';
+    const filename = `Transactions${dateStr}.csv`;
+
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleChange = (event, newValue) => {
@@ -505,19 +542,19 @@ const Dashboard = () => {
               {isPayout && (
                 <>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, justifyContent: 'space-between', flexWrap: 'nowrap', width: '100%' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
-                        <Receipt sx={{ mr: 1, }} />
-                        <Typography>
-                          Platform Fee ({PLATFORM_FEE_PERCENTAGE}%): ₹{(Number(transaction.amount) * PLATFORM_FEE_PERCENTAGE / 100).toFixed(2)}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
-                        <AccountBalanceWallet sx={{ mr: 1 }} />
-                        <Typography>
-                          Receivable: ₹{calculatePayout(transaction.amount).toFixed(2)}
-                        </Typography>
-                      </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'error.main' }}>
+                      <Receipt sx={{ mr: 1, }} />
+                      <Typography>
+                        Platform Fee ({PLATFORM_FEE_PERCENTAGE}%): ₹{(Number(transaction.amount) * PLATFORM_FEE_PERCENTAGE / 100).toFixed(2)}
+                      </Typography>
                     </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main' }}>
+                      <AccountBalanceWallet sx={{ mr: 1 }} />
+                      <Typography>
+                        Receivable: ₹{calculatePayout(transaction.amount).toFixed(2)}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </>
               )}
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -548,6 +585,11 @@ const Dashboard = () => {
                   {transaction.personName && (
                     <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
                       Customer: {transaction.personName}
+                    </Typography>
+                  )}
+                  {transaction.valetDriverName && (
+                    <Typography variant="body2" color="textSecondary" sx={{ mb: 0.5 }}>
+                      Valet Driver: {transaction.valetDriverName}
                     </Typography>
                   )}
                   {transaction.mobileNumber && (
@@ -624,18 +666,33 @@ const Dashboard = () => {
             </Grid>
             <Grid item xs={12} sm={3}>
               <Button
-                fullWidth
                 variant="contained"
+                fullWidth
                 onClick={handleDownloadPdf}
-                startIcon={<Receipt />}
+                startIcon={<Download />}
                 sx={{
-                  bgcolor: '#666cff',
                   height: 40,
                   fontWeight: 600,
+                  bgcolor: '#666cff',
                   '&:hover': { bgcolor: '#5555e0' }
                 }}
               >
-                Download PDF Report
+                Download PDF
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={3}>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={handleDownloadExcel}
+                startIcon={<Download />}
+                color="success"
+                sx={{
+                  height: 40,
+                  fontWeight: 600
+                }}
+              >
+                Download Excel
               </Button>
             </Grid>
           </Grid>

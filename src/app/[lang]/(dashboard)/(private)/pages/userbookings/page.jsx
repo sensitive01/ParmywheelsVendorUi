@@ -331,48 +331,48 @@ const UserBookings = () => {
         const calcDur = (pDate, pTime, eDate, eTime) => {
           if (!pDate || pDate === 'N/A' || !eDate || eDate === '-' || eDate === 'N/A') return null;
           try {
-             let pY, pM, pD, eY, eM, eD;
-             const pParts = pDate.split('-');
-             if (pParts[0].length === 4) { pY = pParts[0]; pM = pParts[1]; pD = pParts[2]; } else { pD = pParts[0]; pM = pParts[1]; pY = pParts[2]; }
-             const eParts = eDate.split('-');
-             if (eParts[0].length === 4) { eY = eParts[0]; eM = eParts[1]; eD = eParts[2]; } else { eD = eParts[0]; eM = eParts[1]; eY = eParts[2]; }
-             
-             const parseTime = (tStr) => {
-               let h = 0, m = 0;
-               if (tStr && tStr !== '-' && tStr !== 'N/A') {
-                 const ampmMatch = tStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-                 if (ampmMatch) {
-                    h = parseInt(ampmMatch[1], 10);
-                    m = parseInt(ampmMatch[2], 10);
-                    const ampm = ampmMatch[3];
-                    if (ampm && ampm.toUpperCase() === 'PM' && h < 12) h += 12;
-                    else if (ampm && ampm.toUpperCase() === 'AM' && h === 12) h = 0;
-                 } else if (tStr.includes(':')) {
-                    const parts = tStr.split(':');
-                    h = parseInt(parts[0], 10) || 0;
-                    m = parseInt(parts[1], 10) || 0;
-                 }
-               }
-               return {h, m};
-             };
-             
-             const pt = parseTime(pTime);
-             const et = parseTime(eTime);
-             const start = new Date(pY, pM - 1, pD, pt.h, pt.m).getTime();
-             const end = new Date(eY, eM - 1, eD, et.h, et.m).getTime();
-             if (end >= start) {
-                const diffMs = end - start;
-                const totalMins = Math.floor(diffMs / 60000);
-                const totalHrs = Math.floor(totalMins / 60);
-                const mins = totalMins % 60;
-                const days = Math.floor(totalHrs / 24);
-                const hrs = totalHrs % 24;
-                if (days > 0) {
-                   return `${days} ${days === 1 ? 'day' : 'days'} ${hrs} hrs ${mins} mins`;
+            let pY, pM, pD, eY, eM, eD;
+            const pParts = pDate.split('-');
+            if (pParts[0].length === 4) { pY = pParts[0]; pM = pParts[1]; pD = pParts[2]; } else { pD = pParts[0]; pM = pParts[1]; pY = pParts[2]; }
+            const eParts = eDate.split('-');
+            if (eParts[0].length === 4) { eY = eParts[0]; eM = eParts[1]; eD = eParts[2]; } else { eD = eParts[0]; eM = eParts[1]; eY = eParts[2]; }
+
+            const parseTime = (tStr) => {
+              let h = 0, m = 0;
+              if (tStr && tStr !== '-' && tStr !== 'N/A') {
+                const ampmMatch = tStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+                if (ampmMatch) {
+                  h = parseInt(ampmMatch[1], 10);
+                  m = parseInt(ampmMatch[2], 10);
+                  const ampm = ampmMatch[3];
+                  if (ampm && ampm.toUpperCase() === 'PM' && h < 12) h += 12;
+                  else if (ampm && ampm.toUpperCase() === 'AM' && h === 12) h = 0;
+                } else if (tStr.includes(':')) {
+                  const parts = tStr.split(':');
+                  h = parseInt(parts[0], 10) || 0;
+                  m = parseInt(parts[1], 10) || 0;
                 }
-                return `${hrs} hrs ${mins} mins`;
-             }
-          } catch(e) {}
+              }
+              return { h, m };
+            };
+
+            const pt = parseTime(pTime);
+            const et = parseTime(eTime);
+            const start = new Date(pY, pM - 1, pD, pt.h, pt.m).getTime();
+            const end = new Date(eY, eM - 1, eD, et.h, et.m).getTime();
+            if (end >= start) {
+              const diffMs = end - start;
+              const totalMins = Math.floor(diffMs / 60000);
+              const totalHrs = Math.floor(totalMins / 60);
+              const mins = totalMins % 60;
+              const days = Math.floor(totalHrs / 24);
+              const hrs = totalHrs % 24;
+              if (days > 0) {
+                return `${days} ${days === 1 ? 'day' : 'days'} ${hrs} hrs ${mins} mins`;
+              }
+              return `${hrs} hrs ${mins} mins`;
+            }
+          } catch (e) { }
           return null;
         };
 
@@ -382,25 +382,25 @@ const UserBookings = () => {
           let exactDur = calcDur(item.parkingDate, item.parkingTime, exDate, exTime);
           let dur = exactDur;
           if (!dur) {
-             let fallback = item.hour || item.duration;
-             if (fallback && fallback !== 'NaN') {
-                if (String(fallback).includes('hrs') || String(fallback).includes('mins') || String(fallback).includes('day')) {
-                    dur = fallback;
+            let fallback = item.hour || item.duration;
+            if (fallback && fallback !== 'NaN') {
+              if (String(fallback).includes('hrs') || String(fallback).includes('mins') || String(fallback).includes('day')) {
+                dur = fallback;
+              } else {
+                const fallbackHrs = parseInt(fallback, 10);
+                if (!isNaN(fallbackHrs)) {
+                  const fDays = Math.floor(fallbackHrs / 24);
+                  const fHrs = fallbackHrs % 24;
+                  if (fDays > 0) {
+                    dur = `${fDays} ${fDays === 1 ? 'day' : 'days'} ${fHrs} hrs 0 mins`;
+                  } else {
+                    dur = `${fHrs} hrs 0 mins`;
+                  }
                 } else {
-                    const fallbackHrs = parseInt(fallback, 10);
-                    if (!isNaN(fallbackHrs)) {
-                       const fDays = Math.floor(fallbackHrs / 24);
-                       const fHrs = fallbackHrs % 24;
-                       if (fDays > 0) {
-                          dur = `${fDays} ${fDays === 1 ? 'day' : 'days'} ${fHrs} hrs 0 mins`;
-                       } else {
-                          dur = `${fHrs} hrs 0 mins`;
-                       }
-                    } else {
-                       dur = `${fallback} hrs 0 mins`;
-                    }
+                  dur = `${fallback} hrs 0 mins`;
                 }
-             }
+              }
+            }
           }
 
           return {
@@ -410,6 +410,7 @@ const UserBookings = () => {
             bookingId: item.invoiceid || item._id,
             userid: item.userid,
             userName: item.username || item.personName || 'N/A',
+            valetDriverName: item.valetDriverName || 'N/A',
             vendorid: item.vendorid || item.vendorId, // include vendorid for correct filtering
             bookingDate: item.bookingDate || 'N/A',
             parkingDate: item.parkingDate || 'N/A',
@@ -657,7 +658,8 @@ const UserBookings = () => {
       const detailHeaders = [
         { value: 'S.No', type: 'String', styleId: 'Header' },
         { value: 'Booking ID', type: 'String', styleId: 'Header' },
-        { value: 'Name', type: 'String', styleId: 'Header' },
+        { value: 'Customer Name', type: 'String', styleId: 'Header' },
+        { value: 'Valet Driver', type: 'String', styleId: 'Header' },
         { value: 'Subunit/Location', type: 'String', styleId: 'Header' },
         { value: 'Vehicle Number', type: 'String', styleId: 'Header' },
         { value: 'Date', type: 'String', styleId: 'Header' },
@@ -709,6 +711,7 @@ const UserBookings = () => {
           { value: index + 1, type: 'Number' },
           { value: t.bookingId, type: 'String' },
           { value: t.userName, type: 'String' },
+          { value: t.valetDriverName || 'N/A', type: 'String' },
           { value: t.subunitName || 'Main Location', type: 'String' },
           { value: t.vehicleNumber, type: 'String' },
           { value: t.parkingDate, type: 'String' },
@@ -737,6 +740,7 @@ const UserBookings = () => {
       // Auto-Sum / Total row for this status
       const totalRow = [
         { value: 'Total', type: 'String', styleId: 'SubHeader' },
+        { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
@@ -933,7 +937,8 @@ const UserBookings = () => {
             <tr>
               <th>S.No</th>
               <th>Booking ID</th>
-              <th>Name</th>
+              <th>Customer Name</th>
+              <th>Valet Driver</th>
               <th>Location</th>
               <th>Vehicle Number</th>
               <th>Date / Time</th>
@@ -968,6 +973,7 @@ const UserBookings = () => {
             <td>${index + 1}</td>
             <td>${t.bookingId}</td>
             <td>${t.userName}</td>
+            <td>${t.valetDriverName || 'N/A'}</td>
             <td>${t.subunitName || 'Main Location'}</td>
             <td>${t.vehicleNumber}</td>
             <td>${t.parkingDate} ${t.parkingTime}</td>
@@ -984,6 +990,7 @@ const UserBookings = () => {
       detailedHtml += `
             <tr class="total-row">
               <td>Total</td>
+              <td></td>
               <td></td>
               <td></td>
               <td></td>
@@ -1050,7 +1057,8 @@ const UserBookings = () => {
   const columns = [
     { field: 'serialNo', headerName: 'S.No', width: 70 },
     { field: 'bookingId', headerName: 'Booking ID', width: 200 },
-    { field: 'userName', headerName: 'Name', width: 150 },
+    { field: 'userName', headerName: 'Customer Name', width: 150 },
+    { field: 'valetDriverName', headerName: 'Valet Driver', width: 150 },
     { field: 'vehicleNumber', headerName: 'Vehicle Number', width: 140 },
     { field: 'parkingDate', headerName: 'Date', width: 120 },
     { field: 'parkingTime', headerName: 'Time', width: 100 },
@@ -1085,9 +1093,9 @@ const UserBookings = () => {
     { field: 'bookingAmount', headerName: 'Charges', width: 100, align: 'right', headerAlign: 'right' },
     ...(bookingTypeFilter === 'user'
       ? [
-          { field: 'gstAmount', headerName: 'GST', width: 100, align: 'right', headerAlign: 'right' },
-          { field: 'handlingFee', headerName: 'Handling Fee', width: 120, align: 'right', headerAlign: 'right' }
-        ]
+        { field: 'gstAmount', headerName: 'GST', width: 100, align: 'right', headerAlign: 'right' },
+        { field: 'handlingFee', headerName: 'Handling Fee', width: 120, align: 'right', headerAlign: 'right' }
+      ]
       : []),
     {
       field: 'releaseFee',
@@ -1116,22 +1124,22 @@ const UserBookings = () => {
     { field: 'totalAmount', headerName: 'Total Amount', width: 120, align: 'right', headerAlign: 'right' },
     ...(!isAccountant
       ? [
-          {
-            field: 'actions',
-            headerName: 'Actions',
-            width: 100,
-            sortable: false,
-            renderCell: params => (
-              <IconButton
-                size='small'
-                color='error'
-                onClick={() => handleDeleteClick(params.row)}
-              >
-                <i className='ri-delete-bin-7-line' />
-              </IconButton>
-            )
-          }
-        ]
+        {
+          field: 'actions',
+          headerName: 'Actions',
+          width: 100,
+          sortable: false,
+          renderCell: params => (
+            <IconButton
+              size='small'
+              color='error'
+              onClick={() => handleDeleteClick(params.row)}
+            >
+              <i className='ri-delete-bin-7-line' />
+            </IconButton>
+          )
+        }
+      ]
       : [])
   ]
 
@@ -1145,14 +1153,14 @@ const UserBookings = () => {
     >
       <Container maxWidth="xl">
         {/* Header Row */}
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            flexDirection: { xs: 'column', sm: 'row' }, 
-            justifyContent: 'space-between', 
-            alignItems: { xs: 'stretch', sm: 'center' }, 
-            mb: 4, 
-            gap: 2 
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'stretch', sm: 'center' },
+            mb: 4,
+            gap: 2
           }}
         >
           <Box>
@@ -1163,7 +1171,7 @@ const UserBookings = () => {
               Track payments, receivables, and platform fees across all booking channels.
             </Typography>
           </Box>
-          
+
           <FormControl size="small" sx={{ width: { xs: '100%', sm: 320 } }}>
             <InputLabel id="location-select-label">Location / Subunit Filter</InputLabel>
             <Select
@@ -1198,9 +1206,9 @@ const UserBookings = () => {
                   displayText = names.join(', ');
                 }
                 return (
-                  <span style={{ 
-                    overflow: 'hidden', 
-                    textOverflow: 'ellipsis', 
+                  <span style={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     flex: 1
                   }}>
@@ -1208,16 +1216,16 @@ const UserBookings = () => {
                   </span>
                 );
               }}
-              sx={{ 
-                borderRadius: '8px', 
+              sx={{
+                borderRadius: '8px',
                 bgcolor: 'background.paper',
                 '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }
               }}
               startAdornment={<i className="ri-map-pin-line text-lg" style={{ color: 'var(--mui-palette-text-secondary)', marginRight: '8px' }} />}
             >
               <MenuItem value="all">
-                <Checkbox 
-                  checked={selectedSubunits.length === subunits.length + 1} 
+                <Checkbox
+                  checked={selectedSubunits.length === subunits.length + 1}
                   indeterminate={selectedSubunits.length > 0 && selectedSubunits.length < subunits.length + 1}
                 />
                 <ListItemText primary="Select All" />
@@ -1241,11 +1249,11 @@ const UserBookings = () => {
           <Grid item xs={12} sm={4}>
             <Card variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.02)' }}>
               <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3, p: '24px !important' }}>
-                <Box 
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: '8px', 
-                    bgcolor: 'success.lightOpacity', 
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: '8px',
+                    bgcolor: 'success.lightOpacity',
                     color: 'success.main',
                     display: 'flex',
                     alignItems: 'center',
@@ -1264,11 +1272,11 @@ const UserBookings = () => {
           <Grid item xs={12} sm={4}>
             <Card variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.02)' }}>
               <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3, p: '24px !important' }}>
-                <Box 
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: '8px', 
-                    bgcolor: 'primary.lightOpacity', 
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: '8px',
+                    bgcolor: 'primary.lightOpacity',
                     color: 'primary.main',
                     display: 'flex',
                     alignItems: 'center',
@@ -1287,11 +1295,11 @@ const UserBookings = () => {
           <Grid item xs={12} sm={4}>
             <Card variant="outlined" sx={{ borderRadius: '12px', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 18px rgba(0,0,0,0.02)' }}>
               <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 3, p: '24px !important' }}>
-                <Box 
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: '8px', 
-                    bgcolor: 'info.lightOpacity', 
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: '8px',
+                    bgcolor: 'info.lightOpacity',
                     color: 'info.main',
                     display: 'flex',
                     alignItems: 'center',
@@ -1303,8 +1311,8 @@ const UserBookings = () => {
                 <Box>
                   <Typography variant="caption" color="text.secondary" fontWeight="medium">Date Range</Typography>
                   <Typography variant="body2" fontWeight="bold" sx={{ mt: 0.5 }}>
-                    {isDateFilterActive 
-                      ? `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}` 
+                    {isDateFilterActive
+                      ? `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}`
                       : 'All Time'}
                   </Typography>
                 </Box>
@@ -1316,22 +1324,22 @@ const UserBookings = () => {
         <Card sx={{ borderRadius: '16px', boxShadow: '0 4px 18px rgba(0,0,0,0.05)', border: '1px solid', borderColor: 'divider' }}>
           <CardContent sx={{ p: 4 }}>
             {/* Control Bar */}
-            <Box 
-              sx={{ 
-                display: 'flex', 
-                flexDirection: { xs: 'column', md: 'row' }, 
-                justifyContent: 'space-between', 
-                alignItems: { xs: 'stretch', md: 'center' }, 
-                gap: 2, 
-                mb: 4 
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                justifyContent: 'space-between',
+                alignItems: { xs: 'stretch', md: 'center' },
+                gap: 2,
+                mb: 4
               }}
             >
               {/* Booking Source Toggle Buttons */}
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  bgcolor: 'action.hover', 
-                  p: '4px', 
+              <Box
+                sx={{
+                  display: 'flex',
+                  bgcolor: 'action.hover',
+                  p: '4px',
                   borderRadius: '8px',
                   border: '1px solid',
                   borderColor: 'divider',
@@ -1397,8 +1405,8 @@ const UserBookings = () => {
                       }
                       return selected.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ');
                     }}
-                    sx={{ 
-                      borderRadius: '8px', 
+                    sx={{
+                      borderRadius: '8px',
                       bgcolor: 'background.paper',
                       '& .MuiSelect-select': { display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }
                     }}
@@ -1443,10 +1451,10 @@ const UserBookings = () => {
                 >
                   Filter Dates
                 </Button>
-                <Button 
-                  variant='outlined' 
+                <Button
+                  variant='outlined'
                   color="secondary"
-                  onClick={handleDownloadClick} 
+                  onClick={handleDownloadClick}
                   size='small'
                   sx={{ borderRadius: '8px', textTransform: 'none', px: 2, py: 1 }}
                   startIcon={<i className="ri-download-line" />}

@@ -554,7 +554,7 @@ const OrderListTable = ({ orderData }) => {
   // Effect to re-fetch when filters or pagination change
   useEffect(() => {
     fetchData(false) // Not silent on filter/pagination changes to stop initial loading spinner
-    
+
     // Set up interval to check bookings every minute
     const intervalId = setInterval(() => {
       fetchData(true) // Silent on background refresh
@@ -569,408 +569,408 @@ const OrderListTable = ({ orderData }) => {
         session?.user?.role === 'accountant' ||
         (typeof window !== 'undefined' && localStorage.getItem('role') === 'accountant')
       const cols = [
-      {
-        id: 'select',
-        header: ({ table }) => (
-          <Checkbox
-            checked={table.getIsAllRowsSelected()}
-            indeterminate={table.getIsSomeRowsSelected()}
-            onChange={table.getToggleAllRowsSelectedHandler()}
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={row.getIsSelected()}
-            disabled={!row.getCanSelect()}
-            indeterminate={row.getIsSomeSelected()}
-            onChange={row.getToggleSelectedHandler()}
-          />
-        ),
-        enableSorting: false
-      },
-      {
-        id: 'sno',
-        header: 'S.No',
-        cell: ({ row }) => <Typography>{row.index + 1}</Typography>,
-        enableSorting: false
-      },
-      {
-        id: 'customer',
-        header: 'Customer',
-        cell: ({ row }) => (
-          <div className='flex items-center gap-3'>
-            <CustomAvatar src='/images/avatars/1.png' skin='light' size={34} />
-            <div className='flex flex-col'>
-              <Typography className='font-medium'>{row.original.personName || 'Unknown'}</Typography>
-              <Typography variant='body2'>{row.original.mobileNumber || 'N/A'}</Typography>
-            </div>
-          </div>
-        )
-      },
-      {
-        id: 'vehicleType',
-        header: 'Vehicle Type',
-        cell: ({ row }) => {
-          const vehicleType = row.original.vehicleType?.toLowerCase()
-
-          const vehicleIcons = {
-            car: { icon: 'ri-car-fill', color: '#ff4d49' },
-            bike: { icon: 'ri-motorbike-fill', color: '#72e128' },
-            default: { icon: 'ri-roadster-fill', color: '#282a42' }
-          }
-
-          const { icon, color } = vehicleIcons[vehicleType] || vehicleIcons.default
-
-          return (
-            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className={icon} style={{ fontSize: '16px', color }}></i>
-              {row.original.vehicleType || 'N/A'}
-            </Typography>
-          )
-        }
-      },
-      {
-        id: 'vehicleNumber',
-        header: 'Vehicle Number',
-        cell: ({ row }) => (
-          <Typography style={{ color: '#666cff' }}>
-            {row.original.vehicleNumber ? `#${row.original.vehicleNumber}` : 'N/A'}
-          </Typography>
-        )
-      },
-      {
-        id: 'bookType',
-        header: 'Booking Type',
-        cell: ({ row }) => {
-          const stsKey = row.original.sts?.toLowerCase()
-          const chipData = stsChipColor[stsKey] || { color: 'text.secondary', text: row.original.sts || 'N/A' }
-
-          return (
-            <Typography
-              sx={{
-                color: chipData.color,
-                fontWeight: 500,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}
-            >
-              <i className='ri-circle-fill' style={{ fontSize: '10px', color: chipData.color }}></i>
-              {chipData.text}
-            </Typography>
-          )
-        }
-      },
-      {
-        id: 'bookingDateTime',
-        header: 'Booking Date & Time',
-        accessorFn: row => {
-          const dateTime = parseDateTime(row.bookingDate, row.bookingTime)
-
-          return dateTime ? dateTime.getTime() : 0
+        {
+          id: 'select',
+          header: ({ table }) => (
+            <Checkbox
+              checked={table.getIsAllRowsSelected()}
+              indeterminate={table.getIsSomeRowsSelected()}
+              onChange={table.getToggleAllRowsSelectedHandler()}
+            />
+          ),
+          cell: ({ row }) => (
+            <Checkbox
+              checked={row.getIsSelected()}
+              disabled={!row.getCanSelect()}
+              indeterminate={row.getIsSomeSelected()}
+              onChange={row.getToggleSelectedHandler()}
+            />
+          ),
+          enableSorting: false
         },
-        sortingFn: 'basic',
-        cell: ({ row }) => {
-          const formatDateDisplay = dateStr => {
-            if (!dateStr) return 'N/A'
-
-            try {
-              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
-                return new Date(dateStr).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              } else if (dateStr.includes('-')) {
-                const [day, month, year] = dateStr.split('-')
-
-                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              }
-
-              return dateStr
-            } catch (e) {
-              console.error('Date parsing error:', e, dateStr)
-
-              return dateStr
-            }
-          }
-
-          const formatTimeDisplay = timeStr => {
-            if (!timeStr) return 'N/A'
-
-            const raw = String(timeStr).trim()
-
-            if (/NaN/i.test(raw)) return 'N/A'
-
-            // If already AM/PM, validate structure
-            if (/(AM|PM)/i.test(raw)) {
-              const match = raw.match(/^(\d{1,2}):(\d{1,2})\s*(AM|PM)$/i)
-
-              if (!match) return 'N/A'
-              const h = Number(match[1])
-              const m = Number(match[2])
-
-              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
-              const hours12 = ((h - 1) % 12) + 1
-
-              return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
-            }
-
-            // Handle 24h format HH:mm
-            try {
-              const [hStr, mStr] = raw.split(':')
-              const h = Number(hStr)
-              const m = Number(mStr)
-
-              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
-              const period = h >= 12 ? 'PM' : 'AM'
-              const hours12 = h % 12 || 12
-
-              return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
-            } catch (e) {
-              return 'N/A'
-            }
-          }
-
-          return (
-            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
-              {`${formatDateDisplay(row.original.bookingDate)}, ${formatTimeDisplay(row.original.bookingTime || 'N/A')}`}
-            </Typography>
-          )
-        }
-      },
-      {
-        id: 'parkingEntryDateTime',
-        header: 'Parking Entry Date & Time',
-        accessorFn: row => {
-          const dateTime = parseDateTime(row.parkedDate, row.parkedTime)
-
-          return dateTime ? dateTime.getTime() : 0
+        {
+          id: 'sno',
+          header: 'S.No',
+          cell: ({ row }) => <Typography>{row.index + 1}</Typography>,
+          enableSorting: false
         },
-        sortingFn: 'basic',
-        cell: ({ row }) => {
-          const formatDateDisplay = dateStr => {
-            if (!dateStr) return 'N/A'
-
-            try {
-              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
-                return new Date(dateStr).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              } else if (dateStr.includes('-')) {
-                const [day, month, year] = dateStr.split('-')
-
-                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              }
-
-              return dateStr
-            } catch (e) {
-              console.error('Date parsing error:', e, dateStr)
-
-              return dateStr
-            }
-          }
-
-          const formatTimeDisplay = timeStr => {
-            console.log('str', timeStr)
-            if (!timeStr) return 'N/A'
-
-            const raw = String(timeStr).trim()
-
-            if (/NaN/i.test(raw)) return 'N/A'
-
-            // If already AM/PM, validate structure
-            if (/(AM|PM)/i.test(raw)) {
-              const match = raw.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(AM|PM)$/i)
-
-              if (!match) return 'N/A'
-              const h = Number(match[1])
-              const m = Number(match[2])
-
-              if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
-              const hours12 = ((h - 1) % 12) + 1
-
-              return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
-            }
-
-            // Handle 24h format HH:mm[:ss]
-            try {
-              const parts = raw.split(':')
-              const h = Number(parts[0])
-              let m = parts.length > 1 ? Number(parts[1]) : 0
-
-              if (Number.isNaN(h)) return 'N/A'
-              if (Number.isNaN(m)) m = 0
-              const period = h >= 12 ? 'PM' : 'AM'
-              const hours12 = h % 12 || 12
-
-              return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
-            } catch (e) {
-              return 'N/A'
-            }
-          }
-
-          return (
-            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
-              {`${formatDateDisplay(row.original.parkedDate)}, ${formatTimeDisplay(row.original.parkedTime || 'N/A')}`}
-            </Typography>
-          )
-        }
-      },
-
-      {
-        id: 'exitVehicleDateTime',
-        header: 'Parking Exit Date & Time',
-        accessorFn: row => {
-          const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime)
-
-          return dateTime ? dateTime.getTime() : 0
-        },
-        sortingFn: 'basic',
-        cell: ({ row }) => {
-          const formatDateDisplay = dateStr => {
-            console.log('date', dateStr)
-            if (!dateStr) return 'N/A'
-
-            try {
-              if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
-                return new Date(dateStr).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              } else if (dateStr.includes('-')) {
-                const [day, month, year] = dateStr.split('-')
-
-                return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
-                  day: 'numeric',
-                  month: 'short',
-                  year: 'numeric'
-                })
-              }
-
-              return dateStr
-            } catch (e) {
-              console.error('Date parsing error:', e, dateStr)
-
-              return dateStr
-            }
-          }
-
-          const formatTimeDisplay = timeStr => {
-            if (!timeStr) return 'N/A'
-
-            const raw = String(timeStr).trim()
-
-            // AM/PM with optional minutes (e.g., '7 AM', '7:NaN AM', '07:05 PM')
-            const ampmMatch = raw.match(/^(\d{1,2})(?::(\d{1,2}|NaN))?\s*(AM|PM)$/i)
-
-            if (ampmMatch) {
-              let h = Number(ampmMatch[1])
-              let m = Number(ampmMatch[2])
-
-              if (Number.isNaN(h)) return 'N/A'
-              if (Number.isNaN(m)) m = 0
-              const hours12 = ((h - 1) % 12) + 1
-
-              return `${hours12}:${m.toString().padStart(2, '0')} ${ampmMatch[3].toUpperCase()}`
-            }
-
-            // 24h time HH[:mm[:ss]]
-            try {
-              const parts = raw.split(':')
-              const h = Number(parts[0])
-              let m = parts.length > 1 ? Number(parts[1]) : 0
-
-              if (Number.isNaN(h)) return 'N/A'
-              if (Number.isNaN(m)) m = 0
-              const period = h >= 12 ? 'PM' : 'AM'
-              const hours12 = h % 12 || 12
-
-              return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
-            } catch (e) {
-              return 'N/A'
-            }
-          }
-
-          return (
-            <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
-              {`${formatDateDisplay(row.original.exitvehicledate)}, ${formatTimeDisplay(row.original.exitvehicletime || 'N/A')}`}
-            </Typography>
-          )
-        }
-      },
-      {
-        id: 'payableTime',
-        header: 'Payable Time',
-        cell: ({ row }) => {
-          // Check booking status
-          const status = row.original.status?.toLowerCase()
-
-          // Return empty for completed status
-          if (status === 'completed') {
-            return row.original.hour || 'N/A'
-          }
-
-          const isParked = status === 'parked'
-
-          // Show real-time timer for PARKED status
-          if (isParked) {
-            return (
-              <div className='flex items-center gap-2'>
-                <i className='ri-time-line' style={{ fontSize: '16px', color: '#666CFF' }}></i>
-                <PayableTimeTimer parkedDate={row.original.parkedDate} parkedTime={row.original.parkedTime} />
+        {
+          id: 'customer',
+          header: 'Customer',
+          cell: ({ row }) => (
+            <div className='flex items-center gap-3'>
+              <CustomAvatar src='/images/avatars/1.png' skin='light' size={34} />
+              <div className='flex flex-col'>
+                <Typography className='font-medium'>{row.original.personName || 'Unknown'}</Typography>
+                <Typography variant='body2'>{row.original.mobileNumber || 'N/A'}</Typography>
               </div>
+            </div>
+          )
+        },
+        {
+          id: 'vehicleType',
+          header: 'Vehicle Type',
+          cell: ({ row }) => {
+            const vehicleType = row.original.vehicleType?.toLowerCase()
+
+            const vehicleIcons = {
+              car: { icon: 'ri-car-fill', color: '#ff4d49' },
+              bike: { icon: 'ri-motorbike-fill', color: '#72e128' },
+              default: { icon: 'ri-roadster-fill', color: '#282a42' }
+            }
+
+            const { icon, color } = vehicleIcons[vehicleType] || vehicleIcons.default
+
+            return (
+              <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <i className={icon} style={{ fontSize: '16px', color }}></i>
+                {row.original.vehicleType || 'N/A'}
+              </Typography>
             )
           }
+        },
+        {
+          id: 'vehicleNumber',
+          header: 'Vehicle Number',
+          cell: ({ row }) => (
+            <Typography style={{ color: '#666cff' }}>
+              {row.original.vehicleNumber ? `#${row.original.vehicleNumber}` : 'N/A'}
+            </Typography>
+          )
+        },
+        {
+          id: 'bookType',
+          header: 'Booking Type',
+          cell: ({ row }) => {
+            const stsKey = row.original.sts?.toLowerCase()
+            const chipData = stsChipColor[stsKey] || { color: 'text.secondary', text: row.original.sts || 'N/A' }
 
-          // Default case for other statuses
-          return row.original.hour || 'N/A'
-        }
-      },
-      {
-        id: 'duration',
-        header: 'Duration',
-        cell: ({ row }) => {
-          const status = row.original.status?.toUpperCase()
-          const isCompleted = status === 'COMPLETED'
+            return (
+              <Typography
+                sx={{
+                  color: chipData.color,
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <i className='ri-circle-fill' style={{ fontSize: '10px', color: chipData.color }}></i>
+                {chipData.text}
+              </Typography>
+            )
+          }
+        },
+        {
+          id: 'bookingDateTime',
+          header: 'Booking Date & Time',
+          accessorFn: row => {
+            const dateTime = parseDateTime(row.bookingDate, row.bookingTime)
 
-          if (isCompleted) {
-            // Use the hour field if available, otherwise calculate
-            let duration = row.original.hour
+            return dateTime ? dateTime.getTime() : 0
+          },
+          sortingFn: 'basic',
+          cell: ({ row }) => {
+            const formatDateDisplay = dateStr => {
+              if (!dateStr) return 'N/A'
 
-            if (!duration || duration === 'N/A') {
-              duration = calculateDuration(
-                row.original.parkedDate,
-                row.original.parkedTime,
-                row.original.exitvehicledate,
-                row.original.exitvehicletime
+              try {
+                if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+                  return new Date(dateStr).toLocaleDateString('en-US', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                } else if (dateStr.includes('-')) {
+                  const [day, month, year] = dateStr.split('-')
+
+                  return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                }
+
+                return dateStr
+              } catch (e) {
+                console.error('Date parsing error:', e, dateStr)
+
+                return dateStr
+              }
+            }
+
+            const formatTimeDisplay = timeStr => {
+              if (!timeStr) return 'N/A'
+
+              const raw = String(timeStr).trim()
+
+              if (/NaN/i.test(raw)) return 'N/A'
+
+              // If already AM/PM, validate structure
+              if (/(AM|PM)/i.test(raw)) {
+                const match = raw.match(/^(\d{1,2}):(\d{1,2})\s*(AM|PM)$/i)
+
+                if (!match) return 'N/A'
+                const h = Number(match[1])
+                const m = Number(match[2])
+
+                if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
+                const hours12 = ((h - 1) % 12) + 1
+
+                return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
+              }
+
+              // Handle 24h format HH:mm
+              try {
+                const [hStr, mStr] = raw.split(':')
+                const h = Number(hStr)
+                const m = Number(mStr)
+
+                if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
+                const period = h >= 12 ? 'PM' : 'AM'
+                const hours12 = h % 12 || 12
+
+                return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
+              } catch (e) {
+                return 'N/A'
+              }
+            }
+
+            return (
+              <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
+                {`${formatDateDisplay(row.original.bookingDate)}, ${formatTimeDisplay(row.original.bookingTime || 'N/A')}`}
+              </Typography>
+            )
+          }
+        },
+        {
+          id: 'parkingEntryDateTime',
+          header: 'Parking Entry Date & Time',
+          accessorFn: row => {
+            const dateTime = parseDateTime(row.parkedDate, row.parkedTime)
+
+            return dateTime ? dateTime.getTime() : 0
+          },
+          sortingFn: 'basic',
+          cell: ({ row }) => {
+            const formatDateDisplay = dateStr => {
+              if (!dateStr) return 'N/A'
+
+              try {
+                if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+                  return new Date(dateStr).toLocaleDateString('en-US', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                } else if (dateStr.includes('-')) {
+                  const [day, month, year] = dateStr.split('-')
+
+                  return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                }
+
+                return dateStr
+              } catch (e) {
+                console.error('Date parsing error:', e, dateStr)
+
+                return dateStr
+              }
+            }
+
+            const formatTimeDisplay = timeStr => {
+              console.log('str', timeStr)
+              if (!timeStr) return 'N/A'
+
+              const raw = String(timeStr).trim()
+
+              if (/NaN/i.test(raw)) return 'N/A'
+
+              // If already AM/PM, validate structure
+              if (/(AM|PM)/i.test(raw)) {
+                const match = raw.match(/^(\d{1,2}):(\d{1,2})(?::\d{1,2})?\s*(AM|PM)$/i)
+
+                if (!match) return 'N/A'
+                const h = Number(match[1])
+                const m = Number(match[2])
+
+                if (Number.isNaN(h) || Number.isNaN(m)) return 'N/A'
+                const hours12 = ((h - 1) % 12) + 1
+
+                return `${hours12}:${m.toString().padStart(2, '0')} ${match[3].toUpperCase()}`
+              }
+
+              // Handle 24h format HH:mm[:ss]
+              try {
+                const parts = raw.split(':')
+                const h = Number(parts[0])
+                let m = parts.length > 1 ? Number(parts[1]) : 0
+
+                if (Number.isNaN(h)) return 'N/A'
+                if (Number.isNaN(m)) m = 0
+                const period = h >= 12 ? 'PM' : 'AM'
+                const hours12 = h % 12 || 12
+
+                return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
+              } catch (e) {
+                return 'N/A'
+              }
+            }
+
+            return (
+              <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
+                {`${formatDateDisplay(row.original.parkedDate)}, ${formatTimeDisplay(row.original.parkedTime || 'N/A')}`}
+              </Typography>
+            )
+          }
+        },
+
+        {
+          id: 'exitVehicleDateTime',
+          header: 'Parking Exit Date & Time',
+          accessorFn: row => {
+            const dateTime = parseDateTime(row.exitvehicledate, row.exitvehicletime)
+
+            return dateTime ? dateTime.getTime() : 0
+          },
+          sortingFn: 'basic',
+          cell: ({ row }) => {
+            const formatDateDisplay = dateStr => {
+              console.log('date', dateStr)
+              if (!dateStr) return 'N/A'
+
+              try {
+                if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+                  return new Date(dateStr).toLocaleDateString('en-US', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                } else if (dateStr.includes('-')) {
+                  const [day, month, year] = dateStr.split('-')
+
+                  return new Date(`${year}-${month}-${day}`).toLocaleDateString('en-US', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })
+                }
+
+                return dateStr
+              } catch (e) {
+                console.error('Date parsing error:', e, dateStr)
+
+                return dateStr
+              }
+            }
+
+            const formatTimeDisplay = timeStr => {
+              if (!timeStr) return 'N/A'
+
+              const raw = String(timeStr).trim()
+
+              // AM/PM with optional minutes (e.g., '7 AM', '7:NaN AM', '07:05 PM')
+              const ampmMatch = raw.match(/^(\d{1,2})(?::(\d{1,2}|NaN))?\s*(AM|PM)$/i)
+
+              if (ampmMatch) {
+                let h = Number(ampmMatch[1])
+                let m = Number(ampmMatch[2])
+
+                if (Number.isNaN(h)) return 'N/A'
+                if (Number.isNaN(m)) m = 0
+                const hours12 = ((h - 1) % 12) + 1
+
+                return `${hours12}:${m.toString().padStart(2, '0')} ${ampmMatch[3].toUpperCase()}`
+              }
+
+              // 24h time HH[:mm[:ss]]
+              try {
+                const parts = raw.split(':')
+                const h = Number(parts[0])
+                let m = parts.length > 1 ? Number(parts[1]) : 0
+
+                if (Number.isNaN(h)) return 'N/A'
+                if (Number.isNaN(m)) m = 0
+                const period = h >= 12 ? 'PM' : 'AM'
+                const hours12 = h % 12 || 12
+
+                return `${hours12}:${m.toString().padStart(2, '0')} ${period}`
+              } catch (e) {
+                return 'N/A'
+              }
+            }
+
+            return (
+              <Typography sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <i className='ri-calendar-2-line' style={{ fontSize: '16px', color: '#666' }}></i>
+                {`${formatDateDisplay(row.original.exitvehicledate)}, ${formatTimeDisplay(row.original.exitvehicletime || 'N/A')}`}
+              </Typography>
+            )
+          }
+        },
+        {
+          id: 'payableTime',
+          header: 'Payable Time',
+          cell: ({ row }) => {
+            // Check booking status
+            const status = row.original.status?.toLowerCase()
+
+            // Return empty for completed status
+            if (status === 'completed') {
+              return row.original.hour || 'N/A'
+            }
+
+            const isParked = status === 'parked'
+
+            // Show real-time timer for PARKED status
+            if (isParked) {
+              return (
+                <div className='flex items-center gap-2'>
+                  <i className='ri-time-line' style={{ fontSize: '16px', color: '#666CFF' }}></i>
+                  <PayableTimeTimer parkedDate={row.original.parkedDate} parkedTime={row.original.parkedTime} />
+                </div>
               )
             }
 
-            return (
-              <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>{duration}</Typography>
-            )
+            // Default case for other statuses
+            return row.original.hour || 'N/A'
           }
+        },
+        {
+          id: 'duration',
+          header: 'Duration',
+          cell: ({ row }) => {
+            const status = row.original.status?.toUpperCase()
+            const isCompleted = status === 'COMPLETED'
 
-          return <Typography>N/A</Typography>
-        }
-      },
-      ...((bookingTypeFilter === 'user'
-        ? [
+            if (isCompleted) {
+              // Use the hour field if available, otherwise calculate
+              let duration = row.original.hour
+
+              if (!duration || duration === 'N/A') {
+                duration = calculateDuration(
+                  row.original.parkedDate,
+                  row.original.parkedTime,
+                  row.original.exitvehicledate,
+                  row.original.exitvehicletime
+                )
+              }
+
+              return (
+                <Typography sx={{ fontWeight: 500, color: '#72e128', fontFamily: 'monospace' }}>{duration}</Typography>
+              )
+            }
+
+            return <Typography>N/A</Typography>
+          }
+        },
+        ...((bookingTypeFilter === 'user'
+          ? [
             {
               id: 'charges',
               header: 'Charges',
@@ -1014,7 +1014,7 @@ const OrderListTable = ({ orderData }) => {
               )
             }
           ]
-        : [
+          : [
             {
               id: 'charges',
               header: 'Charges',
@@ -1048,125 +1048,125 @@ const OrderListTable = ({ orderData }) => {
               )
             }
           ]) || []),
-      {
-        id: 'status',
-        header: 'Status',
-        cell: ({ row }) => {
-          const statusKey = row.original.status?.toLowerCase()
-          const chipData = statusChipColor[statusKey] || { color: 'default' }
+        {
+          id: 'status',
+          header: 'Status',
+          cell: ({ row }) => {
+            const statusKey = row.original.status?.toLowerCase()
+            const chipData = statusChipColor[statusKey] || { color: 'default' }
 
-          return (
-            <Chip
-              label={row.original.status || 'N/A'}
-              variant='tonal'
-              size='small'
-              sx={
-                chipData.color.startsWith('#')
-                  ? {
+            return (
+              <Chip
+                label={row.original.status || 'N/A'}
+                variant='tonal'
+                size='small'
+                sx={
+                  chipData.color.startsWith('#')
+                    ? {
                       backgroundColor: chipData.color,
                       color: 'white'
                     }
-                  : {}
-              }
-              color={!chipData.color.startsWith('#') ? chipData.color : undefined}
-            />
-          )
-        }
-      },
-      {
-        id: 'action',
-        header: 'Actions',
-        cell: ({ row }) => (
-          <div className='flex items-center'>
-            <OptionMenu
-              iconButtonProps={{ size: 'medium' }}
-              iconClassName='text-[22px]'
-              options={[
-                {
-                  text: 'View',
-                  icon: 'ri-eye-line',
-                  menuItemProps: {
-                    onClick: () => {
-                      const selectedId = row.original._id
+                    : {}
+                }
+                color={!chipData.color.startsWith('#') ? chipData.color : undefined}
+              />
+            )
+          }
+        },
+        {
+          id: 'action',
+          header: 'Actions',
+          cell: ({ row }) => (
+            <div className='flex items-center'>
+              <OptionMenu
+                iconButtonProps={{ size: 'medium' }}
+                iconClassName='text-[22px]'
+                options={[
+                  {
+                    text: 'View',
+                    icon: 'ri-eye-line',
+                    menuItemProps: {
+                      onClick: () => {
+                        const selectedId = row.original._id
 
-                      if (selectedId) {
-                        router.push(`/pages/bookingdetails/${selectedId}`)
+                        if (selectedId) {
+                          router.push(`/pages/bookingdetails/${selectedId}`)
+                        }
                       }
                     }
-                  }
-                },
-                ...(!isAccountant ? [{
-                  text: 'Delete',
-                  icon: 'ri-delete-bin-7-line',
-                  menuItemProps: {
-                    onClick: () => {
-                      setBookingToDelete(row.original._id)
-                      setDeleteDialogOpen(true)
-                    },
-                    sx: { color: 'error.main', '& i, & .MuiTypography-root': { color: 'error.main' } }
-                  }
-                }] : [])
-              ]}
+                  },
+                  ...(!isAccountant ? [{
+                    text: 'Delete',
+                    icon: 'ri-delete-bin-7-line',
+                    menuItemProps: {
+                      onClick: () => {
+                        setBookingToDelete(row.original._id)
+                        setDeleteDialogOpen(true)
+                      },
+                      sx: { color: 'error.main', '& i, & .MuiTypography-root': { color: 'error.main' } }
+                    }
+                  }] : [])
+                ]}
+              />
+            </div>
+          ),
+          enableSorting: false
+        },
+        {
+          id: 'statusAction',
+          header: 'Change Status',
+          cell: ({ row }) => (
+            <BookingActionButton
+              bookingId={row.original._id}
+              currentStatus={row.original.status}
+              bookingDetails={row.original}
+              onUpdate={fetchData}
             />
-          </div>
-        ),
-        enableSorting: false
-      },
-      {
-        id: 'statusAction',
-        header: 'Change Status',
-        cell: ({ row }) => (
-          <BookingActionButton
-            bookingId={row.original._id}
-            currentStatus={row.original.status}
-            bookingDetails={row.original}
-            onUpdate={fetchData}
-          />
-        ),
-        enableSorting: false
-      }
-    ];
+          ),
+          enableSorting: false
+        }
+      ];
 
-    if (isAccountant) {
-      return cols
-        .filter(col => col.id !== 'statusAction')
-        .map(col => {
-          if (col.id === 'action') {
-            return {
-              ...col,
-              cell: ({ row }) => (
-                <div className='flex items-center'>
-                  <OptionMenu
-                    iconButtonProps={{ size: 'medium' }}
-                    iconClassName='text-[22px]'
-                    options={[
-                      {
-                        text: 'View',
-                        icon: 'ri-eye-line',
-                        menuItemProps: {
-                          onClick: () => {
-                            const selectedId = row.original._id
+      if (isAccountant) {
+        return cols
+          .filter(col => col.id !== 'statusAction')
+          .map(col => {
+            if (col.id === 'action') {
+              return {
+                ...col,
+                cell: ({ row }) => (
+                  <div className='flex items-center'>
+                    <OptionMenu
+                      iconButtonProps={{ size: 'medium' }}
+                      iconClassName='text-[22px]'
+                      options={[
+                        {
+                          text: 'View',
+                          icon: 'ri-eye-line',
+                          menuItemProps: {
+                            onClick: () => {
+                              const selectedId = row.original._id
 
-                            if (selectedId) {
-                              router.push(`/pages/bookingdetails/${selectedId}`)
+                              if (selectedId) {
+                                router.push(`/pages/bookingdetails/${selectedId}`)
+                              }
                             }
                           }
                         }
-                      }
-                    ]}
-                  />
-                </div>
-              )
+                      ]}
+                    />
+                  </div>
+                )
+              }
             }
-          }
-          return col
-        })
-    }
+            return col
+          })
+      }
 
-    return cols
-  },
-  [router, bookingTypeFilter, session]
-)
+      return cols
+    },
+    [router, bookingTypeFilter, session]
+  )
 
   const table = useReactTable({
     data: useMemo(() => filteredData.filter(item => !isSubscription(item)), [filteredData]),
@@ -1335,49 +1335,49 @@ const OrderListTable = ({ orderData }) => {
                   </thead>
                   <tbody>
                     ${exportData
-                      .map(
-                        row => `
+          .map(
+            row => `
               <tr>
                 ${fieldsConfig
-                  .map(field => {
-                    let value = row[field.key]
+                .map(field => {
+                  let value = row[field.key]
 
-                    value = value !== undefined && value !== null ? value : '-'
+                  value = value !== undefined && value !== null ? value : '-'
 
-                    // Formatting Logic
-                    if (field.key === 'status') {
-                      const statusClass = `status-${String(value).toLowerCase()}`
+                  // Formatting Logic
+                  if (field.key === 'status') {
+                    const statusClass = `status-${String(value).toLowerCase()}`
 
-                      return `<td class="${statusClass}">${value}</td>`
-                    }
+                    return `<td class="${statusClass}">${value}</td>`
+                  }
 
-                    if (field.key === 'releasefee') {
-                      // Platform Fee: Negative, Red
-                      const displayValue = value !== '-' ? `-₹${value}` : '-'
+                  if (field.key === 'releasefee') {
+                    // Platform Fee: Negative, Red
+                    const displayValue = value !== '-' ? `-₹${value}` : '-'
 
-                      return `<td class="amount-negative">${displayValue}</td>`
-                    }
+                    return `<td class="amount-negative">${displayValue}</td>`
+                  }
 
-                    if (field.key === 'recievableamount') {
-                      // Receivable: Positive, Green
-                      const displayValue = value !== '-' ? `₹${value}` : '-'
+                  if (field.key === 'recievableamount') {
+                    // Receivable: Positive, Green
+                    const displayValue = value !== '-' ? `₹${value}` : '-'
 
-                      return `<td class="amount-positive">${displayValue}</td>`
-                    }
+                    return `<td class="amount-positive">${displayValue}</td>`
+                  }
 
-                    if (['amount', 'handlingfee', 'gstamout', 'totalamout'].includes(field.key)) {
-                      const displayValue = value !== '-' ? `₹${value}` : '-'
+                  if (['amount', 'handlingfee', 'gstamout', 'totalamout'].includes(field.key)) {
+                    const displayValue = value !== '-' ? `₹${value}` : '-'
 
-                      return `<td>${displayValue}</td>`
-                    }
+                    return `<td>${displayValue}</td>`
+                  }
 
-                    return `<td>${value}</td>`
-                  })
-                  .join('')}
+                  return `<td>${value}</td>`
+                })
+                .join('')}
               </tr>
             `
-                      )
-                      .join('')}
+          )
+          .join('')}
                   </tbody>
                 </table>
                 <script>

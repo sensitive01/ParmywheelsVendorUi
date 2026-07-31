@@ -126,6 +126,9 @@ const ParkingManagement = () => {
     carWeekly: false,
     bikeWeekly: false,
     othersWeekly: false,
+    car15Day: false,
+    bike15Day: false,
+    others15Day: false,
     car12h: false,
     bike12h: false,
     others12h: false,
@@ -271,22 +274,22 @@ const ParkingManagement = () => {
       const totalData = mapSlots(totalRes)
 
       setSlotsData(prev => {
-          const total = totalData || prev.total
-          const available = availableData || prev.available
+        const total = totalData || prev.total
+        const available = availableData || prev.available
 
-          // Calculate parked as Total - Available per user request
-          const calculatedParked = {
-            count: Math.max(0, total.count - available.count),
-            car: Math.max(0, total.car - available.car),
-            bike: Math.max(0, total.bike - available.bike),
-            others: Math.max(0, total.others - available.others)
-          }
+        // Calculate parked as Total - Available per user request
+        const calculatedParked = {
+          count: Math.max(0, total.count - available.count),
+          car: Math.max(0, total.car - available.car),
+          bike: Math.max(0, total.bike - available.bike),
+          others: Math.max(0, total.others - available.others)
+        }
 
-          return {
-            total,
-            available,
-            parked: calculatedParked
-          }
+        return {
+          total,
+          available,
+          parked: calculatedParked
+        }
       })
     } catch (error) {
       console.error('Error in Parking Management fetch:', error)
@@ -314,6 +317,7 @@ const ParkingManagement = () => {
       if (field === `${type}Enabled` && !value) {
         updated[`${type}Temporary`] = false
         updated[`${type}Weekly`] = false
+        updated[`${type}15Day`] = false
         updated[`${type}Monthly`] = false
         updated[`${type}12h`] = false
         updated[`${type}FullDay`] = false
@@ -352,7 +356,8 @@ const ParkingManagement = () => {
     setSelectedItem(item)
     setChargeForm({
       type: existingCharge ? existingCharge.type : (typeOptions[item.title]?.[0] || item.type),
-      amount: existingCharge ? existingCharge.amount : ''
+      amount: existingCharge ? existingCharge.amount : '',
+      chargeid: existingCharge ? existingCharge.chargeid : null
     })
     setOpenAddCharge(true)
   }
@@ -365,15 +370,28 @@ const ParkingManagement = () => {
 
     setSavingCharge(true)
     try {
-      const payload = {
-        vendorid: vendorId,
-        category: chargeSubTab,
-        type: chargeForm.type,
-        amount: chargeForm.amount
+      const getChargeIdForNewEntry = (category, title) => {
+        const idMap = {
+          'Car-Minimum Charge': 'A', 'Car-Additional Charge': 'B', 'Car-Full Day': 'C', 'Car-Monthly Charge': 'D', 'Car-Weekly Charge': 'M', 'Car-15 Days Charge': 'N', 'Car-12h Charge': 'O', 'Car-48h Charge': 'P',
+          'Bike-Minimum Charge': 'E', 'Bike-Additional Charge': 'F', 'Bike-Full Day': 'G', 'Bike-Monthly Charge': 'H', 'Bike-Weekly Charge': 'Q', 'Bike-15 Days Charge': 'R', 'Bike-12h Charge': 'S', 'Bike-48h Charge': 'T',
+          'Others-Minimum Charge': 'I', 'Others-Additional Charge': 'J', 'Others-Full Day': 'K', 'Others-Monthly Charge': 'L', 'Others-Weekly Charge': 'U', 'Others-15 Days Charge': 'V', 'Others-12h Charge': 'W', 'Others-48h Charge': 'X'
+        }
+        return idMap[`${category}-${title}`] || Date.now().toString()
       }
 
-      // Using the generic addcharge endpoint which is common in this backend structure
-      await axios.post(`${API_URL}/vendor/addcharge`, payload)
+      const payload = {
+        vendorid: vendorId,
+        charges: [
+          {
+            type: chargeForm.type,
+            amount: chargeForm.amount,
+            category: chargeSubTab,
+            chargeid: chargeForm.chargeid || getChargeIdForNewEntry(chargeSubTab, selectedItem.title)
+          }
+        ]
+      }
+
+      await axios.post(`${API_URL}/vendor/addparkingcharges`, payload)
 
       setSnackbar({ open: true, message: 'Charge saved successfully', severity: 'success' })
       setOpenAddCharge(false)
@@ -390,6 +408,7 @@ const ParkingManagement = () => {
     'Minimum Charge': ['0 to 1 hour', '0 to 2 hours', '0 to 3 hours', '0 to 4 hours'],
     'Additional Charge': ['Additional 1 hour', 'Additional 2 hours', 'Additional 3 hours', 'Additional 4 hours'],
     'Weekly Charge': ['Weekly'],
+    '15 Days Charge': ['15 Days'],
     '12h Charge': ['12 hours'],
     'Full Day': ['Full day'],
     '48h Charge': ['48 hours'],
@@ -420,7 +439,7 @@ const ParkingManagement = () => {
     } else {
       updatedAmenities = [...amenitiesData, amenity]
     }
-    
+
     setAmenitiesData(updatedAmenities)
     try {
       await axios.put(`${API_URL}/vendor/updateamenitiesdata/${vendorId}`, {
@@ -531,7 +550,7 @@ const ParkingManagement = () => {
         <Card sx={{ border: '1px solid', borderColor: 'primary.main', borderRadius: '12px', bgcolor: 'background.paper' }}>
           <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 6, py: 4 }}>
             <Avatar src={vendorData?.image} sx={{ width: 90, height: 90, border: '2px solid', borderColor: 'divider' }}>
-               <i className='ri-user-line' style={{ fontSize: '2rem' }} />
+              <i className='ri-user-line' style={{ fontSize: '2rem' }} />
             </Avatar>
             <Box sx={{ flexGrow: 1 }}>
               <Typography variant='h6' sx={{ mb: 1 }}><strong>Address:</strong> {vendorData?.address || vendorData?.vendor_address || 'N/A'}</Typography>
@@ -557,9 +576,9 @@ const ParkingManagement = () => {
               <ToggleCard sx={{ py: 6 }}>
                 <Typography variant='subtitle1'>{item.label}</Typography>
                 <Box display='flex' alignItems='center' justifyContent='center' gap={3}>
-                   <Typography variant='caption' sx={{ fontWeight: 800, color: toggleStates[item.field] ? 'success.main' : 'text.disabled' }}>
+                  <Typography variant='caption' sx={{ fontWeight: 800, color: toggleStates[item.field] ? 'success.main' : 'text.disabled' }}>
                     {toggleStates[item.field] ? 'ON' : 'OFF'}
-                   </Typography>
+                  </Typography>
                   <Switch
                     checked={toggleStates[item.field]}
                     onChange={(e) => handleToggleChange(item.field, e.target.checked)}
@@ -575,108 +594,108 @@ const ParkingManagement = () => {
       {/* Contact & Location Details */}
       <Grid container spacing={6}>
         <Grid size={{ xs: 12, md: 6 }}>
-        <Typography variant='h6' sx={{ mb: 4, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Contact details</Typography>
-        <Card sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider', height: 260 }}>
-          <CardContent sx={{ py: 6 }}>
-            <Box display='flex' alignItems='center' gap={4} sx={{ mb: 6 }}>
-              <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main', width: 45, height: 45 }}>
-                <i className='ri-user-smile-line' />
-              </Avatar>
-              <Box>
-                <Typography variant='caption' sx={{ display: 'block', fontWeight: 600, color: 'text.secondary' }}>Primary Contact</Typography>
-                <Typography variant='h6' sx={{ fontWeight: 700 }}>{vendorData?.contacts?.[0]?.name || 'N/A'}</Typography>
+          <Typography variant='h6' sx={{ mb: 4, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Contact details</Typography>
+          <Card sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider', height: 260 }}>
+            <CardContent sx={{ py: 6 }}>
+              <Box display='flex' alignItems='center' gap={4} sx={{ mb: 6 }}>
+                <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.main', width: 45, height: 45 }}>
+                  <i className='ri-user-smile-line' />
+                </Avatar>
+                <Box>
+                  <Typography variant='caption' sx={{ display: 'block', fontWeight: 600, color: 'text.secondary' }}>Primary Contact</Typography>
+                  <Typography variant='h6' sx={{ fontWeight: 700 }}>{vendorData?.contacts?.[0]?.name || 'N/A'}</Typography>
+                </Box>
               </Box>
-            </Box>
-            <Box display='flex' alignItems='center' gap={4}>
-              <Avatar sx={{ bgcolor: 'success.light', color: 'success.main', width: 45, height: 45 }}>
-                <i className='ri-phone-line' />
-              </Avatar>
-              <Box>
-                <Typography variant='caption' sx={{ display: 'block', fontWeight: 600, color: 'text.secondary' }}>Mobile Number</Typography>
-                <Typography variant='h6' sx={{ fontWeight: 700 }}>{vendorData?.contacts?.[0]?.mobile || 'N/A'}</Typography>
+              <Box display='flex' alignItems='center' gap={4}>
+                <Avatar sx={{ bgcolor: 'success.light', color: 'success.main', width: 45, height: 45 }}>
+                  <i className='ri-phone-line' />
+                </Avatar>
+                <Box>
+                  <Typography variant='caption' sx={{ display: 'block', fontWeight: 600, color: 'text.secondary' }}>Mobile Number</Typography>
+                  <Typography variant='h6' sx={{ fontWeight: 700 }}>{vendorData?.contacts?.[0]?.mobile || 'N/A'}</Typography>
+                </Box>
               </Box>
-            </Box>
-          </CardContent>
-        </Card>
-      </Grid>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      <Grid size={{ xs: 12, md: 6 }}>
-        <Typography variant='h6' sx={{ mb: 4, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Location details</Typography>
-        <Card sx={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid', borderColor: 'divider', height: 260 }}>
-          <Box sx={{ height: 180, width: '100%', bgcolor: 'secondary.light', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {vendorData?.latitude && vendorData?.longitude ? (
-              <iframe
-                title='Vendor Location'
-                width='100%'
-                height='100%'
-                frameBorder='0'
-                style={{ border: 0 }}
-                src={`https://www.google.com/maps?q=${vendorData.latitude},${vendorData.longitude}&output=embed`}
-                allowFullScreen
-              ></iframe>
-            ) : (
-              <Box textAlign='center' sx={{ color: 'text.secondary' }}>
-                <i className='ri-map-pin-line' style={{ fontSize: '2rem' }} />
-                <Typography>Coordinates not available</Typography>
-              </Box>
-            )}
-          </Box>
-          <CardContent sx={{ py: 3 }}>
-            <Typography variant='caption' sx={{ display: 'block', fontWeight: 600, color: 'text.secondary' }}>Coordinates</Typography>
-            <Typography variant='body2' sx={{ fontWeight: 700 }}>
-              Lat: {vendorData?.latitude || 'N/A'}, Long: {vendorData?.longitude || 'N/A'}
-            </Typography>
-          </CardContent>
-        </Card>
-      </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <Typography variant='h6' sx={{ mb: 4, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Location details</Typography>
+          <Card sx={{ borderRadius: '12px', overflow: 'hidden', border: '1px solid', borderColor: 'divider', height: 260 }}>
+            <Box sx={{ height: 180, width: '100%', bgcolor: 'secondary.light', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {vendorData?.latitude && vendorData?.longitude ? (
+                <iframe
+                  title='Vendor Location'
+                  width='100%'
+                  height='100%'
+                  frameBorder='0'
+                  style={{ border: 0 }}
+                  src={`https://www.google.com/maps?q=${vendorData.latitude},${vendorData.longitude}&output=embed`}
+                  allowFullScreen
+                ></iframe>
+              ) : (
+                <Box textAlign='center' sx={{ color: 'text.secondary' }}>
+                  <i className='ri-map-pin-line' style={{ fontSize: '2rem' }} />
+                  <Typography>Coordinates not available</Typography>
+                </Box>
+              )}
+            </Box>
+            <CardContent sx={{ py: 3 }}>
+              <Typography variant='caption' sx={{ display: 'block', fontWeight: 600, color: 'text.secondary' }}>Coordinates</Typography>
+              <Typography variant='body2' sx={{ fontWeight: 700 }}>
+                Lat: {vendorData?.latitude || 'N/A'}, Long: {vendorData?.longitude || 'N/A'}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
-      {/* Business Hours Section */}
-      <Grid size={{ xs: 12 }}>
-        <Typography variant='h6' sx={{ mb: 4, textAlign: 'center', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Business Hours</Typography>
-        <Card sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
-          <CardContent sx={{ p: 0 }}>
-             <Box sx={{ overflowX: 'auto' }}>
+        {/* Business Hours Section */}
+        <Grid size={{ xs: 12 }}>
+          <Typography variant='h6' sx={{ mb: 4, textAlign: 'center', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Business Hours</Typography>
+          <Card sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
+            <CardContent sx={{ p: 0 }}>
+              <Box sx={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                   <thead>
-                      <tr style={{ backgroundColor: 'rgba(45, 154, 112, 0.1)' }}>
-                         <th style={{ textAlign: 'left', padding: '12px 24px', fontWeight: 800 }}>Day</th>
-                         <th style={{ textAlign: 'center', padding: '12px 24px', fontWeight: 800 }}>Open at</th>
-                         <th style={{ textAlign: 'center', padding: '12px 24px', fontWeight: 800 }}>Close at</th>
-                         <th style={{ textAlign: 'center', padding: '12px 24px', fontWeight: 800 }}>Status</th>
+                  <thead>
+                    <tr style={{ backgroundColor: 'rgba(45, 154, 112, 0.1)' }}>
+                      <th style={{ textAlign: 'left', padding: '12px 24px', fontWeight: 800 }}>Day</th>
+                      <th style={{ textAlign: 'center', padding: '12px 24px', fontWeight: 800 }}>Open at</th>
+                      <th style={{ textAlign: 'center', padding: '12px 24px', fontWeight: 800 }}>Close at</th>
+                      <th style={{ textAlign: 'center', padding: '12px 24px', fontWeight: 800 }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {businessHours.length > 0 ? businessHours.map((hour, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                        <td style={{ padding: '12px 24px', fontWeight: 600 }}>{hour.day}</td>
+                        <td style={{ textAlign: 'center', padding: '12px 24px' }}>
+                          {hour.isClosed ? '--' : hour.is24Hours ? '12:00 AM' : hour.openTime || '09:00 AM'}
+                        </td>
+                        <td style={{ textAlign: 'center', padding: '12px 24px' }}>
+                          {hour.isClosed ? '--' : hour.is24Hours ? '11:59 PM' : hour.closeTime || '09:00 PM'}
+                        </td>
+                        <td style={{ textAlign: 'center', padding: '12px 24px' }}>
+                          {hour.isClosed ? (
+                            <Chip label='Closed' size='small' color='error' />
+                          ) : hour.is24Hours ? (
+                            <Chip label='24 Hours' size='small' color='success' />
+                          ) : (
+                            <Chip label='Open' size='small' color='primary' />
+                          )}
+                        </td>
                       </tr>
-                   </thead>
-                   <tbody>
-                      {businessHours.length > 0 ? businessHours.map((hour, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                           <td style={{ padding: '12px 24px', fontWeight: 600 }}>{hour.day}</td>
-                           <td style={{ textAlign: 'center', padding: '12px 24px' }}>
-                              {hour.isClosed ? '--' : hour.is24Hours ? '12:00 AM' : hour.openTime || '09:00 AM'}
-                           </td>
-                           <td style={{ textAlign: 'center', padding: '12px 24px' }}>
-                              {hour.isClosed ? '--' : hour.is24Hours ? '11:59 PM' : hour.closeTime || '09:00 PM'}
-                           </td>
-                           <td style={{ textAlign: 'center', padding: '12px 24px' }}>
-                              {hour.isClosed ? (
-                                <Chip label='Closed' size='small' color='error' />
-                              ) : hour.is24Hours ? (
-                                <Chip label='24 Hours' size='small' color='success' />
-                              ) : (
-                                <Chip label='Open' size='small' color='primary' />
-                              )}
-                           </td>
-                        </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'gray' }}>No business hours data available</td>
-                        </tr>
-                      )}
-                   </tbody>
+                    )) : (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: 'center', padding: '24px', color: 'gray' }}>No business hours data available</td>
+                      </tr>
+                    )}
+                  </tbody>
                 </table>
-             </Box>
-          </CardContent>
-        </Card>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
-    </Grid>
     </Grid>
   )
 
@@ -687,6 +706,7 @@ const ParkingManagement = () => {
     const durations = [
       { label: 'Temporary', field: 'Temporary' },
       { label: 'Weekly', field: 'Weekly' },
+      { label: '15 Days', field: '15Day' },
       { label: 'Monthly', field: 'Monthly' },
       { label: '12h', field: '12h' },
       { label: 'Full Day', field: 'FullDay' },
@@ -699,6 +719,7 @@ const ParkingManagement = () => {
       'Minimum Charge': 'Temporary',
       'Additional Charge': 'Temporary',
       'Weekly Charge': 'Weekly',
+      '15 Days Charge': '15Day',
       '12h Charge': '12h',
       'Full Day': 'FullDay',
       '48h Charge': '48h',
@@ -712,22 +733,22 @@ const ParkingManagement = () => {
         <Grid size={{ xs: 12 }} container justifyContent='center' spacing={4}>
           {categories.map(cat => (
             <Grid key={cat}>
-               <Box textAlign='center'>
-                  <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>{cat}</Typography>
-                  <Box display='flex' alignItems='center' gap={1}>
-                    <Chip
-                      label={enabledVehicles[`${cat.toLowerCase()}Enabled`] ? 'ON' : 'OFF'}
-                      size='small'
-                      color={enabledVehicles[`${cat.toLowerCase()}Enabled`] ? 'success' : 'default'}
-                      sx={{ fontWeight: 'bold' }}
-                    />
-                    <Switch
-                      checked={enabledVehicles[`${cat.toLowerCase()}Enabled`]}
-                      onChange={(e) => handleVehicleEnableChange(`${cat.toLowerCase()}Enabled`, e.target.checked)}
-                    />
-                    <i className='ri-plug-fill' style={{ color: enabledVehicles[`${cat.toLowerCase()}Enabled`] ? '#4caf50' : '#f44336', fontSize: '1.2rem' }} />
-                  </Box>
-               </Box>
+              <Box textAlign='center'>
+                <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>{cat}</Typography>
+                <Box display='flex' alignItems='center' gap={1}>
+                  <Chip
+                    label={enabledVehicles[`${cat.toLowerCase()}Enabled`] ? 'ON' : 'OFF'}
+                    size='small'
+                    color={enabledVehicles[`${cat.toLowerCase()}Enabled`] ? 'success' : 'default'}
+                    sx={{ fontWeight: 'bold' }}
+                  />
+                  <Switch
+                    checked={enabledVehicles[`${cat.toLowerCase()}Enabled`]}
+                    onChange={(e) => handleVehicleEnableChange(`${cat.toLowerCase()}Enabled`, e.target.checked)}
+                  />
+                  <i className='ri-plug-fill' style={{ color: enabledVehicles[`${cat.toLowerCase()}Enabled`] ? '#4caf50' : '#f44336', fontSize: '1.2rem' }} />
+                </Box>
+              </Box>
             </Grid>
           ))}
         </Grid>
@@ -754,16 +775,16 @@ const ParkingManagement = () => {
                 <Grid container spacing={2} justifyContent='center'>
                   {durations.map(dur => (
                     <Grid key={dur.field}>
-                       <Box textAlign='center' sx={{ minWidth: 100 }}>
-                          <Typography variant='caption' sx={{ fontWeight: 700, color: 'text.secondary' }}>{dur.label}</Typography>
-                          <Box display='flex' alignItems='center' justifyContent='center'>
-                             <Switch
-                               size='small'
-                               checked={enabledVehicles[`${chargeSubTab.toLowerCase()}${dur.field}`]}
-                               onChange={(e) => handleVehicleEnableChange(`${chargeSubTab.toLowerCase()}${dur.field}`, e.target.checked)}
-                             />
-                          </Box>
-                       </Box>
+                      <Box textAlign='center' sx={{ minWidth: 100 }}>
+                        <Typography variant='caption' sx={{ fontWeight: 700, color: 'text.secondary' }}>{dur.label}</Typography>
+                        <Box display='flex' alignItems='center' justifyContent='center'>
+                          <Switch
+                            size='small'
+                            checked={enabledVehicles[`${chargeSubTab.toLowerCase()}${dur.field}`]}
+                            onChange={(e) => handleVehicleEnableChange(`${chargeSubTab.toLowerCase()}${dur.field}`, e.target.checked)}
+                          />
+                        </Box>
+                      </Box>
                     </Grid>
                   ))}
                 </Grid>
@@ -775,13 +796,14 @@ const ParkingManagement = () => {
                   { title: 'Minimum Charge', type: '0 to 4 hours' },
                   { title: 'Additional Charge', type: 'Additional 3 hours' },
                   { title: 'Weekly Charge', type: 'Weekly' },
+                  { title: '15 Days Charge', type: '15 Days' },
                   { title: '12h Charge', type: '12 hours' },
                   { title: 'Full Day', type: 'Full day' },
                   { title: '48h Charge', type: '48 hours' },
                   { title: '72h Charge', type: '72 hours' },
                   { title: 'Monthly Charge', type: 'Monthly' }
                 ].map((item, idx) => {
-                  const charge = chargesData.find(c => c.category === chargeSubTab && c.type === item.type)
+                  const charge = chargesData.find(c => c.category === chargeSubTab && (typeOptions[item.title]?.includes(c.type) || c.type === item.type))
                   const isDurationEnabled = enabledVehicles[`${chargeSubTab.toLowerCase()}${chargeDurationMap[item.title]}`]
 
                   return (
@@ -792,7 +814,7 @@ const ParkingManagement = () => {
                         onClick={() => handleOpenAddCharge(item, charge)}
                       >
                         <Typography variant='subtitle1' color='inherit' sx={{ fontWeight: 700 }}>{item.title}</Typography>
-                        <Typography variant='caption' color='inherit' sx={{ mb: 4, display: 'block' }}>{item.type}</Typography>
+                        <Typography variant='caption' color='inherit' sx={{ mb: 4, display: 'block' }}>{charge ? charge.type : item.type}</Typography>
                         {charge ? (
                           <Avatar sx={{ bgcolor: 'white', color: 'primary.main', mx: 'auto', fontWeight: 900 }}>
                             {charge.amount}
@@ -828,10 +850,10 @@ const ParkingManagement = () => {
           <CardContent>
             <Box display='flex' justifyContent='space-between' alignItems='center' sx={{ mb: 6 }}>
               <Typography variant='h6' sx={{ fontWeight: 800, textTransform: 'uppercase' }}>Choose Amenities</Typography>
-              <Button 
-                variant='contained' 
-                color='success' 
-                size='small' 
+              <Button
+                variant='contained'
+                color='success'
+                size='small'
                 startIcon={<i className='ri-add-circle-line' />}
                 onClick={() => setOpenAddAmenity(true)}
                 sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700 }}
@@ -843,43 +865,43 @@ const ParkingManagement = () => {
               {masterAmenities.map((amenity, idx) => {
                 const isActive = amenitiesData.includes(amenity)
                 return (
-                  <Chip 
-                    key={idx} 
+                  <Chip
+                    key={idx}
                     icon={<i className={amenityIcons[amenity]} style={{ fontSize: '1.1rem' }} />}
-                    label={amenity} 
+                    label={amenity}
                     onClick={() => handleToggleAmenity(amenity)}
                     color={isActive ? 'primary' : 'default'}
                     variant={isActive ? 'tonal' : 'outlined'}
-                    sx={{ 
-                      fontWeight: 700, 
-                      px: 2, 
+                    sx={{
+                      fontWeight: 700,
+                      px: 2,
                       py: 5,
                       borderRadius: '8px',
                       cursor: 'pointer',
                       borderWidth: isActive ? 0 : 1,
                       bgcolor: isActive ? undefined : 'rgba(0,0,0,0.02)',
                       '& .MuiChip-icon': { color: isActive ? 'primary.main' : 'text.disabled' }
-                    }} 
+                    }}
                   />
                 )
               })}
-              
+
               {/* Custom Amenities */}
               {amenitiesData.filter(a => !masterAmenities.includes(a)).map((amenity, idx) => (
-                <Chip 
-                  key={`custom-${idx}`} 
+                <Chip
+                  key={`custom-${idx}`}
                   icon={<i className='ri-checkbox-circle-line' style={{ fontSize: '1.1rem' }} />}
-                  label={amenity} 
+                  label={amenity}
                   onClick={() => handleToggleAmenity(amenity)}
-                  color='primary' 
-                  variant='tonal' 
-                  sx={{ 
-                    fontWeight: 700, 
-                    px: 2, 
+                  color='primary'
+                  variant='tonal'
+                  sx={{
+                    fontWeight: 700,
+                    px: 2,
                     py: 5,
                     borderRadius: '8px',
                     '& .MuiChip-icon': { color: 'primary.main' }
-                  }} 
+                  }}
                 />
               ))}
             </Box>
@@ -891,24 +913,24 @@ const ParkingManagement = () => {
         <Card sx={{ borderRadius: '12px', border: '1px solid', borderColor: 'divider' }}>
           <CardContent>
             <Typography variant='h6' sx={{ fontWeight: 800, textTransform: 'uppercase', mb: 6 }}>Additional Services</Typography>
-            
+
             {/* Service Input Form */}
             <Grid container spacing={4} alignItems='center' sx={{ mb: 8 }}>
               <Grid size={{ xs: 12, sm: 5 }}>
-                <TextField 
-                  fullWidth 
-                  size='small' 
-                  placeholder='Services' 
+                <TextField
+                  fullWidth
+                  size='small'
+                  placeholder='Services'
                   value={newService.text}
                   onChange={(e) => setNewService({ ...newService, text: e.target.value })}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px' } }}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 5 }}>
-                <TextField 
-                  fullWidth 
-                  size='small' 
-                  placeholder='Amount' 
+                <TextField
+                  fullWidth
+                  size='small'
+                  placeholder='Amount'
                   type='number'
                   value={newService.amount}
                   onChange={(e) => setNewService({ ...newService, amount: e.target.value })}
@@ -916,16 +938,16 @@ const ParkingManagement = () => {
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 2 }}>
-                <Button 
+                <Button
                   variant='contained'
                   color='success'
                   disabled={savingService}
                   onClick={handleSaveService}
-                  sx={{ 
-                    borderRadius: '8px', 
-                    minWidth: 40, 
-                    width: 40, 
-                    height: 40, 
+                  sx={{
+                    borderRadius: '8px',
+                    minWidth: 40,
+                    width: 40,
+                    height: 40,
                     p: 0,
                     bgcolor: '#4caf50',
                     '&:hover': { bgcolor: '#388e3c' }
@@ -940,9 +962,9 @@ const ParkingManagement = () => {
             <Grid container spacing={2}>
               <Grid size={{ xs: 12 }}>
                 <Box display='flex' justifyContent='space-between' sx={{ px: 4, py: 3, bgcolor: 'action.hover', borderRadius: '8px', mb: 2 }}>
-                   <Typography variant='subtitle2' sx={{ fontWeight: 800, flex: 0.5 }}>S.No</Typography>
-                   <Typography variant='subtitle2' sx={{ fontWeight: 800, flex: 2 }}>Services</Typography>
-                   <Typography variant='subtitle2' sx={{ fontWeight: 800, flex: 1, textAlign: 'right' }}>Amount</Typography>
+                  <Typography variant='subtitle2' sx={{ fontWeight: 800, flex: 0.5 }}>S.No</Typography>
+                  <Typography variant='subtitle2' sx={{ fontWeight: 800, flex: 2 }}>Services</Typography>
+                  <Typography variant='subtitle2' sx={{ fontWeight: 800, flex: 1, textAlign: 'right' }}>Amount</Typography>
                 </Box>
               </Grid>
               {additionalServices.map((service, idx) => (
@@ -1061,27 +1083,27 @@ const ParkingManagement = () => {
       <Dialog open={openAddAmenity} onClose={() => setOpenAddAmenity(false)} fullWidth maxWidth='xs'>
         <DialogTitle sx={{ textAlign: 'center', fontWeight: 700 }}>Add Other Amenities</DialogTitle>
         <DialogContent sx={{ mt: 2 }}>
-          <TextField 
-            fullWidth 
-            placeholder='Enter New Amenity' 
-            variant='outlined' 
+          <TextField
+            fullWidth
+            placeholder='Enter New Amenity'
+            variant='outlined'
             value={newAmenity}
             onChange={(e) => setNewAmenity(e.target.value)}
             sx={{ '& .MuiOutlinedInput-root': { borderRadius: '8px', bgcolor: 'action.hover' } }}
           />
           <Box sx={{ mt: 6, display: 'flex', gap: 4 }}>
-            <Button 
-              fullWidth 
-              variant='contained' 
-              color='success' 
+            <Button
+              fullWidth
+              variant='contained'
+              color='success'
               onClick={() => setOpenAddAmenity(false)}
               sx={{ borderRadius: '8px', textTransform: 'none', fontWeight: 700, bgcolor: '#4caf50' }}
             >
               Cancel
             </Button>
-            <Button 
-              fullWidth 
-              variant='contained' 
+            <Button
+              fullWidth
+              variant='contained'
               color='success'
               disabled={savingAmenity}
               onClick={handleSaveAmenity}

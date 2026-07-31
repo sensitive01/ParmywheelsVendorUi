@@ -845,20 +845,20 @@ const OrderListTable = ({ orderData }) => {
               </thead>
               <tbody>
                 ${exportData
-                  .map(
-                    row => `
+          .map(
+            row => `
                   <tr>
                     ${fieldsConfig
-                      .map(field => {
-                        const value = row[field.key]
+                .map(field => {
+                  const value = row[field.key]
 
-                        return `<td>${value !== undefined && value !== null ? value : '-'}</td>`
-                      })
-                      .join('')}
+                  return `<td>${value !== undefined && value !== null ? value : '-'}</td>`
+                })
+                .join('')}
                   </tr>
                 `
-                  )
-                  .join('')}
+          )
+          .join('')}
               </tbody>
             </table>
             <script>
