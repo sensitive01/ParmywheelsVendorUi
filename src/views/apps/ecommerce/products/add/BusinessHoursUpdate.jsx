@@ -12,6 +12,7 @@ import CardContent from '@mui/material/CardContent'
 import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 import Grid from '@mui/material/Grid'
+import TextField from '@mui/material/TextField'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
 import FormControl from '@mui/material/FormControl'
@@ -41,9 +42,14 @@ const BusinessHoursUpdate = () => {
     severity: 'success'
   })
 
-  const hours = Array.from({ length: 24 }, (_, index) => 
-    index < 10 ? `0${index}:00` : `${index}:00`
-  )
+  const hours = []
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const hh = h.toString().padStart(2, '0')
+      const mm = m.toString().padStart(2, '0')
+      hours.push(`${hh}:${mm}`)
+    }
+  }
 
   const DAYS_OF_WEEK = [
     'Monday',
@@ -245,43 +251,37 @@ const BusinessHoursUpdate = () => {
 
                   </Box>
                 ) : (
-                  <FormControl size="small" fullWidth>
-                    <Select
-                      value={dayData.openTime}
-                      onChange={(e) => handleTimeChange(index, 'openTime', e.target.value)}
-                      sx={{ 
-                        height: 32, 
+                  <TextField
+                    type="time"
+                    size="small"
+                    fullWidth
+                    value={dayData.openTime}
+                    onChange={(e) => handleTimeChange(index, 'openTime', e.target.value)}
+                    sx={{
+                      '& .MuiInputBase-root': {
+                        height: 32,
                         fontSize: { xs: '0.75rem', sm: '0.8rem' }
-                      }}
-                    >
-                      {hours.map((time) => (
-                        <MenuItem key={time} value={time} dense>
-                          {time}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                      }
+                    }}
+                  />
                 )}
               </Grid>
               
               <Grid item xs={3} sx={{ display: { xs: 'none', sm: 'block' } }}>
                 {!dayData.isClosed && !dayData.is24Hours && (
-                  <FormControl size="small" fullWidth>
-                    <Select
-                      value={dayData.closeTime}
-                      onChange={(e) => handleTimeChange(index, 'closeTime', e.target.value)}
-                      sx={{ 
-                        height: 32, 
-                        fontSize: { xs: '0.75rem', sm: '0.8rem' } 
-                      }}
-                    >
-                      {hours.map((time) => (
-                        <MenuItem key={time} value={time} dense>
-                          {time}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <TextField
+                    type="time"
+                    size="small"
+                    fullWidth
+                    value={dayData.closeTime}
+                    onChange={(e) => handleTimeChange(index, 'closeTime', e.target.value)}
+                    sx={{
+                      '& .MuiInputBase-root': {
+                        height: 32,
+                        fontSize: { xs: '0.75rem', sm: '0.8rem' }
+                      }
+                    }}
+                  />
                 )}
               </Grid>
               

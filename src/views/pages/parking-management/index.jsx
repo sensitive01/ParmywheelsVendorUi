@@ -34,6 +34,7 @@ import { styled } from '@mui/material/styles'
 // Third-party Imports
 import axios from 'axios'
 import { useSession } from 'next-auth/react'
+import { useRouter, useParams } from 'next/navigation'
 
 // Component Imports
 import CustomAvatar from '@core/components/mui/Avatar'
@@ -168,6 +169,8 @@ const ParkingManagement = () => {
   const { data: session } = useSession()
   const vendorId = session?.user?.id
   const API_URL = process.env.NEXT_PUBLIC_API_URL
+  const router = useRouter()
+  const { lang: locale } = useParams()
 
   // Fetch all data
   useEffect(() => {
@@ -987,7 +990,10 @@ const ParkingManagement = () => {
     <Box>
       <Box display='flex' justifyContent='space-between' alignItems='center' sx={{ mb: 6 }}>
         <Typography variant='h4' sx={{ fontWeight: 700 }}>Manage Parking Area</Typography>
-        <IconButton sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}>
+        <IconButton 
+          sx={{ bgcolor: 'primary.main', color: 'white', '&:hover': { bgcolor: 'primary.dark' } }}
+          onClick={() => router.push(`/${locale}/pages/account-settings`)}
+        >
           <i className='ri-pencil-line' />
         </IconButton>
       </Box>

@@ -510,6 +510,7 @@ import { useSession } from 'next-auth/react'
 import { Button, Card, CardContent, Grid, TextField, Typography, FormControl, InputLabel, Select, MenuItem, IconButton, InputAdornment } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add'
 import RemoveIcon from '@mui/icons-material/Remove'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CustomIconButton from '@/@core/components/mui/IconButton';
 import ProductImage from '../../../apps/ecommerce/products/add/ProductImage'
 import BusinessHoursUpdate from '@/views/apps/ecommerce/products/add/BusinessHoursUpdate';
@@ -748,9 +749,15 @@ const VendorRegistration = () => {
   return (
     <Card>
       <CardContent>
-        <Typography variant='h4' className='mbe-1' align='center'>
-          Update Vendor Details
-        </Typography>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
+          <IconButton onClick={() => router.back()} style={{ marginRight: '8px' }}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant='h4' className='mbe-1' style={{ flexGrow: 1, textAlign: 'center' }}>
+            Update Vendor Details
+          </Typography>
+          <div style={{ width: '40px' }}></div>
+        </div>
         <br />
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
