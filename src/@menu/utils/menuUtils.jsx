@@ -1,5 +1,5 @@
 // React Imports
-import { Children, isValidElement } from 'react'
+import { Children, isValidElement, Fragment } from 'react'
 
 // Component Imports
 import {
@@ -99,6 +99,8 @@ export const mapHorizontalToVerticalMenu = children => {
         const transformedChildren = processMenuChildren(childChildren, mapHorizontalToVerticalMenu)
 
         return <VerticalMenu {...verticalMenuProps}>{transformedChildren}</VerticalMenu>
+      case Fragment:
+        return <Fragment>{mapHorizontalToVerticalMenu(childChildren)}</Fragment>
       default:
         // For any other type of child, return it without modification
         return child

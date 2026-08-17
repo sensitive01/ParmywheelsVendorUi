@@ -1358,20 +1358,30 @@ const OrderListTable = ({ orderData }) => {
           </Typography>
 
           {/* Search and Buttons Row */}
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: 2,
+              mb: 2
+            }}
+          >
             <DebouncedInput
               value={globalFilter ?? ''}
               onChange={value => setGlobalFilter(String(value))}
               placeholder='Search Bookings'
-              sx={{ width: '350px' }}
+              sx={{ width: { xs: '100%', sm: '350px' } }}
             />
 
-            <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'nowrap', width: { xs: '100%', sm: 'auto' } }}>
               <Button
                 variant='outlined'
                 startIcon={<i className='ri-download-line' />}
                 onClick={handleMenuClick}
                 sx={{
+                  flex: { xs: 1, sm: 'none' },
                   borderColor: '#22c55e',
                   color: '#22c55e',
                   '&:hover': {
@@ -1388,6 +1398,7 @@ const OrderListTable = ({ orderData }) => {
                   onClick={handleNewSubscription}
                   startIcon={<i className='ri-add-line' />}
                   sx={{
+                    flex: { xs: 1, sm: 'none' },
                     backgroundColor: '#22c55e',
                     '&:hover': {
                       backgroundColor: '#16a34a'
@@ -1430,8 +1441,8 @@ const OrderListTable = ({ orderData }) => {
           </div>
 
           {/* Status Tabs - Separate Row */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-            <Box sx={{ display: 'flex', gap: 0 }}>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3, overflowX: 'auto' }}>
+            <Box sx={{ display: 'flex', gap: 0, minWidth: 'max-content' }}>
               {['pending', 'approved', 'parked', 'completed', 'cancelled', 'all'].map(status => (
                 <Button
                   key={status}

@@ -200,7 +200,7 @@ const BusinessHoursUpdate = () => {
         titleTypographyProps={{ color: 'common.white' }}
       />
       <CardContent>
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ mb: 2, display: { xs: 'none', sm: 'block' } }}>
           <Grid container spacing={1} sx={{ fontWeight: 'bold', px: 1 }}>
             <Grid item xs={3}>
               <Typography variant="subtitle2">Day</Typography>
@@ -208,10 +208,10 @@ const BusinessHoursUpdate = () => {
             <Grid item xs={3}>
               <Typography variant="subtitle2">Open at</Typography>
             </Grid>
-            <Grid item xs={3} sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <Grid item xs={3}>
               <Typography variant="subtitle2">Close at</Typography>
             </Grid>
-            <Grid item xs={6} sm={3}>
+            <Grid item xs={3}>
               <Typography variant="subtitle2">Mode</Typography>
             </Grid>
           </Grid>
@@ -229,63 +229,13 @@ const BusinessHoursUpdate = () => {
             }}
           >
             <Grid container spacing={1} alignItems="center">
-              <Grid item xs={3}>
+              <Grid item xs={5} sm={3}>
                 <Typography fontWeight={500} variant="body2">
                   {dayData.day}
                 </Typography>
               </Grid>
               
-              <Grid item xs={3}>
-                {dayData.isClosed ? (
-                  <Box sx={{ bgcolor: 'error.light', borderRadius: 1, p: 0.5, textAlign: 'center' }}>
-                   <Typography variant="caption" color="common.white" fontWeight={600}>
-                    Closed
-                   </Typography>
-
-                  </Box>
-                ) : dayData.is24Hours ? (
-                  <Box sx={{ bgcolor: 'success.light', borderRadius: 1, p: 0.5, textAlign: 'center' }}>
-                  <Typography variant="caption" color="common.white" fontWeight={600}>
-                    24 Hours
-                  </Typography>
-
-                  </Box>
-                ) : (
-                  <TextField
-                    type="time"
-                    size="small"
-                    fullWidth
-                    value={dayData.openTime}
-                    onChange={(e) => handleTimeChange(index, 'openTime', e.target.value)}
-                    sx={{
-                      '& .MuiInputBase-root': {
-                        height: 32,
-                        fontSize: { xs: '0.75rem', sm: '0.8rem' }
-                      }
-                    }}
-                  />
-                )}
-              </Grid>
-              
-              <Grid item xs={3} sx={{ display: { xs: 'none', sm: 'block' } }}>
-                {!dayData.isClosed && !dayData.is24Hours && (
-                  <TextField
-                    type="time"
-                    size="small"
-                    fullWidth
-                    value={dayData.closeTime}
-                    onChange={(e) => handleTimeChange(index, 'closeTime', e.target.value)}
-                    sx={{
-                      '& .MuiInputBase-root': {
-                        height: 32,
-                        fontSize: { xs: '0.75rem', sm: '0.8rem' }
-                      }
-                    }}
-                  />
-                )}
-              </Grid>
-              
-              <Grid item xs={6} sm={3}>
+              <Grid item xs={7} sm={3} sx={{ order: { xs: 2, sm: 4 } }}>
                 <ToggleButtonGroup
                   value={getCurrentMode(dayData)}
                   exclusive
@@ -302,7 +252,7 @@ const BusinessHoursUpdate = () => {
                   <ToggleButton value="24Hours">
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <AvTimerIcon fontSize="small" />
-                      <Typography variant="caption" sx={{ ml: 0.5, display: { xs: 'none', sm: 'block' } }}>
+                      <Typography variant="caption" sx={{ ml: 0.5, display: { xs: 'none', lg: 'block' } }}>
                         24h
                       </Typography>
                     </Box>
@@ -310,12 +260,65 @@ const BusinessHoursUpdate = () => {
                   <ToggleButton value="closed">
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <CloseIcon fontSize="small" />
-                      <Typography variant="caption" sx={{ ml: 0.5, display: { xs: 'none', sm: 'block' } }}>
+                      <Typography variant="caption" sx={{ ml: 0.5, display: { xs: 'none', lg: 'block' } }}>
                         Closed
                       </Typography>
                     </Box>
                   </ToggleButton>
                 </ToggleButtonGroup>
+              </Grid>
+
+              <Grid item xs={12} sm={6} sx={{ order: { xs: 3, sm: 2 }, mt: { xs: 1, sm: 0 } }}>
+                {dayData.isClosed ? (
+                  <Box sx={{ bgcolor: 'error.light', borderRadius: 1, p: 0.5, textAlign: 'center' }}>
+                   <Typography variant="caption" color="common.white" fontWeight={600}>
+                    Closed
+                   </Typography>
+                  </Box>
+                ) : dayData.is24Hours ? (
+                  <Box sx={{ bgcolor: 'success.light', borderRadius: 1, p: 0.5, textAlign: 'center' }}>
+                  <Typography variant="caption" color="common.white" fontWeight={600}>
+                    24 Hours
+                  </Typography>
+                  </Box>
+                ) : (
+                  <Grid container spacing={1}>
+                    <Grid item xs={6}>
+                      <TextField
+                        type="time"
+                        size="small"
+                        fullWidth
+                        value={dayData.openTime}
+                        onChange={(e) => handleTimeChange(index, 'openTime', e.target.value)}
+                        label="Open"
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                          '& .MuiInputBase-root': {
+                            height: 36,
+                            fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        type="time"
+                        size="small"
+                        fullWidth
+                        value={dayData.closeTime}
+                        onChange={(e) => handleTimeChange(index, 'closeTime', e.target.value)}
+                        label="Close"
+                        InputLabelProps={{ shrink: true }}
+                        sx={{
+                          '& .MuiInputBase-root': {
+                            height: 36,
+                            fontSize: { xs: '0.8rem', sm: '0.875rem' }
+                          }
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+                )}
               </Grid>
             </Grid>
           </Paper>

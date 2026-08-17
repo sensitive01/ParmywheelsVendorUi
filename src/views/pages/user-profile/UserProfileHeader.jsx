@@ -130,18 +130,17 @@ const UserProfileHeader = () => {
               )}
             </div>
           </div>
+          <Button
+            variant='contained'
+            color='error'
+            size='small'
+            endIcon={<i className='ri-pencil-line' />}
+            onClick={e => handleClickUrl(e, '/pages/account-settings')}
+            sx={{ flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
+          >
+            Edit Profile
+          </Button>
         </div>
-        <Button
-          fullWidth
-          variant='contained'
-          color='error'
-          size='small'
-          endIcon={<i className='ri-pencil-line' />}
-          onClick={e => handleClickUrl(e, '/pages/account-settings')}
-          style={{ width: '10%' }}
-        >
-          Edit Profile
-        </Button>
       </CardContent>
     </Card>
   )

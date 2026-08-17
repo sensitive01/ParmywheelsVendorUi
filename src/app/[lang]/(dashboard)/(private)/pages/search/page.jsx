@@ -57,7 +57,7 @@ const VendorSearchScreen = () => {
         // Filter and map only the required fields
         const filteredBookings = result.bookings
           .filter(booking => ["pending", "approved", "cancelled", "parked", "completed"]
-            .includes(booking.status.toLowerCase()))
+            .includes((booking.status || '').toLowerCase()))
           .map(booking => ({
             sts: booking.sts,
             parkingDate: booking.parkingDate,
@@ -193,8 +193,8 @@ const VendorSearchScreen = () => {
                       {booking.vehicleNumber || 'N/A'}
                     </Typography>
                     <Typography sx={{ 
-                      color: booking.status.toLowerCase() === 'cancelled' ? 'error.main' : 
-                            booking.status.toLowerCase() === 'completed' ? 'success.main' : '#329a73', 
+                      color: (booking.status || '').toLowerCase() === 'cancelled' ? 'error.main' : 
+                            (booking.status || '').toLowerCase() === 'completed' ? 'success.main' : '#329a73', 
                       fontWeight: 'bold' 
                     }}>
                       {booking.status}
@@ -203,7 +203,7 @@ const VendorSearchScreen = () => {
                   
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <Box sx={{ 
-                      bgcolor: booking.status.toLowerCase() === 'cancelled' ? 'error.main' : '#329a73',
+                      bgcolor: (booking.status || '').toLowerCase() === 'cancelled' ? 'error.main' : '#329a73',
                       color: 'white',
                       borderRadius: '4px',
                       p: '4px 8px',

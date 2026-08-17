@@ -546,13 +546,23 @@ const VendorPayOuts = () => {
             </Card>
           </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: 2,
+              mb: 3
+            }}
+          >
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'nowrap', width: { xs: '100%', sm: 'auto' } }}>
               <Button
                 variant='outlined'
                 startIcon={<CalendarMonthIcon />}
                 onClick={() => setDateDialogOpen(true)}
                 sx={{
+                  flex: { xs: 1, sm: 'none' },
                   borderColor: '#329a73',
                   color: '#329a73',
                   '&:hover': {
@@ -567,6 +577,7 @@ const VendorPayOuts = () => {
                 variant='contained'
                 onClick={handleDownloadClick}
                 sx={{
+                  flex: { xs: 1, sm: 'none' },
                   backgroundColor: '#329a73',
                   '&:hover': {
                     backgroundColor: '#2a8a66'
@@ -581,7 +592,8 @@ const VendorPayOuts = () => {
                 bgcolor: '#f0f8ff',
                 padding: '8px 16px',
                 borderRadius: 1,
-                border: '1px solid #e0e0e0'
+                border: '1px solid #e0e0e0',
+                textAlign: 'center'
               }}
             >
               <Typography variant='body2' fontWeight='medium' color='#1976d2'>

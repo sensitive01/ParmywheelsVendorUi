@@ -1373,7 +1373,7 @@ const UserBookings = () => {
 
               {/* Action Buttons */}
               <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-                <FormControl size="small" sx={{ minWidth: 200 }}>
+                <FormControl size="small" sx={{ minWidth: 200, width: { xs: '100%', sm: 'auto' } }}>
                   <InputLabel id="status-select-label">Status Filter</InputLabel>
                   <Select
                     labelId="status-select-label"
@@ -1441,26 +1441,28 @@ const UserBookings = () => {
                   </Select>
                 </FormControl>
 
-                <Button
-                  variant='outlined'
-                  color="secondary"
-                  startIcon={<CalendarMonthIcon />}
-                  onClick={() => setDateDialogOpen(true)}
-                  size='small'
-                  sx={{ borderRadius: '8px', textTransform: 'none', px: 2, py: 1 }}
-                >
-                  Filter Dates
-                </Button>
-                <Button
-                  variant='outlined'
-                  color="secondary"
-                  onClick={handleDownloadClick}
-                  size='small'
-                  sx={{ borderRadius: '8px', textTransform: 'none', px: 2, py: 1 }}
-                  startIcon={<i className="ri-download-line" />}
-                >
-                  Download Report
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'nowrap', width: { xs: '100%', sm: 'auto' } }}>
+                  <Button
+                    variant='outlined'
+                    color="secondary"
+                    startIcon={<CalendarMonthIcon />}
+                    onClick={() => setDateDialogOpen(true)}
+                    size='small'
+                    sx={{ flex: { xs: 1, sm: 'none' }, borderRadius: '8px', textTransform: 'none', px: 2, py: 1 }}
+                  >
+                    Filter Dates
+                  </Button>
+                  <Button
+                    variant='outlined'
+                    color="secondary"
+                    onClick={handleDownloadClick}
+                    size='small'
+                    sx={{ flex: { xs: 1, sm: 'none' }, borderRadius: '8px', textTransform: 'none', px: 2, py: 1 }}
+                    startIcon={<i className="ri-download-line" />}
+                  >
+                    Download Report
+                  </Button>
+                </Box>
                 <Menu anchorEl={anchorEl} open={open} onClose={handleDownloadClose}>
                   <MenuItem onClick={exportToExcel}>Export to Excel</MenuItem>
                   <MenuItem onClick={exportToPDF}>Export to PDF</MenuItem>

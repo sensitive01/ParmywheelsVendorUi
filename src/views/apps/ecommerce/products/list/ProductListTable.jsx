@@ -1446,12 +1446,13 @@ const OrderListTable = ({ orderData }) => {
 
         {/* Status Tabs and Action Buttons */}
         <div className='flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4'>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', flex: 1 }}>
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', flex: 1, maxWidth: '100%' }}>
             <Tabs
               value={statusFilter}
               onChange={(e, newValue) => setStatusFilter(newValue)}
               variant='scrollable'
               scrollButtons='auto'
+              allowScrollButtonsMobile
               aria-label='booking status tabs'
             >
               <Tab label='Pending' value='pending' />

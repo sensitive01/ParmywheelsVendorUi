@@ -104,9 +104,15 @@ const VendorHelpAndSupport = () => {
       setHelpRequests(Array.isArray(requests) ? requests : [])
       setError(null)
     } catch (error) {
-      console.error('Error fetching help requests:', error)
-      setError('Failed to load help requests')
-      setHelpRequests([])
+      if (error.response && error.response.status === 404) {
+        // 404 means no help requests exist yet for this vendor, which is fine
+        setHelpRequests([])
+        setError(null)
+      } else {
+        console.error('Error fetching help requests:', error)
+        setError('Failed to load help requests')
+        setHelpRequests([])
+      }
     } finally {
       setLoading(false)
     }

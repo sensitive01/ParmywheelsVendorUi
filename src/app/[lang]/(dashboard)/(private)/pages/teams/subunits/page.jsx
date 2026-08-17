@@ -203,8 +203,17 @@ export default function SubunitsPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Box>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'stretch', sm: 'center' }, 
+          gap: 2,
+          mb: 4 
+        }}
+      >
+        <Box sx={{ mb: { xs: 1, sm: 0 } }}>
           <Typography variant="h4" component="h1" fontWeight="bold" color="text.primary" gutterBottom>
             Team Subunits
           </Typography>
@@ -216,7 +225,12 @@ export default function SubunitsPage() {
           variant="contained"
           startIcon={<i className="ri-add-line" style={{ fontSize: '18px' }} />}
           onClick={handleOpenDialog}
-          sx={{ textTransform: 'none', px: 3, borderRadius: '8px' }}
+          sx={{ 
+            textTransform: 'none', 
+            px: 3, 
+            borderRadius: '8px',
+            flexShrink: 0
+          }}
         >
           Add Subunit
         </Button>
