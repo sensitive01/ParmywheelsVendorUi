@@ -200,9 +200,13 @@ const UserBookings = () => {
       if (!item.parkingDate || item.parkingDate === 'N/A') return false
       try {
         const [day, month, year] = item.parkingDate.split('-')
-        const transactionDate = new Date(`${year}-${month}-${day}`)
-        const start = new Date(startDate)
-        const end = new Date(endDate)
+        const transactionDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+        
+        const [sY, sM, sD] = startDate.split('-')
+        const start = new Date(parseInt(sY), parseInt(sM) - 1, parseInt(sD))
+        
+        const [eY, eM, eD] = endDate.split('-')
+        const end = new Date(parseInt(eY), parseInt(eM) - 1, parseInt(eD))
 
         transactionDate.setHours(0, 0, 0, 0)
         start.setHours(0, 0, 0, 0)
@@ -274,6 +278,19 @@ const UserBookings = () => {
     }
 
     try {
+      // Fetch bookings for main vendor and all subunits for client-side field lookup
+      const idsToFetch = [userId, ...subunits.filter(s => s && s.id).map(s => s.id)]
+      const fetchPromises = idsToFetch.map(id => 
+        axios.get(`${API_URL}/vendor/fetchbookingsbyvendorid/${id}`).catch(() => null)
+      )
+      const results = await Promise.all(fetchPromises)
+      const bookingsList = []
+      results.forEach(res => {
+        if (res?.data?.bookings) {
+          bookingsList.push(...res.data.bookings)
+        }
+      })
+
       const params = {}
 
       const hasMain = selectedSubunits.includes('main')
@@ -403,6 +420,45 @@ const UserBookings = () => {
             }
           }
 
+          // Look up full booking details from bookingsList
+          const matchedBooking = bookingsList.find(b => 
+            (b.invoiceid && item.invoiceid && String(b.invoiceid) === String(item.invoiceid)) ||
+            (b._id && (item.bookingId || item._id) && String(b._id) === String(item.bookingId || item._id))
+          )
+
+          const status = (item.status || 'PENDING').toUpperCase();
+          const parkingType = (() => {
+            if (!matchedBooking) return 'N/A';
+            const stsLower = String(matchedBooking.sts || '').toLowerCase();
+            if (stsLower.includes('12hr') || stsLower.includes('12 hour')) return '12 hour pass';
+            if (stsLower.includes('24hr') || stsLower.includes('24 hour')) return '24 hour pass';
+            if (stsLower.includes('48hr') || stsLower.includes('48 hour')) return '48 hour pass';
+            if (stsLower.includes('72hr') || stsLower.includes('72 hour')) return '72 hour pass';
+            if (stsLower.includes('weekly')) return 'Weekly pass';
+            if (stsLower.includes('monthly') || stsLower.includes('subscription')) {
+              return matchedBooking.subsctiptiontype || matchedBooking.subscriptionType || 'Subscription';
+            }
+            return matchedBooking.bookType || matchedBooking.bookingType || 'Hourly';
+          })();
+
+          let bookingAmount = item.amount;
+          let handlingFee = item.handlingfee === 'NaN' ? '0.00' : item.handlingfee;
+          let releaseFee = item.releasefee === 'NaN' ? '0.00' : item.releasefee;
+          let receivable = item.recievableamount === 'NaN' ? item.amount : item.recievableamount;
+          let payableAmount = item.payableamout === 'NaN' ? item.amount : item.payableamout;
+          let gstAmount = item.gstamout || '0.00';
+          let totalAmount = item.totalamout || item.amount;
+
+          if (status !== 'COMPLETED' && (parkingType === 'Hourly' || parkingType === 'N/A')) {
+            bookingAmount = 0;
+            handlingFee = '0.00';
+            releaseFee = '0.00';
+            receivable = 0;
+            payableAmount = 0;
+            gstAmount = '0.00';
+            totalAmount = 0;
+          }
+
           return {
             id: item._id,
             realBookingId: item.bookingId || item._id,
@@ -415,19 +471,21 @@ const UserBookings = () => {
             bookingDate: item.bookingDate || 'N/A',
             parkingDate: item.parkingDate || 'N/A',
             parkingTime: item.parkingTime || 'N/A',
-            bookingAmount: `₹${item.amount}`,
-            handlingFee: `₹${item.handlingfee === 'NaN' ? '0.00' : item.handlingfee}`,
-            releaseFee: `₹${item.releasefee === 'NaN' ? '0.00' : item.releasefee}`,
-            receivable: `₹${item.recievableamount === 'NaN' ? item.amount : item.recievableamount}`,
-            payableAmount: `₹${item.payableamout === 'NaN' ? item.amount : item.payableamout}`,
+            bookingAmount: `₹${bookingAmount}`,
+            handlingFee: `₹${handlingFee}`,
+            releaseFee: `₹${releaseFee}`,
+            receivable: `₹${receivable}`,
+            payableAmount: `₹${payableAmount}`,
             vehicleNumber: item.vehicleNumber || item.vehiclenumber || 'N/A',
-            gstAmount: `₹${item.gstamout || '0.00'}`,
-            totalAmount: `₹${item.totalamout || item.amount}`,
-            status: (item.status || 'PENDING').toUpperCase(),
+            gstAmount: `₹${gstAmount}`,
+            totalAmount: `₹${totalAmount}`,
+            status,
             subunitName: getSubunitName(item.vendorid || item.vendorId || userId),
             exitDate: exDate,
             exitTime: exTime,
-            duration: dur || '-'
+            duration: dur || '-',
+            parkingType,
+            paymentMode: matchedBooking ? (matchedBooking.paymentMode || 'N/A') : 'N/A'
           };
         })
 
@@ -592,20 +650,22 @@ const UserBookings = () => {
       return parseFloat(val.toString().replace(/[₹\s,]/g, '')) || 0
     }
 
-    // 1. Grouping by Subunit and Status for Summary
-    const grouping = {} // { [subunit]: { [status]: { count, amount } } }
+    // 1. Grouping by Date, Subunit and Status for Summary
+    const grouping = {} // { [date]: { [subunit]: { [status]: { count, amount } } } }
     let grandTotalCount = 0
     let grandTotalAmount = 0
 
     filteredTransactions.forEach(t => {
+      const date = t.parkingDate || 'N/A'
       const sub = t.subunitName || 'Main Location'
       const status = t.status || 'PENDING'
       const amount = cleanAmount(t.totalAmount)
 
-      if (!grouping[sub]) grouping[sub] = {}
-      if (!grouping[sub][status]) grouping[sub][status] = { count: 0, amount: 0 }
-      grouping[sub][status].count += 1
-      grouping[sub][status].amount += amount
+      if (!grouping[date]) grouping[date] = {}
+      if (!grouping[date][sub]) grouping[date][sub] = {}
+      if (!grouping[date][sub][status]) grouping[date][sub][status] = { count: 0, amount: 0 }
+      grouping[date][sub][status].count += 1
+      grouping[date][sub][status].amount += amount
 
       grandTotalCount += 1
       grandTotalAmount += amount
@@ -617,21 +677,59 @@ const UserBookings = () => {
       [
         { value: 'Subunit/Location', type: 'String', styleId: 'Header' },
         { value: 'Status', type: 'String', styleId: 'Header' },
+        { value: 'Date Filter', type: 'String', styleId: 'Header' },
         { value: 'Total Bookings (Completed/Other)', type: 'String', styleId: 'Header' },
         { value: 'Total Amount', type: 'String', styleId: 'Header' }
       ]
     ]
 
-    Object.keys(grouping).forEach(sub => {
-      Object.keys(grouping[sub]).forEach(status => {
-        const item = grouping[sub][status]
+    // Sort dates chronologically
+    const parseDateString = dateStr => {
+      if (!dateStr || dateStr === 'N/A') return null
+      try {
+        const parts = dateStr.split('-')
 
-        summaryRows.push([
-          { value: sub, type: 'String' },
-          { value: status, type: 'String' },
-          { value: item.count, type: 'Number' },
-          { value: item.amount.toFixed(2), type: 'Number' }
-        ])
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            // YYYY-MM-DD
+            return new Date(parts[0], parts[1] - 1, parts[2])
+          } else if (parts[2].length === 4) {
+            // DD-MM-YYYY
+            return new Date(parts[2], parts[1] - 1, parts[0])
+          }
+        }
+
+        const d = new Date(dateStr)
+
+        return isNaN(d.getTime()) ? null : d
+      } catch (e) {
+        return null
+      }
+    }
+
+    const sortedDates = Object.keys(grouping).sort((a, b) => {
+      const dateA = parseDateString(a)
+      const dateB = parseDateString(b)
+
+      if (!dateA) return 1
+      if (!dateB) return -1
+
+      return dateA - dateB
+    })
+
+    sortedDates.forEach(date => {
+      Object.keys(grouping[date]).forEach(sub => {
+        Object.keys(grouping[date][sub]).forEach(status => {
+          const item = grouping[date][sub][status]
+
+          summaryRows.push([
+            { value: sub, type: 'String' },
+            { value: status, type: 'String' },
+            { value: date, type: 'String' },
+            { value: item.count, type: 'Number' },
+            { value: item.amount.toFixed(2), type: 'Number' }
+          ])
+        })
       })
     })
 
@@ -639,8 +737,9 @@ const UserBookings = () => {
     summaryRows.push([
       { value: 'Grand Total', type: 'String', styleId: 'BoldText' },
       { value: '', type: 'String' },
-      { value: grandTotalCount, type: 'Number', styleId: 'BoldText' },
-      { value: grandTotalAmount.toFixed(2), type: 'Number', styleId: 'BoldText' }
+      { value: isDateFilterActive ? `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}` : 'All Time', type: 'String', styleId: 'BoldText' },
+      { value: grandTotalCount, type: 'Number', styleId: 'BoldText', formula: '=SUBTOTAL(9,R2C:R[-1]C)' },
+      { value: grandTotalAmount.toFixed(2), type: 'Number', styleId: 'BoldText', formula: '=SUBTOTAL(9,R2C:R[-1]C)' }
     ])
 
     const sheets = [
@@ -670,6 +769,10 @@ const UserBookings = () => {
       detailHeaders.push({ value: 'Exit Date', type: 'String', styleId: 'Header' })
       detailHeaders.push({ value: 'Exit Time', type: 'String', styleId: 'Header' })
       detailHeaders.push({ value: 'Duration', type: 'String', styleId: 'Header' })
+      detailHeaders.push({ value: 'Parking Type', type: 'String', styleId: 'Header' })
+      if (statusName === 'COMPLETED') {
+        detailHeaders.push({ value: 'Payment Mode', type: 'String', styleId: 'Header' })
+      }
 
       if (bookingTypeFilter === 'user') {
         detailHeaders.push({ value: 'GST Amount', type: 'String', styleId: 'Header' })
@@ -722,6 +825,10 @@ const UserBookings = () => {
         r.push({ value: t.exitDate, type: 'String' })
         r.push({ value: t.exitTime, type: 'String' })
         r.push({ value: t.duration, type: 'String' })
+        r.push({ value: t.parkingType || 'N/A', type: 'String' })
+        if (statusName === 'COMPLETED') {
+          r.push({ value: t.paymentMode || 'N/A', type: 'String' })
+        }
 
         if (bookingTypeFilter === 'user') {
           r.push({ value: gst.toFixed(2), type: 'Number' })
@@ -747,22 +854,26 @@ const UserBookings = () => {
         { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
         { value: '', type: 'String', styleId: 'SubHeader' },
-        { value: totalCharges.toFixed(2), type: 'Number', styleId: 'SubHeader' }
+        { value: totalCharges.toFixed(2), type: 'Number', styleId: 'SubHeader', formula: '=SUBTOTAL(9,R2C:R[-1]C)' }
       ]
 
       totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
       totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
       totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
+      if (statusName === 'COMPLETED') {
+        totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
+      }
+      totalRow.push({ value: '', type: 'String', styleId: 'SubHeader' })
 
       if (bookingTypeFilter === 'user') {
-        totalRow.push({ value: totalGst.toFixed(2), type: 'Number', styleId: 'SubHeader' })
-        totalRow.push({ value: totalHandling.toFixed(2), type: 'Number', styleId: 'SubHeader' })
+        totalRow.push({ value: totalGst.toFixed(2), type: 'Number', styleId: 'SubHeader', formula: '=SUBTOTAL(9,R2C:R[-1]C)' })
+        totalRow.push({ value: totalHandling.toFixed(2), type: 'Number', styleId: 'SubHeader', formula: '=SUBTOTAL(9,R2C:R[-1]C)' })
       }
 
       totalRow.push(
-        { value: `-${totalPlatform.toFixed(2)}`, type: 'Number', styleId: 'SubHeader' },
-        { value: totalReceivable.toFixed(2), type: 'Number', styleId: 'SubHeader' },
-        { value: totalAmount.toFixed(2), type: 'Number', styleId: 'SubHeader' }
+        { value: `-${totalPlatform.toFixed(2)}`, type: 'Number', styleId: 'SubHeader', formula: '=SUBTOTAL(9,R2C:R[-1]C)' },
+        { value: totalReceivable.toFixed(2), type: 'Number', styleId: 'SubHeader', formula: '=SUBTOTAL(9,R2C:R[-1]C)' },
+        { value: totalAmount.toFixed(2), type: 'Number', styleId: 'SubHeader', formula: '=SUBTOTAL(9,R2C:R[-1]C)' }
       )
 
       rows.push(totalRow)
@@ -812,8 +923,9 @@ const UserBookings = () => {
         row.forEach(cell => {
           const type = cell.type || 'String'
           const style = cell.styleId ? ` ss:StyleID="${cell.styleId}"` : ''
+          const formula = cell.formula ? ` ss:Formula="${cell.formula}"` : ''
 
-          xml += `<Cell${style}><Data ss:Type="${type}">${cell.value}</Data></Cell>`
+          xml += `<Cell${style}${formula}><Data ss:Type="${type}">${cell.value}</Data></Cell>`
         })
         xml += `</Row>`
       })
@@ -855,20 +967,22 @@ const UserBookings = () => {
       return parseFloat(val.toString().replace(/[₹\s,]/g, '')) || 0
     }
 
-    // 1. Grouping by Subunit and Status for Summary Table
-    const grouping = {} // { [subunit]: { [status]: { count, amount } } }
+    // 1. Grouping by Date, Subunit and Status for Summary Table
+    const grouping = {} // { [date]: { [subunit]: { [status]: { count, amount } } } }
     let grandTotalCount = 0
     let grandTotalAmount = 0
 
     filteredTransactions.forEach(t => {
+      const date = t.parkingDate || 'N/A'
       const sub = t.subunitName || 'Main Location'
       const status = t.status || 'PENDING'
       const amount = cleanAmount(t.totalAmount)
 
-      if (!grouping[sub]) grouping[sub] = {}
-      if (!grouping[sub][status]) grouping[sub][status] = { count: 0, amount: 0 }
-      grouping[sub][status].count += 1
-      grouping[sub][status].amount += amount
+      if (!grouping[date]) grouping[date] = {}
+      if (!grouping[date][sub]) grouping[date][sub] = {}
+      if (!grouping[date][sub][status]) grouping[date][sub][status] = { count: 0, amount: 0 }
+      grouping[date][sub][status].count += 1
+      grouping[date][sub][status].amount += amount
 
       grandTotalCount += 1
       grandTotalAmount += amount
@@ -882,6 +996,7 @@ const UserBookings = () => {
           <tr>
             <th>Subunit/Location</th>
             <th>Booking Status</th>
+            <th>Date Filter</th>
             <th style="text-align: right;">Total Bookings</th>
             <th style="text-align: right;">Total Amount</th>
           </tr>
@@ -889,18 +1004,55 @@ const UserBookings = () => {
         <tbody>
     `
 
-    Object.keys(grouping).forEach(sub => {
-      Object.keys(grouping[sub]).forEach(status => {
-        const item = grouping[sub][status]
+    // Sort dates chronologically
+    const parseDateString = dateStr => {
+      if (!dateStr || dateStr === 'N/A') return null
+      try {
+        const parts = dateStr.split('-')
 
-        summaryHtml += `
-          <tr>
-            <td>${sub}</td>
-            <td><span class="badge badge-${status.toLowerCase()}">${status}</span></td>
-            <td style="text-align: right;">${item.count}</td>
-            <td style="text-align: right;">₹${item.amount.toFixed(2)}</td>
-          </tr>
-        `
+        if (parts.length === 3) {
+          if (parts[0].length === 4) {
+            // YYYY-MM-DD
+            return new Date(parts[0], parts[1] - 1, parts[2])
+          } else if (parts[2].length === 4) {
+            // DD-MM-YYYY
+            return new Date(parts[2], parts[1] - 1, parts[0])
+          }
+        }
+
+        const d = new Date(dateStr)
+
+        return isNaN(d.getTime()) ? null : d
+      } catch (e) {
+        return null
+      }
+    }
+
+    const sortedDates = Object.keys(grouping).sort((a, b) => {
+      const dateA = parseDateString(a)
+      const dateB = parseDateString(b)
+
+      if (!dateA) return 1
+      if (!dateB) return -1
+
+      return dateA - dateB
+    })
+
+    sortedDates.forEach(date => {
+      Object.keys(grouping[date]).forEach(sub => {
+        Object.keys(grouping[date][sub]).forEach(status => {
+          const item = grouping[date][sub][status]
+
+          summaryHtml += `
+            <tr>
+              <td>${sub}</td>
+              <td><span class="badge badge-${status.toLowerCase()}">${status}</span></td>
+              <td>${date}</td>
+              <td style="text-align: right;">${item.count}</td>
+              <td style="text-align: right;">₹${item.amount.toFixed(2)}</td>
+            </tr>
+          `
+        })
       })
     })
 
@@ -908,6 +1060,7 @@ const UserBookings = () => {
           <tr class="total-row">
             <td>Grand Total</td>
             <td></td>
+            <td>${isDateFilterActive ? `${formatDateForDisplay(startDate)} to ${formatDateForDisplay(endDate)}` : 'All Time'}</td>
             <td style="text-align: right;">${grandTotalCount}</td>
             <td style="text-align: right;">₹${grandTotalAmount.toFixed(2)}</td>
           </tr>
@@ -944,6 +1097,8 @@ const UserBookings = () => {
               <th>Date / Time</th>
               <th style="text-align: right;">Charges</th>
               <th>Exit Date/Time</th><th>Duration</th>
+              <th>Parking Type</th>
+              ${statusName === 'COMPLETED' ? '<th>Payment Mode</th>' : ''}
               ${bookingTypeFilter === 'user' ? '<th style="text-align: right;">GST</th><th style="text-align: right;">Handling</th>' : ''}
               <th style="text-align: right;">Platform Fee</th>
               <th style="text-align: right;">Receivable</th>
@@ -979,6 +1134,8 @@ const UserBookings = () => {
             <td>${t.parkingDate} ${t.parkingTime}</td>
             <td style="text-align: right;">₹${charges.toFixed(2)}</td>
             <td>${t.exitDate} ${t.exitTime}</td><td>${t.duration}</td>
+            <td>${t.parkingType || 'N/A'}</td>
+            ${statusName === 'COMPLETED' ? `<td>${t.paymentMode || 'N/A'}</td>` : ''}
             ${bookingTypeFilter === 'user' ? `<td style="text-align: right;">₹${gst.toFixed(2)}</td><td style="text-align: right;">₹${handling.toFixed(2)}</td>` : ''}
             <td style="text-align: right; color: #ff4d49;">- ₹${platform.toFixed(2)}</td>
             <td style="text-align: right; color: #22c55e;">₹${receivable.toFixed(2)}</td>
@@ -996,8 +1153,12 @@ const UserBookings = () => {
               <td></td>
               <td></td>
               <td></td>
+              <td></td>
               <td style="text-align: right;">₹${totalCharges.toFixed(2)}</td>
-              <td></td><td></td>
+              <td></td>
+              <td></td>
+              <td></td>
+              ${statusName === 'COMPLETED' ? '<td></td>' : ''}
               ${bookingTypeFilter === 'user' ? `<td style="text-align: right;">₹${totalGst.toFixed(2)}</td><td style="text-align: right;">₹${totalHandling.toFixed(2)}</td>` : ''}
               <td style="text-align: right;">- ₹${totalPlatform.toFixed(2)}</td>
               <td style="text-align: right;">₹${totalReceivable.toFixed(2)}</td>

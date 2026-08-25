@@ -56,6 +56,11 @@ const VendorRequests = () => {
   // Search State
   const [searchQuery, setSearchQuery] = useState('')
 
+  // Date Filter State
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+
   // Modal States
   const [otpModalOpen, setOtpModalOpen] = useState(false)
   const [exitModalOpen, setExitModalOpen] = useState(false)
@@ -229,6 +234,92 @@ const VendorRequests = () => {
     fetchBookings()
   }
 
+  // Date Parsing Helpers
+  const parseDateString = dateStr => {
+    if (!dateStr || dateStr === 'N/A') return null
+    try {
+      const parts = dateStr.split('-')
+
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          return new Date(parts[0], parts[1] - 1, parts[2])
+        } else if (parts[2].length === 4) {
+          // DD-MM-YYYY
+          return new Date(parts[2], parts[1] - 1, parts[0])
+        }
+      }
+
+      const d = new Date(dateStr)
+
+      return isNaN(d.getTime()) ? null : d
+    } catch (e) {
+      return null
+    }
+  }
+
+  const getBookingDate = booking => {
+    return parseDateString(booking.parkingDate) || parseDateString(booking.bookingDate) || (booking.createdAt ? new Date(booking.createdAt) : null)
+  }
+
+  const getItemDateTime = item => {
+    if (!item) return 0
+
+    const dateStr = item.parkingDate || item.bookingDate || item.createdAt
+    const timeStr = item.parkingTime || item.bookingTime
+
+    if (!dateStr) return 0
+
+    try {
+      let year, month, day
+      const dateParts = String(dateStr).split('-')
+
+      if (dateParts[0].length === 4) {
+        // YYYY-MM-DD
+        year = parseInt(dateParts[0])
+        month = parseInt(dateParts[1])
+        day = parseInt(dateParts[2])
+      } else {
+        // DD-MM-YYYY
+        day = parseInt(dateParts[0])
+        month = parseInt(dateParts[1])
+        year = parseInt(dateParts[2])
+      }
+
+      let hours = 0
+      let minutes = 0
+
+      if (timeStr) {
+        const cleanedTime = String(timeStr).trim()
+        const ampmMatch = cleanedTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+
+        if (ampmMatch) {
+          hours = parseInt(ampmMatch[1], 10)
+          minutes = parseInt(ampmMatch[2], 10)
+
+          const ampm = ampmMatch[3]
+
+          if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) {
+            hours += 12
+          } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
+            hours = 0
+          }
+        } else if (cleanedTime.includes(':')) {
+          const parts = cleanedTime.split(':')
+
+          hours = parseInt(parts[0], 10) || 0
+          minutes = parseInt(parts[1], 10) || 0
+        }
+      }
+
+      return new Date(year, month - 1, day, hours, minutes).getTime()
+    } catch (e) {
+      const d = parseDateString(dateStr)
+
+      return d ? d.getTime() : 0
+    }
+  }
+
   // Filtering
   const getFilteredBookings = () => {
     let filtered = []
@@ -287,6 +378,28 @@ const VendorRequests = () => {
       )
     }
 
+    if (fromDate || toDate) {
+      const start = fromDate ? new Date(fromDate) : null
+      const end = toDate ? new Date(toDate) : null
+
+      if (start) start.setHours(0, 0, 0, 0)
+      if (end) end.setHours(23, 59, 59, 999)
+
+      filtered = filtered.filter(b => {
+        const bDate = getBookingDate(b)
+
+        if (!bDate) return false
+        bDate.setHours(0, 0, 0, 0)
+
+        if (start && bDate < start) return false
+        if (end && bDate > end) return false
+
+        return true
+      })
+    }
+
+    filtered.sort((a, b) => getItemDateTime(b) - getItemDateTime(a)) // Newest first
+
     return filtered
   }
 
@@ -298,9 +411,7 @@ const VendorRequests = () => {
       <Box
         sx={{
           display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: 'column',
           mb: 3,
           gap: 2,
           position: 'sticky',
@@ -311,33 +422,121 @@ const VendorRequests = () => {
           pt: 1
         }}
       >
-        <Typography variant='h5' fontWeight='bold' color='text.primary'>
-          Requests
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', md: 'auto' }, alignItems: 'center' }}>
-          <TextField
-            size='small'
-            placeholder='Search Vehicle, Mobile...'
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position='start'>
-                  <SearchIcon color='action' />
-                </InputAdornment>
-              )
-            }}
-            sx={{
-              bgcolor: 'white',
-              borderRadius: 1,
-              width: { xs: '100%', md: 350 },
-              '& .MuiOutlinedInput-root': { borderRadius: 3 }
-            }}
-          />
-          <IconButton sx={{ bgcolor: 'white', boxShadow: 2, borderRadius: 2, p: 1 }}>
-            <FilterListIcon color='primary' />
-          </IconButton>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 2,
+            width: '100%'
+          }}
+        >
+          <Typography variant='h5' fontWeight='bold' color='text.primary'>
+            Requests
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, width: { xs: '100%', md: 'auto' }, alignItems: 'center' }}>
+            <TextField
+              size='small'
+              placeholder='Search Vehicle, Mobile...'
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position='start'>
+                    <SearchIcon color='action' />
+                  </InputAdornment>
+                )
+              }}
+              sx={{
+                bgcolor: 'white',
+                borderRadius: 1,
+                width: { xs: '100%', md: 350 },
+                '& .MuiOutlinedInput-root': { borderRadius: 3 }
+              }}
+            />
+            <IconButton
+              onClick={() => setShowFilters(!showFilters)}
+              sx={{
+                bgcolor: fromDate || toDate ? 'primary.main' : (showFilters ? '#f0f0f0' : 'white'),
+                color: fromDate || toDate ? 'white' : 'primary.main',
+                boxShadow: 2,
+                borderRadius: 2,
+                p: 1,
+                '&:hover': {
+                  bgcolor: fromDate || toDate ? 'primary.dark' : '#e0e0e0'
+                }
+              }}
+            >
+              <FilterListIcon />
+            </IconButton>
+          </Box>
         </Box>
+
+        {/* Expandable Date Filters */}
+        {showFilters && (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 2,
+              alignItems: 'center',
+              bgcolor: '#f8f9fa',
+              p: 2,
+              borderRadius: 3,
+              border: '1px solid #eee',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+            }}
+          >
+            <TextField
+              label='From Date'
+              type='date'
+              size='small'
+              value={fromDate}
+              onChange={e => setFromDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                bgcolor: 'white',
+                borderRadius: 1,
+                width: { xs: '100%', sm: 200 },
+                '& .MuiOutlinedInput-root': { borderRadius: 3 }
+              }}
+            />
+            <TextField
+              label='To Date'
+              type='date'
+              size='small'
+              value={toDate}
+              onChange={e => setToDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                bgcolor: 'white',
+                borderRadius: 1,
+                width: { xs: '100%', sm: 200 },
+                '& .MuiOutlinedInput-root': { borderRadius: 3 }
+              }}
+            />
+            {(fromDate || toDate) && (
+              <Button
+                variant='outlined'
+                color='secondary'
+                onClick={() => {
+                  setFromDate('')
+                  setToDate('')
+                }}
+                size='small'
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  height: 38,
+                  width: { xs: '100%', sm: 'auto' }
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </Box>
+        )}
       </Box>
 
       {/* Tabs */}

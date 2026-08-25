@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
 import Grid from '@mui/material/Grid2'
-import { Typography, Button, Menu, MenuItem } from '@mui/material'
+import { Typography, Button, Menu, MenuItem, TextField } from '@mui/material'
 
 // Components Imports
 import { useSession } from 'next-auth/react'
@@ -41,12 +41,101 @@ const DashboardCRM = () => {
   const { lang: locale } = useParams()
 
   const [bookings, setBookings] = useState([])
+  const [allBookings, setAllBookings] = useState([])
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
   const [downloadAnchorEl, setDownloadAnchorEl] = useState(null)
   const downloadMenuOpen = Boolean(downloadAnchorEl)
 
+  // Date Parsing Helpers
+  const parseDateString = dateStr => {
+    if (!dateStr || dateStr === 'N/A') return null
+    try {
+      const parts = dateStr.split('-')
+
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          // YYYY-MM-DD
+          return new Date(parts[0], parts[1] - 1, parts[2])
+        } else if (parts[2].length === 4) {
+          // DD-MM-YYYY
+          return new Date(parts[2], parts[1] - 1, parts[0])
+        }
+      }
+
+      const d = new Date(dateStr)
+
+      return isNaN(d.getTime()) ? null : d
+    } catch (e) {
+      return null
+    }
+  }
+
+  const getBookingDate = booking => {
+    return parseDateString(booking.parkingDate) || parseDateString(booking.bookingDate) || (booking.createdAt ? new Date(booking.createdAt) : null)
+  }
+
+  const getItemDateTime = item => {
+    if (!item) return 0
+
+    const dateStr = item.parkingDate || item.bookingDate || item.createdAt
+    const timeStr = item.parkingTime || item.bookingTime
+
+    if (!dateStr) return 0
+
+    try {
+      let year, month, day
+      const dateParts = String(dateStr).split('-')
+
+      if (dateParts[0].length === 4) {
+        // YYYY-MM-DD
+        year = parseInt(dateParts[0])
+        month = parseInt(dateParts[1])
+        day = parseInt(dateParts[2])
+      } else {
+        // DD-MM-YYYY
+        day = parseInt(dateParts[0])
+        month = parseInt(dateParts[1])
+        year = parseInt(dateParts[2])
+      }
+
+      let hours = 0
+      let minutes = 0
+
+      if (timeStr) {
+        const cleanedTime = String(timeStr).trim()
+        const ampmMatch = cleanedTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
+
+        if (ampmMatch) {
+          hours = parseInt(ampmMatch[1], 10)
+          minutes = parseInt(ampmMatch[2], 10)
+
+          const ampm = ampmMatch[3]
+
+          if (ampm && ampm.toUpperCase() === 'PM' && hours < 12) {
+            hours += 12
+          } else if (ampm && ampm.toUpperCase() === 'AM' && hours === 12) {
+            hours = 0
+          }
+        } else if (cleanedTime.includes(':')) {
+          const parts = cleanedTime.split(':')
+
+          hours = parseInt(parts[0], 10) || 0
+          minutes = parseInt(parts[1], 10) || 0
+        }
+      }
+
+      return new Date(year, month - 1, day, hours, minutes).getTime()
+    } catch (e) {
+      const d = parseDateString(dateStr)
+
+      return d ? d.getTime() : 0
+    }
+  }
+
   // Fetch booking data
   useEffect(() => {
-    const fetchBookings = async () => {
+    const fetchAllBookings = async () => {
       if (!vendorId) {
         setLoading(false)
         return
@@ -54,7 +143,7 @@ const DashboardCRM = () => {
 
       try {
         const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid-fast/${vendorId}?dashboardStats=true`,
+          `${process.env.NEXT_PUBLIC_API_URL}/vendor/fetchbookingsbyvendorid/${vendorId}`,
           {
             headers: {
               'Cache-Control': 'no-cache',
@@ -63,17 +152,9 @@ const DashboardCRM = () => {
           }
         )
 
-        const data = response.data;
-        if (data && data.counts) {
-          setStatusCounts({
-            Pending: data.counts.pending || 0,
-            Approved: data.counts.approved || 0,
-            Cancelled: data.counts.cancelled || 0,
-            Parked: data.counts.parked || 0,
-            COMPLETED: data.counts.completed || 0,
-            Subscriptions: data.counts.subscriptions || 0
-          });
-          setTotalAmount(data.totalAmount || 0);
+        const data = response.data?.bookings || response.data?.data || (Array.isArray(response.data) ? response.data : [])
+        if (Array.isArray(data)) {
+          setAllBookings(data)
         }
       } catch (error) {
         console.error('Error fetching bookings:', error)
@@ -82,8 +163,71 @@ const DashboardCRM = () => {
       }
     }
 
-    fetchBookings()
+    fetchAllBookings()
   }, [vendorId])
+
+  // Recalculate dashboard statistics dynamically
+  useEffect(() => {
+    let filtered = [...allBookings]
+
+    if (fromDate || toDate) {
+      const start = fromDate ? new Date(fromDate) : null
+      const end = toDate ? new Date(toDate) : null
+
+      if (start) start.setHours(0, 0, 0, 0)
+      if (end) end.setHours(23, 59, 59, 999)
+
+      filtered = filtered.filter(b => {
+        const bDate = getBookingDate(b)
+
+        if (!bDate) return false
+        bDate.setHours(0, 0, 0, 0)
+
+        if (start && bDate < start) return false
+        if (end && bDate > end) return false
+
+        return true
+      })
+    }
+
+    const counts = {
+      Pending: 0,
+      COMPLETED: 0,
+      Approved: 0,
+      Cancelled: 0,
+      Parked: 0,
+      Subscriptions: 0
+    }
+    let totalAmt = 0
+
+    filtered.forEach(b => {
+      const status = (b.status || '').toString().trim().toUpperCase()
+      const isSub = (b.sts || '').toString().trim().toUpperCase() === 'SUBSCRIPTION'
+
+      if (isSub) {
+        counts.Subscriptions++
+      } else if (status === 'PENDING') {
+        counts.Pending++
+      } else if (status === 'APPROVED') {
+        counts.Approved++
+      } else if (status === 'CANCELLED') {
+        counts.Cancelled++
+      } else if (status === 'PARKED' || status === 'ON PARKING') {
+        counts.Parked++
+      } else if (status === 'COMPLETED') {
+        counts.COMPLETED++
+      }
+
+      const amt = parseFloat(b.amount) || 0
+      totalAmt += amt
+    })
+
+    filtered.sort((a, b) => getItemDateTime(b) - getItemDateTime(a)) // Newest first
+
+    setStatusCounts(counts)
+    setTotalAmount(totalAmt)
+    setBookings(filtered)
+  }, [allBookings, fromDate, toDate])
 
   const handleDownloadClick = event => setDownloadAnchorEl(event.currentTarget)
   const handleDownloadClose = () => setDownloadAnchorEl(null)
@@ -327,18 +471,69 @@ const DashboardCRM = () => {
     <Grid container spacing={6}>
       {/* Download Report Button */}
       <Grid size={{ xs: 12 }}>
-        <div className='flex items-center justify-end gap-2'>
-          <Button variant='contained' size='small' onClick={handleDownloadQR}>
-            <i className='ri-qr-code-line mr-2'></i> Download QR
-          </Button>
-          <Button variant='contained' size='small' onClick={handleDownloadClick}>
-            Download Report
-          </Button>
-          <Menu anchorEl={downloadAnchorEl} open={downloadMenuOpen} onClose={handleDownloadClose}>
-            <MenuItem onClick={exportSummaryToCSV}>Export Summary (matches tiles)</MenuItem>
-            <MenuItem onClick={exportXlsxByStatus}>Export XLSX by Status (multiple sheets)</MenuItem>
-            <MenuItem onClick={exportToCSV}>Export Detailed (all bookings)</MenuItem>
-          </Menu>
+        <div className='flex flex-wrap items-center justify-between gap-4'>
+          <Typography variant='h5' fontWeight='bold' color='text.primary'>
+            Dashboard
+          </Typography>
+          <div className='flex flex-wrap items-center gap-3'>
+            <TextField
+              label='From Date'
+              type='date'
+              size='small'
+              value={fromDate}
+              onChange={e => setFromDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                bgcolor: 'white',
+                borderRadius: 1,
+                width: 150,
+                '& .MuiOutlinedInput-root': { borderRadius: 2 }
+              }}
+            />
+            <TextField
+              label='To Date'
+              type='date'
+              size='small'
+              value={toDate}
+              onChange={e => setToDate(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              sx={{
+                bgcolor: 'white',
+                borderRadius: 1,
+                width: 150,
+                '& .MuiOutlinedInput-root': { borderRadius: 2 }
+              }}
+            />
+            {(fromDate || toDate) && (
+              <Button
+                variant='outlined'
+                color='secondary'
+                onClick={() => {
+                  setFromDate('')
+                  setToDate('')
+                }}
+                size='small'
+                sx={{
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  height: 38
+                }}
+              >
+                Clear
+              </Button>
+            )}
+            <Button variant='contained' size='small' onClick={handleDownloadQR}>
+              <i className='ri-qr-code-line mr-2'></i> Download QR
+            </Button>
+            <Button variant='contained' size='small' onClick={handleDownloadClick}>
+              Download Report
+            </Button>
+            <Menu anchorEl={downloadAnchorEl} open={downloadMenuOpen} onClose={handleDownloadClose}>
+              <MenuItem onClick={exportSummaryToCSV}>Export Summary (matches tiles)</MenuItem>
+              <MenuItem onClick={exportXlsxByStatus}>Export XLSX by Status (multiple sheets)</MenuItem>
+              <MenuItem onClick={exportToCSV}>Export Detailed (all bookings)</MenuItem>
+            </Menu>
+          </div>
         </div>
       </Grid>
 
