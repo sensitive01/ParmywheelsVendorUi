@@ -123,10 +123,11 @@ const PublicScannerPage = () => {
         if (token) setValetToken(token)
         if (plate) setPlateNumber(plate)
 
-        // Silent fetch to restore view if already parked
-        if (token && plate) {
-          fetchBookingDetails(token, plate, true)
-        }
+        // Do not auto-fetch to prevent jumping to the next page while the user is editing.
+        // User must explicitly click "FIND VEHICLE"
+        // if (token && plate) {
+        //   fetchBookingDetails(token, plate, true)
+        // }
       } catch (e) {
         console.error('Session restore failed', e)
       }
