@@ -1,0 +1,34 @@
+Subject: Disabled Auto-Fetch on "Get My Vehicle" Scan Page
+
+File Modified: 
+c:\Users\AJAY\Documents\ParkMyWheels\ParmywheelsVendorUi\src\app\[lang]\(blank-layout-pages)\pages\scan\[id]\page.jsx
+
+What was changed:
+Around line 126 in the initial `useEffect` (which runs on component mount), we commented out the automatic call to `fetchBookingDetails`.
+
+Before (Original Code):
+```javascript
+        // Silent fetch to restore view if already parked
+        if (token && plate) {
+          fetchBookingDetails(token, plate, true)
+        }
+```
+
+After (Updated Code):
+```javascript
+        // Do not auto-fetch to prevent jumping to the next page while the user is editing.
+        // if (token) setValetToken(token)
+        // if (plate) setPlateNumber(plate)
+
+        // Do not auto-fetch to prevent jumping to the next page while the user is editing.
+        // User must explicitly click "FIND VEHICLE"
+        // if (token && plate) {
+        //   fetchBookingDetails(token, plate, true)
+        // }
+```
+
+Why it was changed:
+The original code would check `localStorage` for a previously saved session. If it found one, it would pre-fill the form and silently trigger the background API request. The auto-fetch caused the page to jump while editing, and the pre-filling caused old data to show up when scanning a new QR code. Both lines have been commented out to ensure a fresh, blank form every time.
+
+How to revert:
+If you want to restore the old behavior where the system automatically skips the form if it remembers a previous session, simply uncomment all lines inside the `if (saved)` block in the `useEffect`.

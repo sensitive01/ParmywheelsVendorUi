@@ -114,24 +114,24 @@ const PublicScannerPage = () => {
   useEffect(() => {
     if (!vendorId) return
 
-    const saved = localStorage.getItem(`valet_session_${vendorId}`)
+    // const saved = localStorage.getItem(`valet_session_${vendorId}`)
 
-    if (saved) {
-      try {
-        const { token, plate } = JSON.parse(saved)
+    // if (saved) {
+    //   try {
+    //     const { token, plate } = JSON.parse(saved)
 
-        if (token) setValetToken(token)
-        if (plate) setPlateNumber(plate)
+    //     // if (token) setValetToken(token)
+    //     // if (plate) setPlateNumber(plate)
 
-        // Do not auto-fetch to prevent jumping to the next page while the user is editing.
-        // User must explicitly click "FIND VEHICLE"
-        // if (token && plate) {
-        //   fetchBookingDetails(token, plate, true)
-        // }
-      } catch (e) {
-        console.error('Session restore failed', e)
-      }
-    }
+    //     // Do not auto-fetch to prevent jumping to the next page while the user is editing.
+    //     // User must explicitly click "FIND VEHICLE"
+    //     // if (token && plate) {
+    //     //   fetchBookingDetails(token, plate, true)
+    //     // }
+    //   } catch (e) {
+    //     console.error('Session restore failed', e)
+    //   }
+    // }
   }, [vendorId])
 
   // Fetch Vendor Data periodically
